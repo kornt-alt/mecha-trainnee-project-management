@@ -1,0 +1,78 @@
+/* frontend/src/styles/tokens.css — ตัวแปรของธีมทั้งระบบอยู่ที่ไฟล์นี้ที่เดียว
+ *
+ * ⚠️ ต้องถูก import "หลัง" bootstrap.min.css เสมอ ไม่งั้นบล็อก override ข้างล่างแพ้
+ *    ลำดับที่ถูกต้องอยู่ใน frontend/src/index.js
+ *
+ * โทนสี: น้ำเงิน = โครง/หัวข้อ · แดง = ปัญหา/จุดเน้น · เขียว = เสร็จ/ผ่าน (ใช้น้อย)
+ * ห้ามใส่สีตรง ๆ ใน component — ใช้ var(--…) จากไฟล์นี้
+ */
+
+:root {
+  --ink: #0B1F3A;
+  --muted: #5B6B82;
+  --blue: #1B4FA0;
+  --blue-rgb: 27, 79, 160;
+  --blue-tint: #EAF0F9;
+  --red: #C42032;
+  --red-rgb: 196, 32, 50;
+  --green: #1F7A4D;
+  --green-rgb: 31, 122, 77;
+
+  --paper: #F7F8FA;
+  --surface: #FFFFFF;
+  --line: #D3D9E3;
+
+  --radius: 8px;
+  --font: 'Prompt', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  /* ── override ตัวแปรของ bootstrap ให้เข้าธีม ─────────────────────────── */
+  --bs-body-font-family: var(--font);
+  --bs-body-color: var(--ink);
+  --bs-body-bg: var(--paper);
+  --bs-primary: var(--blue);
+  --bs-primary-rgb: var(--blue-rgb);
+  --bs-danger: var(--red);
+  --bs-danger-rgb: var(--red-rgb);
+  --bs-success: var(--green);
+  --bs-success-rgb: var(--green-rgb);
+  --bs-border-color: var(--line);
+  --bs-link-color: var(--blue);
+  --bs-link-color-rgb: var(--blue-rgb);
+}
+
+/* ปุ่มของ bootstrap ใช้ตัวแปรของตัวเองต่อคลาส — ตัวแปร root ข้างบนไม่ไปถึง */
+.btn-primary {
+  --bs-btn-bg: var(--blue);
+  --bs-btn-border-color: var(--blue);
+  --bs-btn-hover-bg: #163F80;
+  --bs-btn-hover-border-color: #163F80;
+  --bs-btn-active-bg: #12356B;
+  --bs-btn-active-border-color: #12356B;
+  --bs-btn-disabled-bg: var(--blue);
+  --bs-btn-disabled-border-color: var(--blue);
+}
+
+.btn-outline-primary {
+  --bs-btn-color: var(--blue);
+  --bs-btn-border-color: var(--blue);
+  --bs-btn-hover-bg: var(--blue);
+  --bs-btn-hover-border-color: var(--blue);
+  --bs-btn-active-bg: var(--blue);
+  --bs-btn-active-border-color: var(--blue);
+}
+
+.btn-outline-danger {
+  --bs-btn-color: var(--red);
+  --bs-btn-border-color: var(--red);
+  --bs-btn-hover-bg: var(--red);
+  --bs-btn-hover-border-color: var(--red);
+  --bs-btn-active-bg: var(--red);
+  --bs-btn-active-border-color: var(--red);
+}
+
+.btn-danger {
+  --bs-btn-bg: var(--red);
+  --bs-btn-border-color: var(--red);
+  --bs-btn-hover-bg: #A41A2A;
+  --bs-btn-hover-border-color: #A41A2A;
+}
