@@ -3,4 +3,5 @@
 export const NAV = [
   { to: '/', label: 'หน้าแรก', end: true },
   { to: '/projects', label: 'โปรเจกต์' },
+  { to: '/about', label: 'เกี่ยวกับระบบ' },
 ];
