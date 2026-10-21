@@ -5,53 +5,800 @@ body {
   font-family: var(--font);
   background: var(--paper);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ── โครงหน้า: sidebar ซ้าย + เนื้อหา ─────────────────────────────────── */
+/* ── โครงสร้างหลัก (App Shell) ────────────────────────────────────────── */
 
 .app-shell {
   display: flex;
   min-height: 100vh;
+  background: var(--paper);
 }
 
 .app-sidebar {
-  width: 220px;
+  width: 240px;
   flex-shrink: 0;
   background: var(--surface);
   border-right: 1px solid var(--line);
-  padding: 20px 12px;
+  padding: 20px 14px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  z-index: 100;
 }
 
 .app-brand {
-  font-weight: 600;
-  color: var(--blue);
-  font-size: 1.1rem;
-  padding: 0 10px 16px;
+  padding: 4px 8px 16px;
+  margin-bottom: 16px;
   border-bottom: 1px solid var(--line);
-  margin-bottom: 12px;
+  color: var(--ink);
 }
 
-.app-nav a {
-  display: block;
-  padding: 8px 10px;
+.app-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--blue-tint);
+  border-radius: var(--radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.brand-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--blue);
+  letter-spacing: -0.2px;
+}
+
+.app-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-nav-link {
+  display: flex;
+  align-items: center;
+  padding: 9px 12px;
   border-radius: var(--radius);
   color: var(--ink);
   text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 400;
+  transition: all 0.15s ease-in-out;
 }
 
-.app-nav a:hover {
+.app-nav-link:hover {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.app-nav-link.active {
+  background: var(--blue) !important;
+  color: #FFFFFF !important;
+  font-weight: 500;
+  box-shadow: 0 2px 6px rgba(27, 79, 160, 0.2);
+}
+
+.app-nav-link.active .nav-icon {
+  color: #FFFFFF !important;
+}
+
+.nav-icon {
+  flex-shrink: 0;
+  color: var(--muted);
+  transition: color 0.15s ease-in-out;
+}
+
+.app-nav-link:hover .nav-icon {
+  color: var(--blue);
+}
+
+.app-sidebar-footer {
+  padding: 12px 8px 4px;
+  background: transparent;
+}
+
+.system-org {
+  font-size: 0.85rem;
+}
+
+.system-sub {
+  font-size: 0.75rem;
+}
+
+.version-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  background: #F1F5F9;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--muted);
+  font-family: monospace;
+}
+
+/* ── เมนูโปรไฟล์ผู้ใช้ด้านล่างแถบ Sidebar ──────────────────────────────── */
+
+.sidebar-profile-dropdown {
+  width: 100%;
+}
+
+.sidebar-profile-btn {
+  width: 100%;
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius) !important;
+  padding: 8px 10px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  color: var(--ink) !important;
+  box-shadow: none !important;
+  transition: all 0.15s ease-in-out;
+}
+
+.sidebar-profile-btn:hover,
+.sidebar-profile-btn:focus,
+.sidebar-profile-btn:active {
+  background: var(--blue-tint) !important;
+  border-color: var(--blue-tint) !important;
+}
+
+.sidebar-profile-btn::after {
+  margin-left: 6px !important;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.sidebar-profile-menu {
+  width: 100%;
+  min-width: 212px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  padding: 6px 0;
+  margin-bottom: 8px !important;
+}
+
+/* ── พื้นที่หลักและ Header ────────────────────────────────────────────── */
+
+.app-main-wrapper {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  height: 64px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 90;
+}
+
+.system-pill {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--paper);
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.header-clock-container {
+  position: relative;
+  display: inline-flex;
+}
+
+.header-clock-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.header-clock-btn:hover {
+  background: var(--blue-tint);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 2px 8px rgba(27, 79, 160, 0.1);
+}
+
+.header-clock-btn.active {
+  background: var(--blue-tint);
+  border-color: var(--blue);
+  color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(27, 79, 160, 0.15);
+}
+
+.clock-chevron {
+  color: var(--muted);
+  transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
+  margin-left: 2px;
+}
+
+.clock-chevron.rotate-180 {
+  transform: rotate(180deg);
+  color: var(--blue);
+}
+
+.clock-icon {
+  color: var(--blue);
+  transition: transform 0.2s ease;
+}
+
+.header-clock-btn:hover .clock-icon {
+  transform: scale(1.1);
+}
+
+.clock-divider {
+  color: var(--line-strong);
+  margin: 0 2px;
+}
+
+.clock-time {
+  font-weight: 600;
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── ปฏิทินแบบเต็ม (Calendar Dropdown) พร้อมแอนิเมชันนุ่มนวล ─────────────────── */
+
+@keyframes calendarSlideDownFade {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.96);
+    filter: blur(2px);
+  }
+  60% {
+    transform: translateY(2px) scale(1.005);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+.calendar-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 370px;
+  max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px -6px rgba(11, 31, 58, 0.14), 0 4px 16px rgba(11, 31, 58, 0.06);
+  z-index: 1060;
+  overflow: hidden;
+  animation: calendarSlideDownFade 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
+}
+
+/* ส่วนหัวนาฬิกาเรียลไทม์ด้านบนสุดของปฏิทิน */
+.calendar-clock-banner {
+  background: linear-gradient(135deg, #F0F4FA 0%, #FFFFFF 100%);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 16px 10px;
+}
+
+.live-clock-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--green);
+  display: inline-block;
+  box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.6);
+  animation: liveDotPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+@keyframes liveDotPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(31, 122, 77, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(31, 122, 77, 0);
+  }
+}
+
+.live-clock-digits {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-clock-unit {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.live-clock-tz {
+  font-size: 0.68rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.live-clock-subtext {
+  font-size: 0.78rem;
+  color: var(--ink);
+  font-weight: 500;
+}
+
+/* แถบนำทางเดือนและปี */
+.calendar-header-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.calendar-nav-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.calendar-nav-btn:hover {
+  background: var(--blue-tint);
+  border-color: var(--blue);
+  color: var(--blue);
+  transform: scale(1.08);
+}
+
+.calendar-month-title-wrap {
+  flex-grow: 1;
+  text-align: center;
+}
+
+.calendar-month-title-btn {
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--ink);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+}
+
+.calendar-month-title-btn:hover {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.calendar-year-be {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.calendar-year-ce {
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.calendar-today-btn {
+  background: var(--blue-tint);
+  color: var(--blue);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 9px;
+  border-radius: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s ease;
+}
+
+.calendar-today-btn:hover {
+  background: var(--blue);
+  color: #FFFFFF;
+}
+
+/* เมนูเลือกเดือน/ปีแบบเร็ว (Quick Selector) */
+.calendar-quick-selector {
+  background: #FAFBFD;
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+}
+
+.quick-months-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.quick-month-btn {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: 0.75rem;
+  padding: 6px 2px;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.14s ease;
+}
+
+.quick-month-btn:hover {
+  background: var(--blue-tint);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.quick-month-btn.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #FFFFFF;
+  font-weight: 600;
+}
+
+/* หัวตารางวันในสัปดาห์ (อา - ส) */
+.calendar-weekdays-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 8px 12px 4px;
+  text-align: center;
+}
+
+.calendar-weekday-cell {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+.calendar-weekday-cell.weekend-sun {
+  color: var(--red);
+}
+
+.calendar-weekday-cell.weekend-sat {
+  color: var(--blue);
+}
+
+/* ตารางวัน (Grid) */
+.calendar-days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 4px 12px 10px;
+}
+
+.calendar-day-btn {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  padding: 0;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.calendar-day-btn:hover {
+  background: var(--blue-tint);
+  color: var(--blue);
+  transform: scale(1.12);
+  z-index: 2;
+}
+
+.calendar-day-btn.other-month {
+  opacity: 0.32;
+}
+
+.calendar-day-btn.is-today {
+  border: 2px solid var(--blue);
+  color: var(--blue);
+  font-weight: 700;
+  background: rgba(27, 79, 160, 0.04);
+}
+
+.calendar-day-btn.is-selected {
+  background: var(--blue) !important;
+  color: #FFFFFF !important;
+  font-weight: 700;
+  border-color: var(--blue);
+  box-shadow: 0 3px 8px rgba(27, 79, 160, 0.32);
+  transform: scale(1.08);
+  z-index: 3;
+}
+
+.task-indicator-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-top: 1px;
+}
+
+.task-indicator-dot.dot-urgent {
+  background: var(--red);
+}
+
+.task-indicator-dot.dot-normal {
+  background: var(--blue);
+}
+
+.calendar-day-btn.is-selected .task-indicator-dot {
+  background: #FFFFFF;
+}
+
+/* แถบรายละเอียดวันที่เลือกด้านล่าง */
+.calendar-footer-panel {
+  background: #F8FAFC;
+  border-top: 1px solid var(--line);
+  padding: 10px 14px;
+}
+
+.selected-date-badge {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.today-chip {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: var(--green-tint);
+  color: var(--green);
+}
+
+.selected-today-link {
+  font-size: 0.72rem;
+  color: var(--blue);
+  font-weight: 500;
+}
+
+.selected-today-link:hover {
+  text-decoration: underline !important;
+}
+
+.selected-tasks-container {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.calendar-task-item {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 0.74rem;
+  transition: all 0.14s ease;
+}
+
+.calendar-task-item:hover {
+  border-color: var(--blue);
   background: var(--blue-tint);
 }
 
-.app-nav a.active {
-  background: var(--blue);
-  color: #fff;
+.calendar-task-title {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.calendar-task-project {
+  font-size: 0.68rem;
+  color: var(--muted);
+}
+
+.calendar-task-badge {
+  font-size: 0.66rem;
+  font-weight: 500;
+  padding: 2px 6px;
+  white-space: nowrap;
+}
+
+.no-tasks-state {
+  font-size: 0.74rem;
+}
+
+.header-icon-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 50% !important;
+  width: 38px;
+  height: 38px;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink) !important;
+}
+
+.header-icon-btn::after {
+  display: none !important;
+}
+
+.header-icon-btn:hover {
+  background: var(--blue-tint) !important;
+  color: var(--blue) !important;
+  border-color: var(--blue-tint) !important;
+}
+
+.notification-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: var(--red);
+  color: #FFFFFF;
+  border-radius: 10px;
+  padding: 1px 5px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  line-height: 1.2;
+  border: 2px solid var(--surface);
+}
+
+.notifications-menu {
+  width: 320px;
+  max-width: 90vw;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  padding: 0;
+  margin-top: 8px !important;
+}
+
+.notifications-header {
+  background: #FAFAFA;
+}
+
+.notifications-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  transition: background 0.15s;
+}
+
+.notification-item.unread {
+  background: #F8FAFC;
+}
+
+.notification-item:hover {
+  background: var(--blue-tint);
+}
+
+.notification-title {
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.notification-time {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.mark-read-btn {
+  font-size: 0.75rem;
+  color: var(--blue);
+}
+
+.user-profile-btn {
+  background: var(--surface) !important;
+  border: 1px solid var(--line) !important;
+  border-radius: 30px !important;
+  padding: 3px 12px 3px 4px !important;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink) !important;
+}
+
+.user-profile-btn::after {
+  margin-left: 4px !important;
+  color: var(--muted);
+}
+
+.user-profile-btn:hover {
+  background: var(--paper) !important;
+  border-color: var(--line-strong) !important;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--blue-tint);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.user-role {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.user-menu {
+  min-width: 200px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  padding: 6px 0;
+  margin-top: 8px !important;
+}
+
+.user-menu-header {
+  background: #FAFAFA;
 }
 
 .app-main {
+  padding: 24px 28px;
   flex: 1;
-  min-width: 0;
-  padding: 24px;
 }
 
 .page-title {
@@ -61,17 +808,345 @@ body {
   margin-bottom: 16px;
 }
 
-/* จอแคบ: sidebar ขึ้นไปอยู่บน */
-@media (max-width: 768px) {
-  .app-shell { flex-direction: column; }
-  .app-sidebar { width: auto; border-right: 0; border-bottom: 1px solid var(--line); padding: 12px; }
-  .app-nav { display: flex; gap: 4px; flex-wrap: wrap; }
-  .app-main { padding: 16px; }
+/* ── ส่วนต้อนรับ (Welcome Banner) ─────────────────────────────────────── */
+
+.welcome-banner {
+  background: linear-gradient(135deg, var(--blue) 0%, #153E7E 100%);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  color: #FFFFFF;
+  box-shadow: 0 4px 14px rgba(27, 79, 160, 0.15);
 }
 
-/* ── สีสถานะ project — ⚠️ ชื่อคลาสตาม key ใน PROJECT_STATUSES (utils/config.js) ──
- * ใช้คู่กับ .status-badge (ป้าย) หรือ .status-select (dropdown ในตาราง)
- * ⚠️ ใช้ background-color ไม่ใช่ background — shorthand ล้างลูกศรของ form-select ทิ้ง */
+.welcome-tag {
+  background: rgba(255, 255, 255, 0.18);
+  color: #FFFFFF;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.welcome-title {
+  font-weight: 600;
+  color: #FFFFFF;
+}
+
+.welcome-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.92rem;
+  line-height: 1.5;
+  max-width: 650px;
+}
+
+.welcome-stats-pill {
+  border-radius: var(--radius);
+  min-width: 190px;
+}
+
+.alert-sample-mode {
+  background-color: #F0F7FF;
+  border-color: #BFDBFE;
+  color: #1E40AF;
+}
+
+/* ── การ์ดสรุปข้อมูล (Summary Cards) ─────────────────────────────────── */
+
+.summary-card {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(11, 31, 58, 0.08) !important;
+}
+
+.summary-card-title {
+  color: var(--muted);
+}
+
+.summary-card-value {
+  font-size: 1.85rem;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.summary-card-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-icon-blue {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+
+.card-icon-amber {
+  background: var(--amber-tint);
+  color: var(--amber);
+}
+
+.card-icon-green {
+  background: var(--green-tint);
+  color: var(--green);
+}
+
+.card-icon-red {
+  background: var(--red-tint);
+  color: var(--red);
+}
+
+/* ── ตารางงานที่ยังไม่เสร็จ (Unfinished Tasks) ────────────────────────── */
+
+.unfinished-tasks-card {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface) !important;
+  overflow: hidden;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.filter-pill-btn {
+  font-size: 0.82rem;
+  padding: 4px 12px;
+  border-radius: 20px;
+  color: var(--muted) !important;
+  background: #F8FAFC;
+  border: 1px solid var(--line);
+  transition: all 0.15s ease;
+}
+
+.filter-pill-btn:hover {
+  background: var(--blue-tint);
+  color: var(--blue) !important;
+}
+
+.filter-nav .nav-link.active {
+  background: var(--blue) !important;
+  color: #FFFFFF !important;
+  border-color: var(--blue);
+}
+
+.task-table {
+  border-color: var(--line);
+}
+
+.table-header th {
+  background: #FAFAFA !important;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--line) !important;
+  padding: 12px 14px;
+}
+
+.task-row td {
+  padding: 12px 14px;
+}
+
+.task-row:hover {
+  background-color: #F8FAFD !important;
+}
+
+.task-title {
+  font-size: 0.92rem;
+}
+
+.task-progress-bar {
+  height: 6px;
+  background-color: #EEF2F6;
+  border-radius: 4px;
+}
+
+.btn-action-view {
+  font-size: 0.8rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+/* ── ป้ายสถานะและประเภทงาน (Badges / Pills) ───────────────────────────── */
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status-pill-blue {
+  background: var(--blue-tint);
+  color: var(--blue);
+  border: 1px solid #BFDBFE;
+}
+
+.status-pill-orange {
+  background: var(--amber-tint);
+  color: var(--amber);
+  border: 1px solid #FDE68A;
+}
+
+.status-pill-gray {
+  background: #F1F5F9;
+  color: var(--muted);
+  border: 1px solid #E2E8F0;
+}
+
+.status-pill-green {
+  background: var(--green-tint);
+  color: var(--green);
+  border: 1px solid #A7F3D0;
+}
+
+.category-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.category-frontend {
+  background: #EFF6FF;
+  color: #1D4ED8;
+  border: 1px solid #DBEAFE;
+}
+
+.category-backend {
+  background: #F5F3FF;
+  color: #6D28D9;
+  border: 1px solid #EDE9FE;
+}
+
+.category-testing {
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #D1FAE5;
+}
+
+.category-doc {
+  background: #FFFBEB;
+  color: #B45309;
+  border: 1px solid #FEF3C7;
+}
+
+.category-design {
+  background: #FDF2F8;
+  color: #BE185D;
+  border: 1px solid #FCE7F3;
+}
+
+.category-default {
+  background: #F8FAFC;
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+/* ── แผงด้านขวา (Right Panels) ────────────────────────────────────────── */
+
+.side-panel-card {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface) !important;
+}
+
+.panel-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.progress-ring-wrap {
+  position: relative;
+  display: inline-block;
+  margin: 0 auto;
+}
+
+.progress-ring-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.progress-number {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.status-indicator-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dot-blue { background: var(--blue); }
+.dot-orange { background: var(--amber); }
+.dot-gray { background: var(--muted); }
+.dot-green { background: var(--green); }
+
+/* Activity Timeline */
+.activity-item {
+  position: relative;
+}
+
+.activity-icon-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.activity-icon-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+  z-index: 2;
+}
+
+.activity-icon-dot.dot-green { background: var(--green-tint); border-color: #A7F3D0; }
+.activity-icon-dot.dot-blue { background: var(--blue-tint); border-color: #BFDBFE; }
+.activity-icon-dot.dot-orange { background: var(--red-tint); border-color: #FECACA; }
+
+.activity-line {
+  position: absolute;
+  top: 26px;
+  bottom: -12px;
+  width: 2px;
+  background: var(--line);
+  z-index: 1;
+}
+
+.activity-desc {
+  line-height: 1.4;
+}
+
+/* ── สีสถานะโปรเจกต์เดิม (คงความเข้ากันได้) ────────────────────────────── */
 
 .status-badge {
   display: inline-block;
@@ -87,13 +1162,74 @@ body {
   border-color: currentColor;
 }
 
-.status-planning    { color: var(--muted); }
+.status-planning    { color: var(--muted); background-color: #F8FAFC; }
 .status-in_progress { color: var(--blue); background-color: var(--blue-tint); }
-.status-on_hold     { color: var(--red); }
-.status-done        { color: var(--green); }
+.status-on_hold     { color: var(--red); background-color: var(--red-tint); }
+.status-done        { color: var(--green); background-color: var(--green-tint); }
 .status-cancelled   { color: var(--muted); text-decoration: line-through; }
 
 .text-overdue {
   color: var(--red);
   font-weight: 500;
+}
+
+/* ── Responsive Rules ─────────────────────────────────────────────────── */
+
+@media (max-width: 991px) {
+  .app-shell {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+  }
+
+  .app-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .app-sidebar-footer {
+    display: none;
+  }
+
+  .app-header {
+    padding: 0 16px;
+  }
+
+  .app-main {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .header-clock .clock-date,
+  .header-clock .clock-divider,
+  .header-clock-btn .clock-date,
+  .header-clock-btn .clock-divider {
+    display: none;
+  }
+
+  .calendar-dropdown-menu {
+    width: 320px;
+    right: -40px;
+  }
+
+  .system-pill {
+    display: none;
+  }
+
+  .welcome-banner {
+    padding: 18px 16px;
+  }
+
+  .task-table {
+    font-size: 0.85rem;
+  }
 }

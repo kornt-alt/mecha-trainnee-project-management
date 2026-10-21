@@ -12,18 +12,28 @@
   --muted: #5B6B82;
   --blue: #1B4FA0;
   --blue-rgb: 27, 79, 160;
+  --blue-hover: #153E7E;
   --blue-tint: #EAF0F9;
   --red: #C42032;
   --red-rgb: 196, 32, 50;
+  --red-tint: #FDE8E8;
   --green: #1F7A4D;
   --green-rgb: 31, 122, 77;
+  --green-tint: #DEF7EC;
+  --amber: #D97706;
+  --amber-tint: #FEF3C7;
 
   --paper: #F7F8FA;
   --surface: #FFFFFF;
-  --line: #D3D9E3;
+  --line: #E2E8F0;
+  --line-strong: #CBD5E1;
 
+  --radius-sm: 6px;
   --radius: 8px;
+  --radius-lg: 12px;
   --font: 'Prompt', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --shadow-subtle: 0 1px 3px rgba(11, 31, 58, 0.05), 0 1px 2px rgba(11, 31, 58, 0.03);
+  --shadow-card: 0 4px 12px rgba(11, 31, 58, 0.05);
 
   /* ── override ตัวแปรของ bootstrap ให้เข้าธีม ─────────────────────────── */
   --bs-body-font-family: var(--font);

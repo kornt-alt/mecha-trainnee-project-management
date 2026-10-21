@@ -1,4 +1,4 @@
-// frontend/src/components/Home.js — หน้าแรก (placeholder) + เช็คว่า backend / DB พร้อมหรือยัง
+// frontend/src/components/About.js — เกี่ยวกับระบบ
 import { Alert, Card } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useLoad } from '../utils/api';
@@ -21,8 +21,8 @@ export default function About() {
 
       <Card body>
         ระบบจัดการโปรเจกต์นี้ถูกพัฒนาขึ้นเพื่อช่วยให้ทีมงานสามารถจัดการและติดตามสถานะของโปรเจกต์ได้อย่างมีประสิทธิภาพ
+        — สามารถเข้าใช้งานได้ที่ <Link to="/">หน้าแรกแดชบอร์ด</Link> หรือ <Link to="/projects">จัดการโปรเจกต์</Link>
       </Card>
-      
     </>
   );
 }
