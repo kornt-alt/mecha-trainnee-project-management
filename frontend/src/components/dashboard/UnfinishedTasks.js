@@ -1,6 +1,6 @@
 // frontend/src/components/dashboard/UnfinishedTasks.js — ตารางงานที่ยังไม่เสร็จ (Unfinished Tasks)
 import React, { useState, useMemo } from 'react';
-import { Card, Table, Badge, ProgressBar, Button, Modal, Nav } from 'react-bootstrap';
+import { Card, Table, Badge, ProgressBar, Button, Modal, Nav, Form } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import {
   CalendarDays,
@@ -8,7 +8,8 @@ import {
   ArrowUpRight,
   CircleCheck,
   Folder,
-  UserRound
+  UserRound,
+  Search
 } from '../common/Icons';
 
 // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
@@ -19,21 +20,32 @@ const getTodayString = () => {
 
 export default function UnfinishedTasks({ tasks = [] }) {
   const [activeFilter, setActiveFilter] = useState('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const today = getTodayString();
 
   // จัดเรียงงาน: งานที่เลยกำหนด (overdue) ขึ้นก่อน ตามด้วยงานที่ใกล้กำหนดส่งที่สุด
+  // ลำดับการประมวลผล: 1) กรองตามสถานะ 2) กรองตามคำค้น (ชื่องาน/โปรเจกต์/รายละเอียด) 3) เรียงลำดับเดิม
+  const trimmedSearch = searchTerm.trim().toLowerCase();
   const sortedAndFilteredTasks = useMemo(() => {
     let list = [...tasks];
 
-    // กรองเฉพาะงานที่ยังไม่เสร็จสำหรับหน้านี้ (ยกเว้นผู้ใช้เลือกแท็บ filter อื่น)
+    // ขั้น 1: กรองเฉพาะงานที่ยังไม่เสร็จสำหรับหน้านี้ (ยกเว้นผู้ใช้เลือกแท็บ filter อื่น)
     if (activeFilter === 'all') {
       list = list.filter((t) => t.status !== 'completed');
     } else {
       list = list.filter((t) => t.status === activeFilter);
     }
 
-    // เรียงลำดับ: งานเลยกำหนด -> งานใกล้วันส่ง -> งานวันที่ไกลออกไป
+    // ขั้น 2: ค้นหาแบบ case-insensitive ใน title / projectName / description (ช่องที่ไม่มีค่าถือว่าเป็นข้อความว่าง)
+    if (trimmedSearch) {
+      list = list.filter((t) =>
+        [t.title, t.projectName, t.description]
+          .some((field) => (field || '').toLowerCase().includes(trimmedSearch))
+      );
+    }
+
+    // ขั้น 3: เรียงลำดับ: งานเลยกำหนด -> งานใกล้วันส่ง -> งานวันที่ไกลออกไป
     return list.sort((a, b) => {
       const isOverdueA = a.dueDate < today && a.status !== 'completed';
       const isOverdueB = b.dueDate < today && b.status !== 'completed';
@@ -43,7 +55,7 @@ export default function UnfinishedTasks({ tasks = [] }) {
 
       return (a.dueDate || '').localeCompare(b.dueDate || '');
     });
-  }, [tasks, activeFilter, today]);
+  }, [tasks, activeFilter, trimmedSearch, today]);
 
   // ฟังก์ชันจัดสีและข้อความของสถานะงาน
   const renderStatusBadge = (status) => {
@@ -131,6 +143,28 @@ export default function UnfinishedTasks({ tasks = [] }) {
             </div>
           </div>
 
+          {/* ช่องค้นหา: อยู่ระหว่างแถวหัวข้อกับแท็บ filter — ค้นได้ทั้งชื่องาน ชื่อโปรเจกต์ และรายละเอียด */}
+          <div className="task-search-wrap position-relative mt-3">
+            <Search size={15} className="task-search-icon text-muted" />
+            <Form.Control
+              type="search"
+              size="sm"
+              className="task-search-input"
+              placeholder="ค้นหาชื่องาน หรือโปรเจกต์..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="ค้นหางานที่ยังไม่เสร็จ"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                className="task-search-clear btn-close"
+                aria-label="ล้างคำค้นหา"
+                onClick={() => setSearchTerm('')}
+              />
+            )}
+          </div>
+
           {/* Filter Bar */}
           <Nav
             variant="pills"
@@ -155,18 +189,34 @@ export default function UnfinishedTasks({ tasks = [] }) {
 
         <Card.Body className="p-0">
           {sortedAndFilteredTasks.length === 0 ? (
-            <div className="text-center py-5 px-3">
-              <div className="empty-state-icon mx-auto mb-2 text-muted">
-                <CircleCheck size={36} color="var(--green)" />
+            /* แยก 2 กรณี: ค้นหาแล้วไม่เจอ (มีคำค้น) กับไม่มีงานค้างจริง ๆ (ไม่มีคำค้น) */
+            trimmedSearch ? (
+              <div className="unfinished-tasks-empty text-center px-3">
+                <div className="empty-state-icon mx-auto mb-2 text-muted">
+                  <Search size={36} color="var(--muted)" />
+                </div>
+                <h6 className="fw-semibold text-ink">ไม่พบงานที่ค้นหา</h6>
+                <p className="text-muted small mb-3">
+                  ไม่มีงานที่ตรงกับ "{searchTerm.trim()}" ในหมวดหมู่ที่เลือก ลองใช้คำค้นอื่นหรือล้างคำค้นหา
+                </p>
+                <Button variant="outline-primary" size="sm" onClick={() => setSearchTerm('')}>
+                  ล้างคำค้นหา
+                </Button>
               </div>
-              <h6 className="fw-semibold text-ink">ไม่มีงานค้างในหมวดหมู่นี้</h6>
-              <p className="text-muted small mb-3">ยอดเยี่ยมมาก งานทั้งหมดในส่วนนี้เสร็จสมบูรณ์แล้ว</p>
-              <Button as={Link} to="/projects" variant="outline-primary" size="sm">
-                ไปยังหน้าโปรเจกต์
-              </Button>
-            </div>
+            ) : (
+              <div className="unfinished-tasks-empty text-center px-3">
+                <div className="empty-state-icon mx-auto mb-2 text-muted">
+                  <CircleCheck size={36} color="var(--green)" />
+                </div>
+                <h6 className="fw-semibold text-ink">ไม่มีงานค้างในหมวดหมู่นี้</h6>
+                <p className="text-muted small mb-3">ยอดเยี่ยมมาก งานทั้งหมดในส่วนนี้เสร็จสมบูรณ์แล้ว</p>
+                <Button as={Link} to="/projects" variant="outline-primary" size="sm">
+                  ไปยังหน้าโปรเจกต์
+                </Button>
+              </div>
+            )
           ) : (
-            <div className="table-responsive">
+            <div className="table-responsive unfinished-tasks-scroll">
               <Table hover className="align-middle mb-0 task-table">
                 <thead className="table-header">
                   <tr>

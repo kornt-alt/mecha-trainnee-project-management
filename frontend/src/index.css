@@ -910,12 +910,82 @@ body {
   border-radius: var(--radius-lg) !important;
   background: var(--surface) !important;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* เดสก์ท็อป: การ์ดสูงคงที่ 600px ไม่ขยายตามจำนวนงาน — ลิสต์เลื่อนภายในแทน */
+@media (min-width: 992px) {
+  .unfinished-tasks-card {
+    height: 600px;
+  }
+}
+
+.unfinished-tasks-card > .card-header {
+  flex-shrink: 0;
+}
+
+.unfinished-tasks-card > .card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ตัวเลื่อนอยู่ที่ส่วนเนื้อหานี้ (ครอบทั้งตารางและ empty state) — header อยู่นอกจึงมองเห็นตลอด */
+.unfinished-tasks-card .unfinished-tasks-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.unfinished-tasks-card .unfinished-tasks-empty {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .section-title {
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--ink);
+}
+
+/* ช่องค้นหาในการ์ดงานที่ยังไม่เสร็จ — พื้นขาว เส้นขอบอ่อน ขอบมน และ focus สีน้ำเงินตามธีม */
+.task-search-wrap {
+  max-width: 420px;
+}
+
+.task-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.task-search-input {
+  padding-left: 34px;
+  padding-right: 32px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-size: 0.85rem;
+}
+
+.task-search-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 0.2rem rgba(var(--blue-rgb), 0.15);
+}
+
+.task-search-clear {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%) scale(0.75);
 }
 
 .filter-pill-btn {
@@ -1231,5 +1301,169 @@ body {
 
   .task-table {
     font-size: 0.85rem;
+  }
+}
+
+
+/* ── Dashboard: Project Status Donut Chart ─────────────────────────── */
+.donut-chart {
+  width: 150px;
+  height: 150px;
+}
+
+.donut-segment {
+  transition: stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease;
+}
+
+.donut-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.donut-total {
+  font-size: 1.75rem;
+  line-height: 1.1;
+}
+
+.donut-label {
+  font-size: 0.72rem;
+}
+
+.donut-legend .status-indicator-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Dashboard: Employee Workload Bar Chart ────────────────────────── */
+/* ความสูงคงที่ของการ์ดกราฟสองใบบนเดสก์ท็อป — สูงเท่ากันเสมอ
+   ไม่ว่าจะมีข้อมูล workload มาก น้อย หรือไม่มีเลย (ปรับค่าเดียวที่ --block-height)
+   กำหนดที่คอลัมน์ ไม่ใช่แถว เพราะการ์ดงานค้าง wrap ไปอีกบรรทัดของ flex row */
+.dashboard-blocks-row {
+  --block-height: 420px;
+}
+
+@media (min-width: 992px) {
+  .dashboard-blocks-row > .chart-col {
+    height: var(--block-height);
+  }
+}
+
+/* การ์ด Workload: header สูงตามธรรมชาติ body กินพื้นที่ที่เหลือทั้งหมด */
+.workload-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.workload-card > .card-header {
+  flex-shrink: 0;
+}
+
+.workload-card > .card-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.workload-period-pills {
+  background: var(--blue-tint);
+  border-radius: 999px;
+  padding: 3px;
+}
+
+.workload-period-btn {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 2px 10px;
+  border-radius: 999px;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.workload-period-btn:hover {
+  color: var(--blue);
+}
+
+.workload-period-btn.active {
+  background: var(--surface);
+  color: var(--blue);
+  font-weight: 600;
+  box-shadow: var(--shadow-subtle);
+}
+
+.workload-date-input {
+  max-width: 150px;
+  font-size: 0.8rem;
+}
+
+.workload-list {
+  /* สูงตามพื้นที่ body ที่เหลือ (flex) แล้ว scroll ภายใน — จำนวนพนักงานไม่กระทบความสูงการ์ด */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-right: 4px;
+}
+
+/* จอที่การ์ดเรียงซ้อนกัน: จำกัดความสูง list ไม่ให้ยาวเกินไป */
+@media (max-width: 991.98px) {
+  .workload-list {
+    max-height: 420px;
+  }
+}
+
+.workload-row {
+  display: grid;
+  grid-template-columns: 132px 1fr 58px;
+  align-items: center;
+  gap: 6px;
+}
+
+.workload-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workload-bar-track {
+  height: 10px;
+  background: var(--blue-tint);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.workload-bar {
+  height: 100%;
+  background: var(--blue);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.workload-bar-zero {
+  background: var(--line-strong);
+}
+
+.workload-value {
+  text-align: right;
+}
+
+@media (max-width: 768px) {
+  .workload-row {
+    grid-template-columns: 104px 1fr 58px;
+  }
+
+  .donut-chart,
+  .donut-chart svg {
+    width: 130px;
+    height: 130px;
   }
 }

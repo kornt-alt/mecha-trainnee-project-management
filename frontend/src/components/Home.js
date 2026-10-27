@@ -1,29 +1,28 @@
-// frontend/src/components/Home.js — หน้าแรก Dashboard ตามข้อกำหนด project-management-homepage-design.md
+// frontend/src/components/Home.js — หน้าแรก Dashboard แสดงสถานะระบบและรายการงานที่ยังไม่เสร็จ
 import React from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useLoad } from '../utils/api';
-import { CURRENT_USER, MOCK_TASKS, MOCK_ACTIVITIES, MOCK_PROJECTS_FALLBACK } from '../data/mockData';
-import SummaryCards from './dashboard/SummaryCards';
+import { CURRENT_USER, MOCK_TASKS, MOCK_PROJECTS_FALLBACK } from '../data/mockData';
 import UnfinishedTasks from './dashboard/UnfinishedTasks';
-import RightPanels from './dashboard/RightPanels';
+import SummaryCards from './dashboard/SummaryCards';
+import ProjectStatusChart from './dashboard/ProjectStatusChart';
+import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
 import { Info, CircleAlert, CircleCheck } from './common/Icons';
 
 export default function Home() {
   // 1. เรียก API ตรวจสอบสถานะ backend/DB และรายการโปรเจกต์จริง
   const { data: healthData, error: healthError, loading: healthLoading } = useLoad('/health');
-  const { data: apiProjects, error: projectsError, loading: projectsLoading } = useLoad('/projects');
+  const { data: projectsData, error: projectsError, loading: projectsLoading } = useLoad('/projects');
 
   // ตรวจสอบว่าระบบเชื่อมต่อ backend ได้หรือไม่
   const isBackendConnected = !healthError && healthData && healthData.status === 'ok';
   const isDbReady = isBackendConnected && healthData.db === 'up';
 
-  // ใช้ข้อมูลโปรเจกต์จริงถ้ามี หรือ fallback เป็น mock data ถ้ายังไม่รัน backend
-  const projectsList = (apiProjects && Array.isArray(apiProjects))
-    ? apiProjects
-    : MOCK_PROJECTS_FALLBACK;
-
   // รายการงาน (Tasks) จำลองสำหรับ Mecha Trainee Dashboard
   const tasks = MOCK_TASKS;
+
+  // รายการโปรเจกต์: ใช้ข้อมูลจาก API ถ้ามี ไม่เช่นนั้นใช้ชุดตัวอย่าง (ไม่ duplicate แหล่งข้อมูล)
+  const projects = Array.isArray(projectsData) && projectsData.length > 0 ? projectsData : MOCK_PROJECTS_FALLBACK;
 
   // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
   const d = new Date();
@@ -35,9 +34,7 @@ export default function Home() {
   const sevenDaysLater = `${sevenDaysLaterDate.getFullYear()}-${String(sevenDaysLaterDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLaterDate.getDate()).padStart(2, '0')}`;
 
   // คำนวณตัวเลขสำหรับสรุปข้อมูล
-  const totalProjects = projectsList.length;
   const unfinishedTasks = tasks.filter((t) => t.status !== 'completed');
-  const completedTasks = tasks.filter((t) => t.status === 'completed');
   const dueSoonTasks = tasks.filter((t) => {
     return t.status !== 'completed' && t.dueDate && t.dueDate >= today && t.dueDate <= sevenDaysLater;
   });
@@ -108,30 +105,26 @@ export default function Home() {
         </Alert>
       )}
 
-      {/* ── การ์ดสรุปข้อมูล 4 ช่อง (Summary Cards) ─────────────── */}
-      <SummaryCards
-        totalProjects={totalProjects}
-        unfinishedCount={unfinishedTasks.length}
-        completedCount={completedTasks.length}
-        dueSoonCount={dueSoonTasks.length}
-      />
+      {/* ── การ์ดสรุปโปรเจกต์ (Project Summary Cards) ─────────── */}
+      <SummaryCards projects={projects} />
 
-      {/* ── เนื้อหาหลัก: ตารางงานที่ยังไม่เสร็จ + แผงด้านขวา ──── */}
-      <Row className="g-4">
-        {/* คอลัมน์ซ้าย (Main Content): รายการงานที่ยังไม่เสร็จ */}
-        <Col xs={12} lg={8}>
+      {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
+      <Row className="g-4 dashboard-blocks-row">
+      {/* คอลัมน์ที่ 1 */}
+        <Col xl={4} lg={6} xs={12} className="chart-col"> {/* แนะนำ xs={12} เพื่อให้จอมือถือเต็มจอ */}
+          <ProjectStatusChart projects={projects} />
+        </Col>
+
+      {/* คอลัมน์ที่ 2 */}
+        <Col xl={8} lg={6} xs={12} className="chart-col">
+          <EmployeeWorkloadChart />
+        </Col>
+
+      {/* คอลัมน์ที่ 3 */}
+        <Col xl={8} lg={6} xs={12}>
           <UnfinishedTasks tasks={tasks} />
         </Col>
-
-        {/* คอลัมน์ขวา (Right Panels): ความคืบหน้า, กิจกรรมล่าสุด, โปรเจกต์ที่รับผิดชอบ */}
-        <Col xs={12} lg={4}>
-          <RightPanels
-            tasks={tasks}
-            projects={projectsList}
-            activities={MOCK_ACTIVITIES}
-          />
-        </Col>
-      </Row>
+    </Row>
     </div>
   );
 }

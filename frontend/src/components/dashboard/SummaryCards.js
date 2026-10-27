@@ -1,45 +1,74 @@
-// frontend/src/components/dashboard/SummaryCards.js — การ์ดสรุปข้อมูล 4 ช่อง
+// frontend/src/components/dashboard/SummaryCards.js — การ์ดสรุปโปรเจกต์ 4 ใบสำหรับ Dashboard
 import React from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
-import { Folder, CircleAlert, CircleCheck, CalendarDays } from '../common/Icons';
+import { FolderKanban, Clock, ClipboardCheck, CalendarClock } from '../common/Icons';
 
-export default function SummaryCards({ totalProjects, unfinishedCount, completedCount, dueSoonCount }) {
+// สถานะที่นับเป็น "กำลังทำ" และ "รอรีวิว" ตามสถานะโปรเจกต์ที่ระบบใช้อยู่
+const IN_PROGRESS_STATUSES = ['in_progress'];
+const REVIEW_STATUSES = ['pending_review', 'review'];
+// สถานะที่ตัดออกจากการนับ "ใกล้ถึงกำหนดส่ง" เพราะงานจบแล้วหรือยกเลิกแล้ว
+const CLOSED_STATUSES = ['completed', 'cancelled'];
+// เกณฑ์เตือนกำหนดส่ง: ภายใน 7 วันข้างหน้า (รวมวันนี้)
+const DEADLINE_THRESHOLD_DAYS = 7;
+
+function toDateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export default function SummaryCards({ projects = [] }) {
+  // วันนี้และวันสิ้นสุดเกณฑ์ 7 วันข้างหน้า (เทียบเป็น YYYY-MM-DD ตามเวลาเครื่อง)
+  const today = toDateKey(new Date());
+  const thresholdDate = new Date();
+  thresholdDate.setDate(thresholdDate.getDate() + DEADLINE_THRESHOLD_DAYS);
+  const deadlineLimit = toDateKey(thresholdDate);
+
+  // นับแต่ละมิติจากข้อมูลโปรเจกต์จริง (ไม่ hardcode ตัวเลข)
+  const totalProjects = projects.length;
+  const inProgressCount = projects.filter((p) => IN_PROGRESS_STATUSES.includes(p.status)).length;
+  const awaitingReviewCount = projects.filter((p) => REVIEW_STATUSES.includes(p.status)).length;
+  const dueSoonCount = projects.filter((p) => {
+    if (CLOSED_STATUSES.includes(p.status)) return false;
+    // ไม่มีกำหนดส่ง → ข้ามอย่างปลอดภัย
+    if (!p.dueDate) return false;
+    return p.dueDate >= today && p.dueDate <= deadlineLimit;
+  }).length;
+
   const cards = [
     {
-      id: 'projects',
+      id: 'total',
       title: 'โปรเจกต์ทั้งหมด',
       value: totalProjects,
-      description: 'โปรเจกต์ที่อยู่ระหว่างดำเนินการและวางแผน',
-      icon: Folder,
+      unit: 'โปรเจกต์',
+      description: 'โปรเจกต์ทั้งหมดที่บันทึกในระบบ',
+      icon: FolderKanban,
       colorClass: 'card-icon-blue',
-      badgeClass: 'badge-blue',
     },
     {
-      id: 'unfinished',
-      title: 'งานที่ยังไม่เสร็จ',
-      value: unfinishedCount,
-      description: 'งานที่กำลังทำและรอเริ่มทำ',
-      icon: CircleAlert,
+      id: 'in-progress',
+      title: 'โปรเจกต์ที่กำลังทำ',
+      value: inProgressCount,
+      unit: 'โปรเจกต์',
+      description: 'โปรเจกต์ที่อยู่ระหว่างดำเนินการ',
+      icon: Clock,
       colorClass: 'card-icon-amber',
-      badgeClass: 'badge-amber',
     },
     {
-      id: 'completed',
-      title: 'งานที่เสร็จแล้ว',
-      value: completedCount,
-      description: 'งานที่ส่งมอบและตรวจผ่านแล้ว',
-      icon: CircleCheck,
+      id: 'review',
+      title: 'โปรเจกต์ที่รอรีวิว',
+      value: awaitingReviewCount,
+      unit: 'โปรเจกต์',
+      description: 'โปรเจกต์ที่รอการตรวจสอบจากหัวหน้างาน',
+      icon: ClipboardCheck,
       colorClass: 'card-icon-green',
-      badgeClass: 'badge-green',
     },
     {
-      id: 'dueSoon',
-      title: 'ใกล้ถึงกำหนดส่ง',
+      id: 'due-soon',
+      title: 'โปรเจกต์ใกล้ถึงกำหนดส่ง',
       value: dueSoonCount,
-      description: 'งานที่ต้องส่งภายใน 7 วันข้างหน้า',
-      icon: CalendarDays,
-      colorClass: 'card-icon-red',
-      badgeClass: 'badge-red',
+      unit: 'โปรเจกต์',
+      description: `กำหนดส่งภายใน ${DEADLINE_THRESHOLD_DAYS} วันข้างหน้า`,
+      icon: CalendarClock,
+      colorClass: dueSoonCount > 0 ? 'card-icon-red' : 'card-icon-blue',
     },
   ];
 
@@ -59,8 +88,8 @@ export default function SummaryCards({ totalProjects, unfinishedCount, completed
                 </div>
 
                 <div className="d-flex align-items-baseline gap-2 mb-1">
-                  <span className="summary-card-value fw-bold">{c.value}</span>
-                  <span className="summary-card-unit text-muted small">รายการ</span>
+                  <span className="summary-card-value fw-bold text-ink">{c.value}</span>
+                  <span className="summary-card-unit text-muted small">{c.unit}</span>
                 </div>
 
                 <div className="summary-card-desc text-muted small text-truncate" title={c.description}>
