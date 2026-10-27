@@ -303,6 +303,24 @@ export const ArrowUpRight = createIcon(
   'ArrowUpRight'
 );
 
+// 24. Plus (เพิ่ม)
+export const Plus = createIcon(
+  <>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </>,
+  'Plus'
+);
+
+// 25. X (ปิด / ยกเลิก)
+export const X = createIcon(
+  <>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </>,
+  'X'
+);
+
 // Aliases for common icon naming conventions
 export const CheckCircle2 = CircleCheck;
 export const AlertCircle = CircleAlert;

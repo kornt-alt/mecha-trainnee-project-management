@@ -7,6 +7,7 @@ import UnfinishedTasks from './dashboard/UnfinishedTasks';
 import SummaryCards from './dashboard/SummaryCards';
 import ProjectStatusChart from './dashboard/ProjectStatusChart';
 import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
+import MonthlyProjectCostOverview from './dashboard/MonthlyProjectCostOverview';
 import { Info, CircleAlert, CircleCheck } from './common/Icons';
 
 export default function Home() {
@@ -107,6 +108,8 @@ export default function Home() {
 
       {/* ── การ์ดสรุปโปรเจกต์ (Project Summary Cards) ─────────── */}
       <SummaryCards projects={projects} />
+
+      <MonthlyProjectCostOverview projects={projects} />
 
       {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
       <Row className="g-4 dashboard-blocks-row">

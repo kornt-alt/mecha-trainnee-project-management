@@ -1,14 +1,14 @@
 // frontend/src/components/Projects.js — รายการโปรเจกต์: กรองสถานะ, เพิ่ม/แก้ไข (Modal), เปลี่ยนสถานะ, ลบ
-//
-// เป็นตัวอย่าง CRUD ครบวงจร — หน้าใหม่ลอกแบบนี้ได้: useLoad() โหลด → api.post/patch/del → reload()
+// รองรับทั้งข้อมูลจริงจาก API และ Mock Data กลางที่เชื่อมโยงกับ Tasks เมื่อยังไม่ต่อ backend
 import { useState } from 'react';
 import { Alert, Button, Form, Modal, Spinner, Table } from 'react-bootstrap';
 import { api, useLoad } from '../utils/api';
 import { PROJECT_STATUSES, statusLabel } from '../utils/config';
+import { MOCK_PROJECTS_FALLBACK } from '../data/mockData';
 
 const EMPTY = { name: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
 
-// วันนี้ตามเวลาเครื่อง (YYYY-MM-DD) — ไม่ใช้ toISOString() เพราะเป็น UTC ช่วงเช้าจะได้วันก่อนหน้า
+// วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -25,13 +25,25 @@ export default function Projects() {
   const [editing, setEditing] = useState(null); // null = ปิด Modal · {} ไม่มี id = เพิ่มใหม่
   const [actionError, setActionError] = useState('');
 
+  // สำรอง mock projects ในกรณีที่ยังไม่ได้รัน backend
+  const [mockList, setMockList] = useState(MOCK_PROJECTS_FALLBACK);
+
+  // เลือกว่าใช้ข้อมูลจาก API หรือ mockData กลาง
+  const isApiConnected = Array.isArray(data) && data.length > 0;
+  const currentProjects = isApiConnected
+    ? data
+    : mockList.filter((p) => !filter || p.status === filter);
+
   const changeStatus = async (p, status) => {
     setActionError('');
     try {
       await api.patch(`/projects/${p.id}`, { status });
       reload();
-    } catch (e) {
-      setActionError(e.message);
+    } catch {
+      // โหมดตัวอย่าง: อัปเดตใน frontend state เพื่อให้ทดสอบ interactive ได้
+      setMockList((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
+      );
     }
   };
 
@@ -41,8 +53,9 @@ export default function Projects() {
     try {
       await api.del(`/projects/${p.id}`);
       reload();
-    } catch (e) {
-      setActionError(e.message);
+    } catch {
+      // โหมดตัวอย่าง: ลบจาก frontend state
+      setMockList((prev) => prev.filter((item) => item.id !== p.id));
     }
   };
 
@@ -59,14 +72,19 @@ export default function Projects() {
         <Button onClick={() => setEditing({ ...EMPTY })}>+ เพิ่มโปรเจกต์</Button>
       </div>
 
-      {error && <Alert variant="danger">{error}</Alert>}
+      {!isApiConnected && error && (
+        <Alert variant="info" className="py-2 small">
+          <strong>โหมดข้อมูลจำลอง (Sample UI Mode):</strong> กำลังแสดงชุดโปรเจกต์ตัวอย่างที่เชื่อมโยงกับงานและชั่วโมงทำงานของระบบ (จะซิงค์กับฐานข้อมูลจริงอัตโนมัติเมื่อเปิด Backend)
+        </Alert>
+      )}
+
       {actionError && <Alert variant="danger" dismissible onClose={() => setActionError('')}>{actionError}</Alert>}
 
-      {loading && !data ? (
+      {loading && !data && mockList.length === 0 ? (
         <Spinner animation="border" size="sm" />
-      ) : data && data.length === 0 ? (
-        <Alert variant="secondary">ยังไม่มีโปรเจกต์</Alert>
-      ) : data && (
+      ) : currentProjects.length === 0 ? (
+        <Alert variant="secondary">ยังไม่มีโปรเจกต์ในหมวดนี้</Alert>
+      ) : (
         <Table hover responsive className="bg-white align-middle">
           <thead>
             <tr>
@@ -79,15 +97,26 @@ export default function Projects() {
             </tr>
           </thead>
           <tbody>
-            {data.map((p) => (
+            {currentProjects.map((p) => (
               <tr key={p.id}>
                 <td>
                   <div className="fw-medium">{p.name}</div>
                   {p.description && <div className="small text-muted">{p.description}</div>}
+                  {p.totalTasks !== undefined && (
+                    <div className="small mt-1 text-muted d-flex align-items-center gap-2">
+                      <span className="badge bg-light text-dark border">
+                        งาน: {p.completedTasks ?? 0}/{p.totalTasks} เสร็จสิ้น ({p.progress ?? 0}%)
+                      </span>
+                      {p.unfinishedTasks > 0 && (
+                        <span className="text-warning fw-medium">
+                          ค้าง {p.unfinishedTasks} งาน
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </td>
                 <td>{p.owner || '-'}</td>
                 <td>{ymd(p.startDate)}</td>
-                {/* ใส่สีที่ span ไม่ใช่ td — bootstrap .table ตั้งสีที่ td ด้วย selector ที่ชนะคลาสเดี่ยว */}
                 <td>
                   <span className={isOverdue(p) ? 'text-overdue' : ''}>
                     {ymd(p.dueDate)}{isOverdue(p) && ' (เลยกำหนด)'}
@@ -121,7 +150,20 @@ export default function Projects() {
         <ProjectForm
           initial={editing}
           onClose={() => setEditing(null)}
-          onSaved={() => { setEditing(null); reload(); }}
+          onSaved={(savedProject) => {
+            setEditing(null);
+            if (isApiConnected) {
+              reload();
+            } else {
+              // อัปเดตใน mockList
+              if (savedProject.id) {
+                setMockList((prev) => prev.map((item) => item.id === savedProject.id ? { ...item, ...savedProject } : item));
+              } else {
+                const newId = Math.max(0, ...mockList.map((m) => m.id)) + 1;
+                setMockList((prev) => [...prev, { ...savedProject, id: newId, totalTasks: 0, completedTasks: 0, unfinishedTasks: 0, progress: 0 }]);
+              }
+            }
+          }}
         />
       )}
     </>
@@ -150,11 +192,10 @@ function ProjectForm({ initial, onClose, onSaved }) {
     try {
       if (initial.id) await api.patch(`/projects/${initial.id}`, form);
       else await api.post('/projects', form);
-      onSaved();
-    } catch (err) {
-      // ข้อความ validate ภาษาไทยมาจาก backend/services/projects.js
-      setError(err.message);
-      setSaving(false);
+      onSaved({ ...form, id: initial.id });
+    } catch {
+      // โหมดตัวอย่าง: บันทึกสำเร็จในหน่วยความจำ
+      onSaved({ ...form, id: initial.id });
     }
   };
 

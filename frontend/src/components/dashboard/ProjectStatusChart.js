@@ -5,11 +5,11 @@ import { Card } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
 
 const PROJECT_STATUSES = [
-  { key: 'in_progress', label: 'กำลังดำเนินการ', color: 'var(--blue)' },
-  { key: 'pending_review', label: 'รอการตรวจสอบ', color: 'var(--amber)' },
-  { key: 'planning', label: 'วางแผน', color: 'var(--muted)' },
-  { key: 'completed', label: 'เสร็จสิ้น', color: 'var(--green)' },
-  { key: 'cancelled', label: 'ยกเลิก', color: 'var(--red)' },
+  { key: 'in_progress', label: 'กำลังดำเนินการ', color: 'var(--blue)', matches: ['in_progress'] },
+  { key: 'on_hold', label: 'พักไว้ / รอตรวจสอบ', color: 'var(--amber)', matches: ['on_hold', 'pending_review', 'review'] },
+  { key: 'planning', label: 'วางแผน', color: 'var(--muted)', matches: ['planning'] },
+  { key: 'done', label: 'เสร็จสิ้น', color: 'var(--green)', matches: ['done', 'completed'] },
+  { key: 'cancelled', label: 'ยกเลิก', color: 'var(--red)', matches: ['cancelled'] },
 ];
 
 const RADIUS = 52;
@@ -41,11 +41,13 @@ export default function ProjectStatusChart({ projects = [] }) {
     );
   }
 
-  // ✅ 1. ปรับปรุงการนับจำนวน (ใช้ reduce แทนการ filter วนซ้ำ 5 รอบ)
-  const statusCounts = projects.reduce((acc, p) => {
-    acc[p.status] = (acc[p.status] || 0) + 1;
-    return acc;
-  }, {});
+  // นับจำนวนแต่ละสถานะอย่างยืดหยุ่น (รองรับทั้ง done/completed และ on_hold/pending_review)
+  const statusCounts = {};
+  projects.forEach((p) => {
+    const matched = PROJECT_STATUSES.find((s) => s.matches.includes(p.status));
+    const k = matched ? matched.key : p.status;
+    statusCounts[k] = (statusCounts[k] || 0) + 1;
+  });
 
   const statusData = PROJECT_STATUSES.map((s) => {
     const count = statusCounts[s.key] || 0;

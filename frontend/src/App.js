@@ -6,6 +6,8 @@ import Layout from './components/Layout';
 import Home from './components/Home';
 import About from './components/About';
 import Projects from './components/Projects';
+import Tasks from './components/Tasks';
+import Reports from './components/Reports';
 import PlaceholderPage from './components/PlaceholderPage';
 import NotFound from './components/NotFound';
 import { APP_BASE } from './utils/config';
@@ -19,24 +21,8 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="projects" element={<Projects />} />
-          <Route
-            path="tasks"
-            element={
-              <PlaceholderPage
-                title="ตารางงาน (Tasks)"
-                description="ระบบจัดการตารางงานแบบละเอียด รายการงานย่อย และการอัปเดตสถานะงานรายบุคคล"
-              />
-            }
-          />
-          <Route
-            path="reports"
-            element={
-              <PlaceholderPage
-                title="รายงานสรุป (Reports)"
-                description="หน้ารายงานสรุปผลการดำเนินงาน กราฟสถิติตามช่วงเวลา และการประเมินผลการฝึกงาน"
-              />
-            }
-          />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="reports" element={<Reports />} />
           <Route
             path="settings"
             element={

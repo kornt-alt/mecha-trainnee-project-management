@@ -883,6 +883,32 @@ body {
   justify-content: center;
 }
 
+/* ── Dashboard: Monthly Project Cost Overview ─────────────────────────── */
+.monthly-cost-card { border: 1px solid var(--line) !important; border-radius: var(--radius-lg) !important; background: var(--surface) !important; overflow: hidden; }
+.monthly-cost-header { background: var(--surface) !important; }
+.cost-mock-badge { background: var(--blue-tint) !important; color: var(--blue) !important; border: 1px solid rgba(var(--blue-rgb), .22); font-weight: 600; }
+.cost-month-select { min-width: 164px; border-color: var(--line); color: var(--ink); }
+.cost-month-select:focus { border-color: var(--blue); box-shadow: 0 0 0 .2rem rgba(var(--blue-rgb), .15); }
+.cost-metric { height: 100%; border-left: 3px solid var(--blue); background: var(--paper); border-radius: var(--radius); padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+.cost-metric > span, .cost-metric small { color: var(--muted); font-size: .77rem; }
+.cost-metric strong { color: var(--ink); font-size: 1.05rem; line-height: 1.35; }
+.cost-change-increase { color: var(--red) !important; }
+.cost-change-decrease { color: var(--green) !important; }
+.cost-chart-section { min-width: 0; }
+.cost-chart-section h3 { margin: 0; color: var(--ink); font-size: .95rem; font-weight: 600; }
+.cost-chart-svg { display: block; width: 100%; height: auto; min-height: 190px; overflow: visible; }
+.cost-grid-line { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 3; }
+.cost-axis-label, .cost-project-label { fill: var(--muted); font-size: 11px; font-family: var(--font); }
+.cost-project-label { fill: var(--ink); font-weight: 600; }
+.cost-bar { fill: var(--blue); transition: opacity .15s ease; }
+.cost-bar:hover { opacity: .72; }
+.cost-trend-line { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.cost-trend-dot { fill: var(--surface); stroke: var(--blue); stroke-width: 3; cursor: help; }
+.cost-trend-dot:hover { fill: var(--blue); }
+.cost-empty-state { color: var(--muted); background: var(--paper); border-radius: var(--radius); padding: 54px 16px; text-align: center; margin: 0; }
+@media (max-width: 991.98px) { .trend-section { padding-top: 16px; border-top: 1px solid var(--line); } }
+@media (max-width: 480px) { .cost-month-select { min-width: 146px; } .cost-metric strong { font-size: .98rem; } }
+
 .card-icon-blue {
   background: var(--blue-tint);
   color: var(--blue);

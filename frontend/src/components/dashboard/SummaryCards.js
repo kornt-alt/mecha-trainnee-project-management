@@ -3,11 +3,11 @@ import React from 'react';
 import { Row, Col, Card } from 'react-bootstrap';
 import { FolderKanban, Clock, ClipboardCheck, CalendarClock } from '../common/Icons';
 
-// สถานะที่นับเป็น "กำลังทำ" และ "รอรีวิว" ตามสถานะโปรเจกต์ที่ระบบใช้อยู่
+// สถานะที่นับเป็น "กำลังทำ" และ "พักไว้ / รอรีวิว" ตามสถานะโปรเจกต์ที่ระบบใช้อยู่
 const IN_PROGRESS_STATUSES = ['in_progress'];
-const REVIEW_STATUSES = ['pending_review', 'review'];
+const REVIEW_STATUSES = ['on_hold', 'pending_review', 'review'];
 // สถานะที่ตัดออกจากการนับ "ใกล้ถึงกำหนดส่ง" เพราะงานจบแล้วหรือยกเลิกแล้ว
-const CLOSED_STATUSES = ['completed', 'cancelled'];
+const CLOSED_STATUSES = ['done', 'completed', 'cancelled'];
 // เกณฑ์เตือนกำหนดส่ง: ภายใน 7 วันข้างหน้า (รวมวันนี้)
 const DEADLINE_THRESHOLD_DAYS = 7;
 
@@ -54,10 +54,10 @@ export default function SummaryCards({ projects = [] }) {
     },
     {
       id: 'review',
-      title: 'โปรเจกต์ที่รอรีวิว',
+      title: 'โปรเจกต์ที่พักไว้ / รอรีวิว',
       value: awaitingReviewCount,
       unit: 'โปรเจกต์',
-      description: 'โปรเจกต์ที่รอการตรวจสอบจากหัวหน้างาน',
+      description: 'โปรเจกต์ที่พักไว้หรือรอการตรวจสอบ',
       icon: ClipboardCheck,
       colorClass: 'card-icon-green',
     },
