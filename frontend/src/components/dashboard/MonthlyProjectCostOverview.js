@@ -4,7 +4,9 @@ import { Badge, Card, Col, Form, Row } from 'react-bootstrap';
 import { ChartNoAxesColumn } from '../common/Icons';
 import { MOCK_PROJECT_COST_ITEMS } from '../../data/mockProjectCosts';
 
-const MONTHS = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'];
+// เดือนที่แสดงดึงจาก record ต้นทุนจริง (เรียงเก่า→ใหม่ เอา 6 เดือนล่าสุด)
+// เพื่อให้เพิ่ม record เดือนใหม่ใน mockProjectCosts.js แล้วกราฟและตัวเลือกเดือนปรับตามเอง
+const MONTHS = [...new Set(MOCK_PROJECT_COST_ITEMS.map((item) => item.month))].sort().slice(-6);
 const THAI_MONTHS = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
 function monthLabel(month, short = false) { const [year, number] = month.split('-').map(Number); return `${short ? THAI_MONTHS[number - 1].slice(0, 3) : THAI_MONTHS[number - 1]} ${year + 543}`; }
 function currency(amount, compact = false) { return compact && Math.abs(amount) >= 1000 ? `฿${(amount / 1000).toFixed(0)}k` : `${amount.toLocaleString('th-TH')} บาท`; }

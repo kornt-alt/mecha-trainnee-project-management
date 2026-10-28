@@ -8,6 +8,7 @@ import SummaryCards from './dashboard/SummaryCards';
 import ProjectStatusChart from './dashboard/ProjectStatusChart';
 import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
 import MonthlyProjectCostOverview from './dashboard/MonthlyProjectCostOverview';
+import ProjectCategoryTreemap from './dashboard/ProjectCategoryTreemap';
 import { Info, CircleAlert, CircleCheck } from './common/Icons';
 
 export default function Home() {
@@ -126,6 +127,10 @@ export default function Home() {
       {/* คอลัมน์ที่ 3 */}
         <Col xl={8} lg={6} xs={12}>
           <UnfinishedTasks tasks={tasks} />
+        </Col>
+
+        <Col xl={4} lg={6} xs={12}>
+          <ProjectCategoryTreemap projects={projects} />
         </Col>
     </Row>
     </div>
