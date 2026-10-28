@@ -5,7 +5,8 @@ import { useLoad } from '../utils/api';
 import { CURRENT_USER, MOCK_TASKS, MOCK_PROJECTS_FALLBACK } from '../data/mockData';
 import UnfinishedTasks from './dashboard/UnfinishedTasks';
 import SummaryCards from './dashboard/SummaryCards';
-import ProjectStatusChart from './dashboard/ProjectStatusChart';
+import DonutChart from './DonutChart/DonutChart';
+import { buildProjectStatusItems } from './DonutChart/donutChartData';
 import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
 import MonthlyProjectCostOverview from './dashboard/MonthlyProjectCostOverview';
 import ProjectCategoryTreemap from './dashboard/ProjectCategoryTreemap';
@@ -116,7 +117,8 @@ export default function Home() {
       <Row className="g-4 dashboard-blocks-row">
       {/* คอลัมน์ที่ 1 */}
         <Col xl={4} lg={6} xs={12} className="chart-col"> {/* แนะนำ xs={12} เพื่อให้จอมือถือเต็มจอ */}
-          <ProjectStatusChart projects={projects} />
+          {/* กราฟโดนัทตัวใหม่ (แทน ProjectStatusChart เดิม) — items นับจากข้อมูลโปรเจกต์ชุดเดิมของ Dashboard */}
+          <DonutChart items={buildProjectStatusItems(projects)} />
         </Col>
 
       {/* คอลัมน์ที่ 2 */}

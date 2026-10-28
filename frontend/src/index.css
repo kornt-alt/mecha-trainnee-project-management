@@ -1345,40 +1345,7 @@ body {
 
 
 /* ── Dashboard: Project Status Donut Chart ─────────────────────────── */
-.donut-chart {
-  width: 150px;
-  height: 150px;
-}
-
-.donut-segment {
-  transition: stroke-dasharray 0.6s ease, stroke-dashoffset 0.6s ease;
-}
-
-.donut-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.donut-total {
-  font-size: 1.75rem;
-  line-height: 1.1;
-}
-
-.donut-label {
-  font-size: 0.72rem;
-}
-
-.donut-legend .status-indicator-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+/* สไตล์ของกราฟโดนัทย้ายไปอยู่ที่ src/components/DonutChart/donutChart.css (component ใหม่แทนของเดิม) */
 
 /* ── Dashboard: Employee Workload Bar Chart ────────────────────────── */
 /* ความสูงคงที่ของการ์ดกราฟสองใบบนเดสก์ท็อป — สูงเท่ากันเสมอ
@@ -1498,11 +1465,5 @@ body {
 @media (max-width: 768px) {
   .workload-row {
     grid-template-columns: 104px 1fr 58px;
-  }
-
-  .donut-chart,
-  .donut-chart svg {
-    width: 130px;
-    height: 130px;
   }
 }

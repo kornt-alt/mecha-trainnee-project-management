@@ -1,0 +1,245 @@
+/* frontend/src/components/DonutChart/donutChart.css */
+/* Styles for DonutChart. Colors come from tokens.css variables (light theme by design;
+   the dark-mode block below only activates if the app ever defines data-bs-theme="dark"). */
+
+/* ---------- Theme variables (mapped to src/styles/tokens.css) ---------- */
+.donut-chart {
+  --donut-surface: var(--surface, #ffffff);
+  --donut-text: var(--ink, #1e293b);
+  --donut-text-muted: var(--muted, #64748b);
+  --donut-border: var(--line, #e2e8f0);
+  --donut-label-bg: rgba(255, 255, 255, 0.95);
+  --donut-label-border: var(--line, #e2e8f0);
+  --donut-label-divider: var(--line, #f1f5f9);
+  --donut-center-value: var(--ink, #0f172a);
+  --donut-shadow: rgba(0, 0, 0, 0.18);
+
+  background-color: var(--donut-surface);
+  color: var(--donut-text);
+  border-color: var(--donut-border);
+}
+
+/* Dark mode: React-Bootstrap 5.3 (data-bs-theme) or a `.dark` class on any ancestor. */
+[data-bs-theme='dark'] .donut-chart,
+.dark .donut-chart {
+  --donut-surface: #0f172a;
+  --donut-text: #f1f5f9;
+  --donut-text-muted: #94a3b8;
+  --donut-border: #1e293b;
+  --donut-label-bg: rgba(30, 41, 59, 0.95);
+  --donut-label-border: #334155;
+  --donut-label-divider: rgba(51, 65, 85, 0.6);
+  --donut-center-value: #ffffff;
+  --donut-shadow: rgba(0, 0, 0, 0.5);
+}
+
+/* ---------- Card header / empty state ---------- */
+.donut-chart__header {
+  background: transparent;
+  border-bottom-color: var(--donut-border);
+  flex-shrink: 0;
+}
+
+.donut-chart__subtitle {
+  margin: 0.125rem 0 0;
+  font-size: 0.75rem;
+  color: var(--donut-text-muted);
+}
+
+.donut-chart__body {
+  min-height: 260px;
+}
+
+/* เปลือกวัดความกว้าง — กว้างเต็มพื้นที่การ์ดเสมอ (geometry สร้างจากความกว้างนี้) */
+.donut-chart__measure {
+  width: 100%;
+}
+
+.donut-chart__empty {
+  padding: 4rem 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: var(--donut-text-muted);
+}
+
+/* ---------- SVG sizing: viewBox = ความกว้างจริงที่วัดได้ จึงขยายเต็มพื้นที่โดยข้อความไม่หด ---------- */
+.donut-chart__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  user-select: none;
+}
+
+/* ---------- Slices ---------- */
+.donut-chart__slice {
+  cursor: pointer;
+  outline: none;
+  opacity: 0.95;
+  /* Scale from the chart center (the group origin). */
+  transform-origin: 0 0;
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease, filter 0.2s ease;
+}
+
+.donut-chart__slice--active {
+  opacity: 1;
+  transform: scale(1.05);
+  filter: drop-shadow(0 6px 12px var(--donut-shadow));
+}
+
+.donut-chart__slice--dimmed {
+  opacity: 0.4;
+}
+
+.donut-chart__slice:focus-visible {
+  stroke: var(--donut-text);
+  stroke-width: 2;
+}
+
+/* ---------- Center text (inside the hole) ---------- */
+.donut-chart__center-value {
+  fill: var(--donut-center-value);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.donut-chart__center-label {
+  fill: var(--donut-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---------- Connector + label ---------- */
+.donut-chart__callout {
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s ease;
+}
+
+.donut-chart__callout--dimmed {
+  opacity: 0.25;
+}
+
+.donut-chart__connector {
+  transition: stroke-width 0.2s ease, opacity 0.2s ease;
+}
+
+/* The label can grow on hover, so don't clip it to the label box. */
+.donut-chart__label-wrapper {
+  overflow: visible;
+}
+
+.donut-chart__label {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 4px 10px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--donut-text);
+  background: var(--donut-label-bg);
+  border: 1px solid var(--donut-label-border);
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.donut-chart__label--active {
+  border-color: var(--slice-color);
+  box-shadow: 0 0 0 2px var(--slice-color);
+  transform: scale(1.05);
+}
+
+.donut-chart__label-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 2px;
+}
+
+.donut-chart__label-dot {
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--slice-color);
+}
+
+.donut-chart__label-name {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.donut-chart__label-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 2px;
+  border-top: 1px solid var(--donut-label-divider);
+}
+
+.donut-chart__label-count {
+  font-size: 10px;
+  color: var(--donut-text-muted);
+}
+
+.donut-chart__label-percent {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--slice-color);
+}
+
+/* ---------- คอลัมน์แคบ (geometry ย่อแล้ว): ลดฟอนต์/padding ของป้ายให้พอดีกล่อง ---------- */
+.donut-chart--compact .donut-chart__label {
+  padding: 2px 6px;
+  font-size: 10px;
+}
+
+.donut-chart--compact .donut-chart__label-dot {
+  width: 6px;
+  height: 6px;
+}
+
+.donut-chart--compact .donut-chart__label-count {
+  font-size: 9px;
+}
+
+.donut-chart--compact .donut-chart__center-value {
+  font-size: 26px;
+}
+
+.donut-chart--compact .donut-chart__center-label {
+  font-size: 10px;
+}
+
+/* ---------- Entrance animation (only when the `animated` prop is true) ---------- */
+/* fill-mode "backwards" (not "both") so the animation doesn't override hover opacity afterwards. */
+.donut-chart--animated .donut-chart__slice {
+  animation: donut-chart-slice-in 0.6s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--slice-delay, 0ms);
+}
+
+@keyframes donut-chart-slice-in {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .donut-chart--animated .donut-chart__slice {
+    animation: none;
+  }
+
+  .donut-chart__slice,
+  .donut-chart__callout,
+  .donut-chart__connector,
+  .donut-chart__label {
+    transition: none;
+  }
+}
