@@ -1,14 +1,16 @@
 // frontend/src/components/Home.js — หน้าแรก Dashboard แสดงสถานะระบบและรายการงานที่ยังไม่เสร็จ
-import React from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useLoad } from '../utils/api';
 import { CURRENT_USER, MOCK_TASKS, MOCK_PROJECTS_FALLBACK } from '../data/mockData';
+import { MOCK_PROJECT_COST_ITEMS } from '../data/mockProjectCosts';
 import UnfinishedTasks from './dashboard/UnfinishedTasks';
 import SummaryCards from './dashboard/SummaryCards';
 import DonutChart from './DonutChart/DonutChart';
 import { buildProjectStatusItems } from './DonutChart/donutChartData';
 import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
-import MonthlyProjectCostOverview from './dashboard/MonthlyProjectCostOverview';
+import BudgetBarChart from './BudgetBarChart/BudgetBarChart';
+import { buildBudgetCategories } from './BudgetBarChart/budgetBarChartData';
 import ProjectCategoryTreemap from './dashboard/ProjectCategoryTreemap';
 import { Info, CircleAlert, CircleCheck } from './common/Icons';
 
@@ -41,6 +43,13 @@ export default function Home() {
   const dueSoonTasks = tasks.filter((t) => {
     return t.status !== 'completed' && t.dueDate && t.dueDate >= today && t.dueDate <= sevenDaysLater;
   });
+
+  // ตัวเลือกช่วงเวลาย้อนหลังของกราฟเปรียบเทียบงบประมาณและค่าใช้จ่ายจริง (ค่าเริ่มต้น 6 เดือน)
+  const [budgetRangeMonths, setBudgetRangeMonths] = useState(6);
+  const { categories: budgetCategories, rangeNotice: budgetRangeNotice } = useMemo(
+    () => buildBudgetCategories(projects, MOCK_PROJECT_COST_ITEMS, budgetRangeMonths),
+    [projects, budgetRangeMonths],
+  );
 
   return (
     <div className="dashboard-container">
@@ -111,7 +120,14 @@ export default function Home() {
       {/* ── การ์ดสรุปโปรเจกต์ (Project Summary Cards) ─────────── */}
       <SummaryCards projects={projects} />
 
-      <MonthlyProjectCostOverview projects={projects} />
+      {/* ── กราฟแท่งเปรียบเทียบงบประมาณตามหมวดหมู่ (Side-by-Side Stacked Bar Chart) ── */}
+      <BudgetBarChart
+        categories={budgetCategories}
+        rangeValue={budgetRangeMonths}
+        onRangeChange={setBudgetRangeMonths}
+        rangeNotice={budgetRangeNotice}
+        className="mb-4"
+      />
 
       {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
       <Row className="g-4 dashboard-blocks-row">
