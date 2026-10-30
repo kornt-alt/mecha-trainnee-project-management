@@ -120,15 +120,6 @@ export default function Home() {
       {/* ── การ์ดสรุปโปรเจกต์ (Project Summary Cards) ─────────── */}
       <SummaryCards projects={projects} />
 
-      {/* ── กราฟแท่งเปรียบเทียบงบประมาณตามหมวดหมู่ (Side-by-Side Stacked Bar Chart) ── */}
-      <BudgetBarChart
-        categories={budgetCategories}
-        rangeValue={budgetRangeMonths}
-        onRangeChange={setBudgetRangeMonths}
-        rangeNotice={budgetRangeNotice}
-        className="mb-4"
-      />
-
       {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
       <Row className="g-4 dashboard-blocks-row">
       {/* คอลัมน์ที่ 1 */}
@@ -151,6 +142,15 @@ export default function Home() {
           <ProjectCategoryTreemap projects={projects} />
         </Col>
     </Row>
+
+      {/* ── กราฟแท่งเปรียบเทียบงบประมาณตามหมวดหมู่ (Side-by-Side Stacked Bar Chart) ── */}
+      <BudgetBarChart
+        categories={budgetCategories}
+        rangeValue={budgetRangeMonths}
+        onRangeChange={setBudgetRangeMonths}
+        rangeNotice={budgetRangeNotice}
+        className="mb-4"
+      />
     </div>
   );
 }
