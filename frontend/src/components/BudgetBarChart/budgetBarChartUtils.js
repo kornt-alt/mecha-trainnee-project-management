@@ -2,6 +2,25 @@
 // Pure calculation/filter/layout helpers for BudgetBarChart — ported from the reference
 // project_budget_analysis_dashboard.html (renderSVGChart + applyFilters) with no React/DOM access.
 
+import {
+  hexToHsl,
+  hslToHex,
+  SAFE_LIGHTNESS_LIMITS,
+  resolveBaseColor,
+  calculateTargetLightness,
+  transformColorByPercentage,
+} from '../../utils/categoryColors.js';
+
+// ส่งออกต่อเพื่อให้คอมโพเนนต์หรือชุดทดสอบใช้งานต่อได้โดยตรง
+export {
+  hexToHsl,
+  hslToHex,
+  SAFE_LIGHTNESS_LIMITS,
+  resolveBaseColor,
+  calculateTargetLightness,
+  transformColorByPercentage,
+};
+
 export const VIEW_MODES = {
   COMPARISON: 'comparison',
   PLANNED: 'planned',
@@ -36,47 +55,6 @@ export const getTooltipPosition = (clientX, clientY, viewportWidth, viewportHeig
   let top = clientY - 20;
   if (top + tooltipHeight > viewportHeight - 8) top = viewportHeight - tooltipHeight - 8;
   return { left: Math.max(8, left), top: Math.max(8, top) };
-};
-
-/** Convert hex string to HSL object { h, s, l } with integer percentages. */
-export const hexToHsl = (hex) => {
-  if (!hex || typeof hex !== 'string') return { h: 217, s: 90, l: 50 };
-  const cleaned = hex.replace('#', '');
-  const full = cleaned.length === 3 ? cleaned.split('').map((c) => c + c).join('') : cleaned;
-  if (full.length !== 6) return { h: 217, s: 90, l: 50 };
-  const r = parseInt(full.substring(0, 2), 16) / 255;
-  const g = parseInt(full.substring(2, 4), 16) / 255;
-  const b = parseInt(full.substring(4, 6), 16) / 255;
-  const max = Math.max(r, g, b);
-  const min = Math.min(r, g, b);
-  let h = 0;
-  let s = 0;
-  const l = (max + min) / 2;
-  if (max !== min) {
-    const d = max - min;
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-    switch (max) {
-      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
-      case g: h = (b - r) / d + 2; break;
-      case b: h = (r - g) / d + 4; break;
-      default: break;
-    }
-    h = Math.round(h * 60);
-  }
-  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
-};
-
-/** Convert HSL (h: 0..360, s: 0..100, l: 0..100) back to 6-char upper hex code (#RRGGBB). */
-export const hslToHex = (h, s, l) => {
-  const normL = Math.max(0, Math.min(100, l)) / 100;
-  const normS = Math.max(0, Math.min(100, s)) / 100;
-  const a = normS * Math.min(normL, 1 - normL);
-  const f = (n) => {
-    const k = (n + h / 30) % 12;
-    const color = normL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
-    return Math.round(255 * color).toString(16).padStart(2, '0');
-  };
-  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
 };
 
 /**
@@ -227,32 +205,20 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
 
     const segments = [];
     let currentY = zeroY;
-    let prevLightness = null;
 
     preparedItems.forEach(({ project, value, percentage, sharePct }) => {
       const segmentHeight = (value / maxY) * chartHeight;
       const segmentY = currentY - segmentHeight;
       currentY = segmentY;
 
-      const rawColor = isPlanned ? project.plannedColor : project.actualColor;
-      let finalColor = rawColor;
-      const hsl = hexToHsl(rawColor);
-      let currentLightness = hsl.l;
-
-      // ตรวจสอบและปรับระดับความสว่างให้เซกเมนต์ที่อยู่ติดกัน (Adjacent Segments) มีความต่างชัดเจน (ΔL >= 20%)
-      // โดยรักษา Base Hue เดิมของแต่ละหมวดหมู่อย่างเคร่งครัด
-      if (prevLightness !== null) {
-        const lightnessDiff = Math.abs(currentLightness - prevLightness);
-        if (lightnessDiff < 20) {
-          if (prevLightness <= 55) {
-            currentLightness = Math.min(84, prevLightness + 28);
-          } else {
-            currentLightness = Math.max(24, prevLightness - 28);
-          }
-          finalColor = hslToHex(hsl.h, hsl.s, currentLightness);
-        }
-      }
-      prevLightness = currentLightness;
+      // คำนวณสีเซกเมนต์ตามเปอร์เซ็นต์อย่างคงเส้นคงวา (Requirement 12)
+      // - Higher percentage -> lower Lightness (เข้มกว่า / มีน้ำหนักทางสายตามากกว่า)
+      // - Lower percentage -> higher Lightness (สว่างกว่า)
+      // - Same percentage value -> same target Lightness across all categories
+      // - ไม่คำนวณตาม visible distribution และไม่ขึ้นกับ rendering order / filters
+      const baseCategoryColor = project.baseColor || category.name;
+      const finalColor = transformColorByPercentage(baseCategoryColor, percentage);
+      const currentLightness = calculateTargetLightness(percentage);
 
       // คำนวณสีข้อความเปอร์เซ็นต์ให้ตัดกับพื้นหลังเซกเมนต์เสมอ (WCAG AA/AAA contrast)
       // พื้นสว่างใช้ตัวหนังสือสีเข้ม #0f172a, พื้นเข้มใช้ตัวหนังสือสีขาว #ffffff

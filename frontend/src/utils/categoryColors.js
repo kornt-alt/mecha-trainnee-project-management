@@ -135,3 +135,125 @@ export const getCategoryBaseColor = (categoryName, fallbackIndex = null) => {
 
   return UNMAPPED_CATEGORY_COLOR;
 };
+
+/** Convert hex string to HSL object { h, s, l } with integer percentages. */
+export const hexToHsl = (hex) => {
+  if (!hex || typeof hex !== 'string') return { h: 215, s: 16, l: 47 }; // Default fallback HSL (#64748B)
+  const cleaned = hex.replace('#', '');
+  const full = cleaned.length === 3 ? cleaned.split('').map((c) => c + c).join('') : cleaned;
+  if (full.length !== 6) return { h: 215, s: 16, l: 47 };
+  const r = parseInt(full.substring(0, 2), 16) / 255;
+  const g = parseInt(full.substring(2, 4), 16) / 255;
+  const b = parseInt(full.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+      default: break;
+    }
+    h = Math.round(h * 60);
+  }
+  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
+};
+
+/** Convert HSL (h: 0..360, s: 0..100, l: 0..100) back to 6-char upper hex code (#RRGGBB). */
+export const hslToHex = (h, s, l) => {
+  const normL = Math.max(0, Math.min(100, l)) / 100;
+  const normS = Math.max(0, Math.min(100, s)) / 100;
+  const a = normS * Math.min(normL, 1 - normL);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    const color = normL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+};
+
+/**
+ * ขอบเขตความสว่างที่ปลอดภัย (Safe Lightness Limits)
+ * ป้องกันไม่ให้สีกลายเป็นสีดำสนิท (L < 20%) หรือสีขาวโพลน (L > 80%)
+ * ซึ่งจะทำให้สูญเสียค่า Hue, Saturation และความเป็นเอกลักษณ์ของหมวดหมู่
+ */
+export const SAFE_LIGHTNESS_LIMITS = {
+  MIN: 20,
+  MAX: 80,
+};
+
+/**
+ * แปลงชื่อประเภท, ตัวแปร CSS หรือรหัสสี Hex ให้เป็นรหัสสี Hex มาตรฐาน
+ * @param {string} categoryOrColor ชื่อประเภท, CSS variable หรือรหัสสี Hex
+ * @returns {string} รหัสสี Hex (#RRGGBB)
+ */
+export const resolveBaseColor = (categoryOrColor) => {
+  if (!categoryOrColor || typeof categoryOrColor !== 'string') {
+    return UNMAPPED_CATEGORY_COLOR;
+  }
+  const trimmed = categoryOrColor.trim();
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(trimmed)) {
+    const cleaned = trimmed.replace('#', '');
+    const full = cleaned.length === 3 ? cleaned.split('').map((c) => c + c).join('') : cleaned;
+    return `#${full}`.toUpperCase();
+  }
+  if (trimmed.startsWith('var(')) {
+    const entry = CATEGORY_COLORS.find((c) => c.variable === trimmed);
+    if (entry) return entry.hex;
+  }
+  const resolved = getCategoryBaseColor(trimmed);
+  return resolved || UNMAPPED_CATEGORY_COLOR;
+};
+
+/**
+ * คำนวณระดับความสว่างเป้าหมาย (Target Lightness) ตามเปอร์เซ็นต์อย่างแน่นอนและคงเส้นคงวา (Deterministic)
+ * 
+ * คุณสมบัติ:
+ * 1. เปอร์เซ็นต์มากกว่า -> ความสว่างต่ำกว่า (สีเข้มขึ้น / มีน้ำหนักทางสายตามากขึ้น)
+ * 2. เปอร์เซ็นต์น้อยกว่า -> ความสว่างสูงกว่า (สีสว่างขึ้น / โทนอ่อนลง)
+ * 3. เปอร์เซ็นต์เท่ากัน -> ได้ระดับความสว่างเท่ากันในทุกหมวดหมู่ (Consistent across categories)
+ * 4. ปลอดภัยต่อค่า input ที่ผิดพลาด (NaN, null, undefined, ค่าติดลบ, ค่าเกิน 100) โดยไม่ crash
+ * 
+ * @param {number} percentage เปอร์เซ็นต์ (0 - 100)
+ * @param {Object} [options] ตัวเลือกเพิ่มเติม เช่น minLightness, maxLightness
+ * @returns {number} ระดับความสว่างเป้าหมาย L (20 - 80)
+ */
+export const calculateTargetLightness = (percentage, options = {}) => {
+  const minL = Math.max(SAFE_LIGHTNESS_LIMITS.MIN, Math.min(SAFE_LIGHTNESS_LIMITS.MAX, options.minLightness ?? 25));
+  const maxL = Math.max(SAFE_LIGHTNESS_LIMITS.MIN, Math.min(SAFE_LIGHTNESS_LIMITS.MAX, options.maxLightness ?? 75));
+  
+  const num = typeof percentage === 'number' ? percentage : Number(percentage);
+  const clamped = Number.isFinite(num) && !Number.isNaN(num)
+    ? Math.max(0, Math.min(100, num))
+    : 0;
+
+  // ฟังก์ชันเส้นตรง: P = 0% -> maxL, P = 100% -> minL
+  const target = maxL - (clamped / 100) * (maxL - minL);
+  return Math.round(Math.max(SAFE_LIGHTNESS_LIMITS.MIN, Math.min(SAFE_LIGHTNESS_LIMITS.MAX, target)));
+};
+
+/**
+ * แปลงสีของประเภทโครงการตามสัดส่วนเปอร์เซ็นต์ (Color Transformation Utility)
+ * 
+ * ข้อกำหนดตาม Requirement 12:
+ * A. Consistent Lightness Across Categories: เปอร์เซ็นต์เดียวกันได้ค่าความสว่างระดับเดียวกันทุกหมวดหมู่
+ * B. Preserve Original Colors at Boundary Conditions: คงค่า Hue และ Saturation เดิม ไม่เปลี่ยนเป็นสีเทาหรือสีอื่น และใช้ Safe Lightness Limits
+ * C. Separate Percentage Colors from Interaction States: ผลลัพธ์เป็นสีพื้นฐาน ไม่ขึ้นกับ hover/highlight
+ * D. Deterministic & Independent: ผลลัพธ์ขึ้นอยู่กับ (categoryColor, percentage) เท่านั้น ไม่ขึ้นกับลำดับการเรนเดอร์ ตัวกรอง หรือช่วงเวลา
+ * 
+ * @param {string} categoryColor ชื่อประเภทโครงการ, รหัสสี Hex, หรือ CSS variable
+ * @param {number} percentage สัดส่วนเปอร์เซ็นต์ (0 - 100)
+ * @param {Object} [options] ตัวเลือกเพิ่มเติม
+ * @returns {string} รหัสสี Hex (#RRGGBB)
+ */
+export const transformColorByPercentage = (categoryColor, percentage, options = {}) => {
+  const baseHex = resolveBaseColor(categoryColor);
+  const { h, s } = hexToHsl(baseHex);
+  const targetL = calculateTargetLightness(percentage, options);
+  return hslToHex(h, s, targetL);
+};
