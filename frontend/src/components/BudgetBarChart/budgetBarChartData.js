@@ -7,11 +7,21 @@ import {
   PROJECT_CATEGORY_COLORS,
   getCategoryBaseColor,
   DEFAULT_CATEGORY_COLORS,
+  CATEGORY_ALIAS_MAP,
+  normalizeCategoryName,
+  UNMAPPED_CATEGORY_COLOR,
 } from '../../utils/categoryColors.js';
 import { hexToHsl, generateCategoryTones } from './budgetBarChartUtils.js';
 
 // ส่งออกต่อเพื่อให้คอมโพเนนต์หรือชุดทดสอบใช้งานต่อได้โดยตรง
-export { PROJECT_CATEGORY_COLORS, getCategoryBaseColor, DEFAULT_CATEGORY_COLORS };
+export {
+  PROJECT_CATEGORY_COLORS,
+  getCategoryBaseColor,
+  DEFAULT_CATEGORY_COLORS,
+  CATEGORY_ALIAS_MAP,
+  normalizeCategoryName,
+  UNMAPPED_CATEGORY_COLOR,
+};
 
 // โหมดแสดงผลของกราฟ (ลำดับ = ลำดับปุ่มบน toolbar)
 export const VIEW_MODE_OPTIONS = [

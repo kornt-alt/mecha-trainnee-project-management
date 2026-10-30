@@ -249,7 +249,7 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
           } else {
             currentLightness = Math.max(24, prevLightness - 28);
           }
-          finalColor = hslToHex(hsl.h, Math.max(65, hsl.s), currentLightness);
+          finalColor = hslToHex(hsl.h, hsl.s, currentLightness);
         }
       }
       prevLightness = currentLightness;

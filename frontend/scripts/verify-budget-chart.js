@@ -281,4 +281,61 @@ assert.strictEqual(formatShortCurrency(450000), '฿450k');
 assert.strictEqual(formatShortCurrency(800), '฿800');
 console.log('✓ 9. Helpers: Tooltip position และ Formatters ทำงานถูกต้อง');
 
+// 10. ตรวจสอบความสม่ำเสมอของสีในหมวดหมู่ "ระบบอัตโนมัติ" (Automation Category Color Consistency)
+// ป้องกันปัญหาสีเทาและสีน้ำเงินปะปนกันในหมวดเดียวกัน และยืนยันการแปลงชื่อทุกรูปแบบ (Aliases / Normalization)
+const { getCategoryBaseColor, UNMAPPED_CATEGORY_COLOR } = require('../src/utils/categoryColors');
+
+// 10.1 ตรวจสอบ Alias และการ Normalize ของหมวดหมู่ระบบอัตโนมัติ
+const autoVariants = [
+  'ระบบอัตโนมัติ',
+  'อัตโนมัติ',
+  'automation',
+  'Automation',
+  'AUTOMATION',
+  '  Automation  ',
+  'mas',
+  'MAS',
+  'Mechanical Automation & Software',
+];
+autoVariants.forEach((variant) => {
+  assert.strictEqual(
+    getCategoryBaseColor(variant),
+    '#5B6B82',
+    `ชื่อรูปแบบ "${variant}" ต้องแปลงเป็นสีแม่แบบ #5B6B82 ของระบบอัตโนมัติเสมอ`,
+  );
+});
+
+// 10.2 กรณีชื่อหมวดหมู่สูญหายหรือไม่ระบุ ต้องคืนค่า UNMAPPED_CATEGORY_COLOR ไม่กลืนเป็นสีน้ำเงินหรือเทา
+assert.strictEqual(getCategoryBaseColor(null), UNMAPPED_CATEGORY_COLOR);
+assert.strictEqual(getCategoryBaseColor(''), UNMAPPED_CATEGORY_COLOR);
+assert.strictEqual(getCategoryBaseColor('หมวดหมู่ที่ไม่รู้จัก'), UNMAPPED_CATEGORY_COLOR);
+
+// 10.3 ตรวจสอบทุกเซกเมนต์ของหมวดหมู่ระบบอัตโนมัติในโมเดลจริง (Comparison, Planned, Actual ทุกช่วงเวลา)
+[VIEW_MODES.COMPARISON, VIEW_MODES.PLANNED, VIEW_MODES.ACTUAL].forEach((mode) => {
+  [1, 3, 6, 12].forEach((range) => {
+    const rangeData = buildBudgetCategories(MOCK_PROJECTS, MOCK_PROJECT_COST_ITEMS, range, refDate);
+    const chartModel = buildChartModel(rangeData.categories, { viewMode: mode });
+    const autoGroup = chartModel.groups.find((g) => g.name === 'ระบบอัตโนมัติ');
+    if (!autoGroup) return;
+
+    autoGroup.bars.forEach((bar) => {
+      if (bar.kind === 'variance') return;
+      bar.segments.forEach((seg) => {
+        const segHsl = hexToHsl(seg.color);
+        // แม่สีคือ #5B6B82: h=215, s=18
+        // Saturation ต้องคงที่ที่ 18% (ห้ามถูกเร่งเป็น 65% หรือสีน้ำเงินสด)
+        assert.ok(
+          Math.abs(segHsl.h - 215) <= 3,
+          `เซกเมนต์ ${seg.projectKey} ในโหมด ${mode} (${bar.kind}) ต้องมี Hue ใกล้เคียง 215 (พบ ${segHsl.h})`,
+        );
+        assert.ok(
+          segHsl.s <= 22,
+          `เซกเมนต์ ${seg.projectKey} ในโหมด ${mode} (${bar.kind}) ต้องไม่กลายเป็นสีน้ำเงิน (ความอิ่มตัว s ต้อง <= 22%, พบ ${segHsl.s}% ที่สี ${seg.color})`,
+        );
+      });
+    });
+  });
+});
+console.log('✓ 10. Automation Color Consistency: เซกเมนต์หมวดระบบอัตโนมัติทุกแท่งใช้โทนสีเทาตุ่น (#5B6B82) สม่ำเสมอ 100% ไม่มีสีน้ำเงินแปลกปลอม');
+
 console.log('--- ผ่านการตรวจสอบความถูกต้องทั้งหมด 100% ---');
