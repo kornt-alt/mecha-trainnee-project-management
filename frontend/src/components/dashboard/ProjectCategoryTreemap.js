@@ -89,7 +89,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
 
   if (total === 0) {
     return (
-      <Card className="border-0 shadow-sm category-treemap-card h-100">
+      <Card className="border-0 shadow-sm category-treemap-card mb-4">
         <Card.Header className="bg-white border-bottom py-3 px-3">
           <div className="d-flex align-items-start gap-2">
             <div className="panel-icon-wrap text-primary"><ChartPie size={18} /></div>
@@ -111,7 +111,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
   }
 
   return (
-    <Card className="border-0 shadow-sm category-treemap-card h-100">
+    <Card className="border-0 shadow-sm category-treemap-card mb-4">
       <Card.Header className="bg-white border-bottom py-3 px-3">
         <div className="d-flex align-items-start gap-2">
           <div className="panel-icon-wrap text-primary"><ChartPie size={18} /></div>
@@ -155,7 +155,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
               </div>
             </div>
 
-            {/* heading ใช้สีประเภทจริงจาก TILE_COLORS เดียวกับ segment ใน Treemap — ข้อความขาวอ่านชัดบนพื้นสีกลาง-เข้มทั้งชุด */}
+            {/* heading ใช้สีประเภทจริงจาก utils/categoryColors.js เดียวกับ segment ใน Treemap — ข้อความขาวอ่านชัดบนพื้นสีกลาง-เข้มทั้งชุด */}
             <div className="category-detail-header" style={{ backgroundColor: selectedCategory.color }}>
               <h3 className="category-detail-title">
                 {selectedCategory.name}
