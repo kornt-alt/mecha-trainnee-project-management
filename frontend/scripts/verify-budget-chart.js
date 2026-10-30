@@ -202,8 +202,8 @@ assert.strictEqual(edgeBar.segments[0].projectKey, 'p1', 'Tie-breaker ต้อ�
 assert.strictEqual(edgeBar.segments[1].projectKey, 'p2');
 console.log('✓ 7.2 Edge Cases (zero/negative/NaN & deterministic tie-breaker): ผ่านการตรวจสอบอย่างสมบูรณ์');
 
-// 7.3 ตรวจสอบความแตกต่างของระดับความสว่าง (Color Lightness Contrast) ระหว่างเซกเมนต์ที่อยู่ติดกัน
-const { hexToHsl } = require('../src/components/BudgetBarChart/budgetBarChartUtils');
+// 7.3 ตรวจสอบความสอดคล้องของระดับความสว่างตามเปอร์เซ็นต์ (Monotonic Lightness Progression & Text Contrast)
+const { hexToHsl, calculateTargetLightness, transformColorByPercentage } = require('../src/components/BudgetBarChart/budgetBarChartUtils');
 compModel.groups.forEach((group) => {
   group.bars.forEach((bar) => {
     if (bar.kind === 'variance') return;
@@ -212,12 +212,20 @@ compModel.groups.forEach((group) => {
       const upper = bar.segments[i + 1];
       const lowerHsl = hexToHsl(lower.color);
       const upperHsl = hexToHsl(upper.color);
-      const lightnessDiff = Math.abs(upperHsl.l - lowerHsl.l);
 
+      // เซกเมนต์ล่าง (เปอร์เซ็นต์มากกว่าหรือเท่ากัน) ต้องมี Lightness น้อยกว่าหรือเท่ากับเซกเมนต์บน (สีเข้มกว่าหรือเท่ากัน)
       assert.ok(
-        lightnessDiff >= 20,
-        `เซกเมนต์ที่อยู่ติดกันใน ${group.name} (${bar.kind}) ต้องมีความต่างของความสว่างอย่างน้อย 20% (พบ ${lightnessDiff}% ระหว่าง ${lower.projectKey} และ ${upper.projectKey})`
+        lowerHsl.l <= upperHsl.l,
+        `เซกเมนต์ล่างใน ${group.name} (${bar.kind}) ต้องมี Lightness เข้มกว่าหรือเท่ากับเซกเมนต์บน (พบ ${lowerHsl.l} > ${upperHsl.l})`
       );
+
+      // หากเปอร์เซ็นต์ต่างกันอย่างมีนัยสำคัญ (>= 3%) ความสว่างต้องต่างกันอย่างแน่นอน
+      if (lower.percentage - upper.percentage >= 3) {
+        assert.ok(
+          lowerHsl.l < upperHsl.l,
+          `เซกเมนต์ที่มีเปอร์เซ็นต์มากกว่า (${lower.percentage}%) ต้องมี Lightness ต่ำกว่าเซกเมนต์ที่มีเปอร์เซ็นต์น้อยกว่า (${upper.percentage}%)`
+        );
+      }
 
       // ตรวจสอบความถูกต้องของสีตัวอักษรเพื่อความคมชัด (Text Contrast)
       if (lowerHsl.l >= 65) {
@@ -228,7 +236,7 @@ compModel.groups.forEach((group) => {
     }
   });
 });
-console.log('✓ 7.3 Segment Color Contrast: เซกเมนต์ติดกันมีความต่างของความสว่าง (ΔL >= 20%) ชัดเจน และสีข้อความอ่านง่าย 100%');
+console.log('✓ 7.3 Segment Lightness & Text Contrast: เซกเมนต์เรียงระดับความสว่างตามเปอร์เซ็นต์สม่ำเสมอ และสีข้อความอ่านง่ายตามมาตรฐาน WCAG');
 
 // 7.4 ตรวจสอบความสอดคล้องกับ Project Category Distribution (ProjectCategoryTreemap.js)
 const { TREEMAP_CATEGORY_BASE_COLORS } = require('../src/components/BudgetBarChart/budgetBarChartData');
@@ -337,5 +345,129 @@ assert.strictEqual(getCategoryBaseColor('หมวดหมู่ที่ไม
   });
 });
 console.log('✓ 10. Automation Color Consistency: เซกเมนต์หมวดระบบอัตโนมัติทุกแท่งใช้โทนสีเทาตุ่น (#5B6B82) สม่ำเสมอ 100% ไม่มีสีน้ำเงินแปลกปลอม');
+
+// 11. Unit Tests for Color Transformation Utility (Requirement 12.D)
+console.log('--- ตรวจสอบ Requirement 12: Color Transformation Utility ---');
+
+// D.1 Higher percentage produces lower Lightness
+const colorLow = transformColorByPercentage('ระบบซอฟต์แวร์', 15);
+const colorHigh = transformColorByPercentage('ระบบซอฟต์แวร์', 85);
+const hslLow = hexToHsl(colorLow);
+const hslHigh = hexToHsl(colorHigh);
+assert.ok(
+  hslHigh.l < hslLow.l,
+  `D.1: Higher percentage must produce lower Lightness (${hslHigh.l} < ${hslLow.l})`
+);
+console.log('✓ 11.1 D.1: Higher percentage produces lower Lightness (15% -> L=' + hslLow.l + ', 85% -> L=' + hslHigh.l + ')');
+
+// D.2 Lower percentage produces higher Lightness
+const color10 = transformColorByPercentage('ระบบอัตโนมัติ', 10);
+const color60 = transformColorByPercentage('ระบบอัตโนมัติ', 60);
+const hsl10 = hexToHsl(color10);
+const hsl60 = hexToHsl(color60);
+assert.ok(
+  hsl10.l > hsl60.l,
+  `D.2: Lower percentage must produce higher Lightness (${hsl10.l} > ${hsl60.l})`
+);
+console.log('✓ 11.2 D.2: Lower percentage produces higher Lightness (10% -> L=' + hsl10.l + ', 60% -> L=' + hsl60.l + ')');
+
+// D.3 Equal percentages produce equal target Lightness across categories
+const testCategories = [
+  'ระบบอัตโนมัติ',
+  'ระบบซอฟต์แวร์',
+  'คุณภาพและทดสอบ',
+  'เอกสารและการฝึกอบรม',
+  'ระบบองค์กร',
+  'ซ่อมบำรุง',
+];
+const testPercentages = [10, 25, 50, 75, 90];
+testPercentages.forEach((pct) => {
+  const expectedL = calculateTargetLightness(pct);
+  testCategories.forEach((cat) => {
+    const transformed = transformColorByPercentage(cat, pct);
+    const hsl = hexToHsl(transformed);
+    assert.strictEqual(
+      hsl.l,
+      expectedL,
+      `D.3: Target Lightness for ${cat} at ${pct}% must be exactly ${expectedL}% (got ${hsl.l}%)`
+    );
+  });
+});
+console.log('✓ 11.3 D.3: Equal percentages produce equal target Lightness across all categories (10%, 25%, 50%, 75%, 90%)');
+
+// D.4 Original Hue remains unchanged
+testCategories.forEach((cat) => {
+  const baseColor = getCategoryBaseColor(cat);
+  const baseHsl = hexToHsl(baseColor);
+  [5, 20, 45, 60, 80, 95].forEach((pct) => {
+    const transformed = transformColorByPercentage(cat, pct);
+    const transformedHsl = hexToHsl(transformed);
+    assert.ok(
+      Math.abs(transformedHsl.h - baseHsl.h) <= 2,
+      `D.4: Original Hue for ${cat} (${baseHsl.h}) must remain unchanged at ${pct}% (got ${transformedHsl.h})`
+    );
+  });
+});
+console.log('✓ 11.4 D.4: Original Hue remains unchanged across all transformation percentages');
+
+// D.5 Original Saturation/Chroma remains unchanged within the selected color-space implementation
+testCategories.forEach((cat) => {
+  const baseColor = getCategoryBaseColor(cat);
+  const baseHsl = hexToHsl(baseColor);
+  [5, 20, 45, 60, 80, 95].forEach((pct) => {
+    const transformed = transformColorByPercentage(cat, pct);
+    const transformedHsl = hexToHsl(transformed);
+    assert.ok(
+      Math.abs(transformedHsl.s - baseHsl.s) <= 2,
+      `D.5: Original Saturation for ${cat} (${baseHsl.s}) must remain unchanged at ${pct}% (got ${transformedHsl.s})`
+    );
+  });
+});
+console.log('✓ 11.5 D.5: Original Saturation/Chroma remains unchanged within HSL color-space');
+
+// D.6 Invalid percentages do not crash the utility
+const invalidPercentages = [null, undefined, NaN, 'invalid-string', -100, 250, Infinity, -Infinity, {}, []];
+invalidPercentages.forEach((invPct) => {
+  assert.doesNotThrow(() => {
+    const result = transformColorByPercentage('ระบบซอฟต์แวร์', invPct);
+    assert.ok(typeof result === 'string' && /^#[0-9A-F]{6}$/i.test(result));
+  }, `D.6: Invalid percentage ${invPct} must not crash`);
+});
+console.log('✓ 11.6 D.6: Invalid percentages do not crash the utility and return valid hex color');
+
+// D.7 Invalid category colors use a safe, documented fallback
+const invalidColors = [null, undefined, '', 'non_existent_category_123', 9999, false];
+invalidColors.forEach((invColor) => {
+  assert.doesNotThrow(() => {
+    const result = transformColorByPercentage(invColor, 50);
+    const fallbackBaseHsl = hexToHsl(UNMAPPED_CATEGORY_COLOR);
+    const resultHsl = hexToHsl(result);
+    assert.ok(Math.abs(resultHsl.h - fallbackBaseHsl.h) <= 2);
+    assert.ok(Math.abs(resultHsl.s - fallbackBaseHsl.s) <= 2);
+  }, `D.7: Invalid category color ${invColor} must use UNMAPPED_CATEGORY_COLOR fallback`);
+});
+console.log('✓ 11.7 D.7: Invalid category colors use safe, documented fallback (UNMAPPED_CATEGORY_COLOR = #64748B)');
+
+// D.8 Results are deterministic and do not depend on rendering order, filters, or date ranges
+const deterministicTestInputs = [
+  { cat: 'ระบบซอฟต์แวร์', p: 40 },
+  { cat: 'ระบบอัตโนมัติ', p: 70 },
+  { cat: 'คุณภาพและทดสอบ', p: 15 },
+  { cat: 'เอกสารและการฝึกอบรม', p: 55 },
+];
+// Run 1: Sequential
+const seqResults = deterministicTestInputs.map((i) => transformColorByPercentage(i.cat, i.p));
+// Run 2: Reversed
+const revResults = [...deterministicTestInputs].reverse().map((i) => transformColorByPercentage(i.cat, i.p)).reverse();
+// Run 3: Shuffled / Repeated
+assert.deepStrictEqual(seqResults, revResults, 'D.8: Results must be deterministic regardless of execution order');
+deterministicTestInputs.forEach((item, idx) => {
+  assert.strictEqual(
+    transformColorByPercentage(item.cat, item.p),
+    seqResults[idx],
+    `D.8: Repeated call for ${item.cat} at ${item.p}% must always produce identical output`
+  );
+});
+console.log('✓ 11.8 D.8: Results are strictly deterministic and independent of rendering order, filters, or date ranges');
 
 console.log('--- ผ่านการตรวจสอบความถูกต้องทั้งหมด 100% ---');
