@@ -4,6 +4,9 @@
 import { PROJECT_STATUSES } from '../../utils/config.js';
 import { MOCK_EMPLOYEES } from '../../data/mockData.js';
 import {
+  CATEGORY_COLORS,
+  categoryColorByIndex,
+  categoryColorEntry,
   PROJECT_CATEGORY_COLORS,
   getCategoryBaseColor,
   DEFAULT_CATEGORY_COLORS,
@@ -15,6 +18,9 @@ import { hexToHsl, generateCategoryTones } from './budgetBarChartUtils.js';
 
 // ส่งออกต่อเพื่อให้คอมโพเนนต์หรือชุดทดสอบใช้งานต่อได้โดยตรง
 export {
+  CATEGORY_COLORS,
+  categoryColorByIndex,
+  categoryColorEntry,
   PROJECT_CATEGORY_COLORS,
   getCategoryBaseColor,
   DEFAULT_CATEGORY_COLORS,
