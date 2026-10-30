@@ -5,6 +5,8 @@ import React, { useMemo, useState } from 'react';
 import { Card, Form, InputGroup, Table, Button } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
 import { statusLabel } from '../../utils/config';
+// สี category จากไฟล์กลาง — BudgetBarChart ใช้ไฟล์เดียวกันนี้เพื่อให้กราฟทุกตัวมีสี category ตรงกัน
+import { categoryColorByIndex } from '../../utils/categoryColors';
 
 // ArrowLeft (Lucide) — วาด inline ในไฟล์นี้เพราะ common/Icons.js เป็นไฟล์ shared ที่เพื่อนร่วมทีมใช้
 const ArrowLeft = ({ size = 18, strokeWidth = 2 }) => (
@@ -12,8 +14,6 @@ const ArrowLeft = ({ size = 18, strokeWidth = 2 }) => (
     <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
   </svg>
 );
-
-const TILE_COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--muted)', 'var(--red)', 'var(--blue-hover)'];
 
 // สี badge ตามความหมายของสถานะจริงในระบบ (config.js PROJECT_STATUSES):
 // done=เขียว(เสร็จ) · in_progress=น้ำเงิน(กำลังทำ) · planning=amber(วางแผน/รอเริ่ม) · on_hold=เทา(พักไว้) · cancelled=แดง(ยกเลิก)
@@ -58,12 +58,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
     }, {});
     const total = projects.length;
     return Object.entries(counts)
-      .map(([name, count], index) => ({
-        name,
-        count,
-        percentage: total > 0 ? (count / total) * 100 : 0,
-        color: getCategoryBaseColor(name, index),
-      }))
+      .map(([name, count], index) => ({ name, count, percentage: total > 0 ? (count / total) * 100 : 0, color: categoryColorByIndex(index) }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'));
   }, [projects]);
 
