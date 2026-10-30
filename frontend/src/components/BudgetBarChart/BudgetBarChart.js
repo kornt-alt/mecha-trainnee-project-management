@@ -145,6 +145,10 @@ const BudgetBarChart = ({
                 x={bar.centerX}
                 y={segment.y + segment.height / 2 + 4}
                 textAnchor="middle"
+                style={{
+                  fill: segment.textColor || '#ffffff',
+                  textShadow: segment.textShadow || '0 1px 2px rgba(0, 0, 0, 0.4)',
+                }}
               >
                 {segment.shareText}
               </text>
