@@ -241,6 +241,12 @@
   filter: brightness(1.12);
 }
 
+.budget-bar-chart__segment:focus,
+.budget-bar-chart__segment:focus-visible {
+  outline: 2px solid var(--chart-blue);
+  outline-offset: 1px;
+}
+
 .budget-bar-chart__segment--match {
   filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.85)) brightness(1.15) !important;
   opacity: 1 !important;

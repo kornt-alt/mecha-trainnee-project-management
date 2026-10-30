@@ -13,8 +13,14 @@ import {
   CATEGORY_ALIAS_MAP,
   normalizeCategoryName,
   UNMAPPED_CATEGORY_COLOR,
+  hexToHsl,
+  hslToHex,
+  SAFE_LIGHTNESS_LIMITS,
+  resolveBaseColor,
+  calculateTargetLightness,
+  transformColorByPercentage,
 } from '../../utils/categoryColors.js';
-import { hexToHsl, generateCategoryTones } from './budgetBarChartUtils.js';
+import { generateCategoryTones } from './budgetBarChartUtils.js';
 
 // ส่งออกต่อเพื่อให้คอมโพเนนต์หรือชุดทดสอบใช้งานต่อได้โดยตรง
 export {
@@ -27,6 +33,12 @@ export {
   CATEGORY_ALIAS_MAP,
   normalizeCategoryName,
   UNMAPPED_CATEGORY_COLOR,
+  hexToHsl,
+  hslToHex,
+  SAFE_LIGHTNESS_LIMITS,
+  resolveBaseColor,
+  calculateTargetLightness,
+  transformColorByPercentage,
 };
 
 // โหมดแสดงผลของกราฟ (ลำดับ = ลำดับปุ่มบน toolbar)
