@@ -971,6 +971,116 @@ body {
 .category-treemap-empty { min-height: 270px; padding: 20px; }
 @media (max-width: 575.98px) { .category-treemap { min-height: 230px; gap: 4px; } .category-treemap-column { gap: 4px; } .category-treemap-tile { padding: 8px; } .category-tile-name { font-size: .74rem; } .category-tile-detail { font-size: .65rem; } }
 
+/* ── Interactive Treemap: hover / tooltip / focus ────────────────────── */
+/* ปิด overflow ตอน hover เพื่อให้ tooltip ล้นออกนอก tile ได้ (เลื่อนขึ้นเล็กน้อยเป็น animation แทนการขยายขนาด จึงไม่เลื่อน layout) */
+.category-treemap-tile { position: relative; transition: transform .15s ease, filter .15s ease, background-color .15s ease; }
+.category-treemap-tile[role="button"] { cursor: pointer; }
+.category-treemap-tile-hover { overflow: visible !important; z-index: 2; transform: translateY(-2px); filter: brightness(1.08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3), 0 4px 10px rgba(11, 31, 58, .25); }
+.category-treemap-tile[role="button"]:focus-visible { outline: 2px solid #FFFFFF; outline-offset: -4px; }
+.category-treemap-tooltip {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: calc(100% + 6px);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--ink);
+  color: #FFFFFF;
+  font-size: .72rem;
+  line-height: 1.3;
+  box-shadow: var(--shadow-card);
+  pointer-events: none;
+  white-space: nowrap;
+}
+.category-treemap-tooltip-name { font-weight: 600; font-size: .78rem; }
+/* tooltip ชิดขอบบนของการ์ด — ติดกับ tile แทนการลอยเหนือ เพื่อไม่ถูก overflow: hidden ของ card ตัด */
+.category-treemap-tile:first-child .category-treemap-tooltip { bottom: auto; top: 6px; }
+
+/* ── Treemap: Category Detail Mode (tabs + ตารางโปรเจกต์เต็มความกว้าง) ── */
+/* boundary ชัดเจนในการ์ด — เนื้อหาไม่แนบขอบการ์ดด้านนอก (Card.Body p-3 + padding ในนี้) */
+.category-detail { display: flex; flex: 1 1 auto; min-height: 320px; flex-direction: column; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--surface); }
+/* แถวบน: tabs เลื่อนแนวนอนได้บนจอเล็ก (ไม่พับหลายแถว) + ปุ่มกลับภาพรวมอยู่ขวาเสมอ */
+.category-detail-top { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; }
+.category-tabs { display: flex; flex: 1 1 auto; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.category-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: .76rem;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.category-tab:hover { border-color: var(--blue); }
+.category-tab:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+/* tab ที่เลือก — พื้นสีประเภท + ตัวเลขขาว ชัดเจนทั้งจากสีและน้ำหนัก */
+.category-tab-active { color: #FFFFFF; font-weight: 600; border-color: transparent; }
+.category-tab-count { font-size: .7rem; font-weight: 600; }
+/* ปุ่มย้อนกลับแบบ icon-only ชิดซ้ายสุดของ header — โครงสร้างกลางของ Bootstrap (outline-secondary) + ธีมผ่าน variables */
+.category-back-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius);
+  color: var(--blue) !important;
+  border-color: var(--line-strong);
+}
+.category-back-btn:hover { color: var(--blue-hover) !important; border-color: var(--blue); background: var(--blue-tint); }
+.category-back-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; box-shadow: none; }
+/* heading พื้นสีประเภทจริง (ส่งจาก TILE_COLORS ผ่าน inline style) — ข้อความขาวอ่านชัดบนสีกลาง-เข้มทั้งชุด */
+.category-detail-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 10px 16px; border-radius: var(--radius); color: #FFFFFF; }
+.category-detail-title { margin: 0; font-size: 1rem; font-weight: 700; color: inherit; }
+.category-detail-count { font-size: .78rem; opacity: .9; }
+.category-detail-search { flex: 0 0 auto; max-width: 420px; }
+.category-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+/* ชื่อโปรเจกต์กินพื้นที่เหลือทั้งหมด — ชื่อยาวตัดคำใน cell ไม่ดันตารางกว้าง */
+/* ตารางโปร่งตัว — ทุก cell มี padding แนวนอนร่วมกัน ส่วนขอบซ้าย/ขวาของตารางเว้นมากกว่า
+   เพื่อไม่ให้คอลัมน์แรก/สุดท้ายชิดขอบกรอบ (header กับข้อมูลใช้ค่าเดียวกันจึงอยู่แนวเดียวกัน) */
+.category-detail-table { min-width: 420px; }
+.category-detail-table th,
+.category-detail-table td { padding: .65rem .85rem; }
+.category-detail-table th { vertical-align: middle; }
+.category-detail-table td:first-child,
+.category-detail-table th:first-child { padding-left: 18px; }
+.category-detail-table td:last-child,
+.category-detail-table th:last-child { padding-right: 18px; }
+.category-detail-table td:first-child { min-width: 180px; overflow-wrap: anywhere; }
+/* ชื่อโปรเจกต์ — สีหลักของธีม + น้ำหนักมากกว่าข้อมูลรอง แยกจากคอลัมน์สถานะ/วันที่ชัดเจน */
+.category-detail-name { color: var(--ink); font-weight: 600; }
+/* badge ตามความหมายสถานะ — ใช้ tint เป็นพื้น + สีเข้มเป็นตัวอักษร เพื่อ contrast และขนาด/รูปทรงเดียวกันทุก badge */
+.category-detail-status { font-weight: 600; padding: .3em .7em; border-radius: var(--radius-sm); }
+.category-status-done { background: var(--green-tint); color: var(--green); }
+.category-status-in-progress { background: var(--blue-tint); color: var(--blue); }
+.category-status-planning { background: var(--amber-tint); color: var(--amber); }
+.category-status-on-hold { background: var(--line); color: var(--muted); }
+.category-status-cancelled { background: var(--red-tint); color: var(--red); }
+.category-detail-empty { padding: 32px 12px; color: var(--muted); font-size: .85rem; text-align: center; }
+@media (max-width: 575.98px) {
+  .category-detail { min-height: 300px; gap: 10px; padding: 10px; }
+  .category-detail-top { flex-wrap: nowrap; }
+  .category-detail-search { max-width: none; }
+  /* mobile: ลด padding ลงแต่ไม่ให้ข้อความชิดขอบตาราง — คง scroll แนวนอนใน wrapper เดิม */
+  .category-detail-table th,
+  .category-detail-table td { padding: .5rem .6rem; }
+  .category-detail-table td:first-child,
+  .category-detail-table th:first-child { padding-left: 14px; }
+  .category-detail-table td:last-child,
+  .category-detail-table th:last-child { padding-right: 14px; }
+}
+
 /* ตัวเลื่อนอยู่ที่ส่วนเนื้อหานี้ (ครอบทั้งตารางและ empty state) — header อยู่นอกจึงมองเห็นตลอด */
 .unfinished-tasks-card .unfinished-tasks-scroll {
   flex: 1 1 auto;
