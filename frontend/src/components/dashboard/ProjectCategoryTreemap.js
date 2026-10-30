@@ -58,7 +58,12 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
     }, {});
     const total = projects.length;
     return Object.entries(counts)
-      .map(([name, count], index) => ({ name, count, percentage: total > 0 ? (count / total) * 100 : 0, color: TILE_COLORS[index % TILE_COLORS.length] }))
+      .map(([name, count], index) => ({
+        name,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0,
+        color: getCategoryBaseColor(name, index),
+      }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'));
   }, [projects]);
 
