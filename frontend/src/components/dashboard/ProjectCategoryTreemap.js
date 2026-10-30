@@ -2,8 +2,7 @@
 import React, { useMemo } from 'react';
 import { Card } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
-
-const TILE_COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--muted)', 'var(--red)', 'var(--blue-hover)'];
+import { getCategoryBaseColor } from '../../utils/categoryColors';
 
 function makeColumns(categories) {
   const columns = [{ total: 0, items: [] }, { total: 0, items: [] }];
@@ -24,7 +23,12 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
     }, {});
     const total = projects.length;
     return Object.entries(counts)
-      .map(([name, count], index) => ({ name, count, percentage: total > 0 ? (count / total) * 100 : 0, color: TILE_COLORS[index % TILE_COLORS.length] }))
+      .map(([name, count], index) => ({
+        name,
+        count,
+        percentage: total > 0 ? (count / total) * 100 : 0,
+        color: getCategoryBaseColor(name, index),
+      }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'));
   }, [projects]);
 

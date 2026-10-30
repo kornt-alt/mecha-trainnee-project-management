@@ -38,6 +38,66 @@ export const getTooltipPosition = (clientX, clientY, viewportWidth, viewportHeig
   return { left: Math.max(8, left), top: Math.max(8, top) };
 };
 
+/** Convert hex string to HSL object { h, s, l } with integer percentages. */
+export const hexToHsl = (hex) => {
+  if (!hex || typeof hex !== 'string') return { h: 217, s: 90, l: 50 };
+  const cleaned = hex.replace('#', '');
+  const full = cleaned.length === 3 ? cleaned.split('').map((c) => c + c).join('') : cleaned;
+  if (full.length !== 6) return { h: 217, s: 90, l: 50 };
+  const r = parseInt(full.substring(0, 2), 16) / 255;
+  const g = parseInt(full.substring(2, 4), 16) / 255;
+  const b = parseInt(full.substring(4, 6), 16) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+      case g: h = (b - r) / d + 2; break;
+      case b: h = (r - g) / d + 4; break;
+      default: break;
+    }
+    h = Math.round(h * 60);
+  }
+  return { h, s: Math.round(s * 100), l: Math.round(l * 100) };
+};
+
+/** Convert HSL (h: 0..360, s: 0..100, l: 0..100) back to 6-char upper hex code (#RRGGBB). */
+export const hslToHex = (h, s, l) => {
+  const normL = Math.max(0, Math.min(100, l)) / 100;
+  const normS = Math.max(0, Math.min(100, s)) / 100;
+  const a = normS * Math.min(normL, 1 - normL);
+  const f = (n) => {
+    const k = (n + h / 30) % 12;
+    const color = normL - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * color).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`.toUpperCase();
+};
+
+/**
+ * คำนวณสีโทนสว่างหรือเข้ม (Tonal Variations) จากแม่สีหลักด้วยระบบสี HSL อย่างมีระเบียบและคาดเดาได้
+ * @param {string} baseColorHex รหัสสีหลักของประเภทโครงการ (Hex)
+ * @param {number} index ลำดับโครงการในหมวดหมู่
+ * @param {boolean} [isPlanned=true] แท่งงบประมาณวางแผน (โทนสว่างกว่า) หรือแท่งค่าใช้จ่ายจริง (โทนเข้ม)
+ * @returns {string} รหัสสี Hex
+ */
+export const generateCategoryTones = (baseColorHex, index, isPlanned = true) => {
+  const { h, s, l: baseL } = hexToHsl(baseColorHex);
+  const plannedOffsets = [8, 36, -6, 42, 12, 30, -12, 38];
+  const actualOffsets = [0, 26, -10, 32, 6, 20, -14, 28];
+  const offset = isPlanned
+    ? plannedOffsets[index % plannedOffsets.length]
+    : actualOffsets[index % actualOffsets.length];
+  let targetL = baseL + offset;
+  targetL = Math.max(14, Math.min(88, targetL));
+  return hslToHex(h, s, targetL);
+};
+
 /**
  * Apply the toolbar filters without mutating the input.
  * Categories with zero matching projects are kept (their label still renders, like the reference).
@@ -135,7 +195,9 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
 
     // กรองและคำนวณสัดส่วนของแต่ละโครงการเทียบกับยอดรวมของแท่งนี้โดยไม่แก้ไข category.projects เดิม
     const validProjects = (category.projects || []).filter((project) => {
-      const value = Number(isPlanned ? project.planned : project.actual);
+      if (!project) return false;
+      const rawValue = isPlanned ? project.planned : project.actual;
+      const value = Number(rawValue);
       return Number.isFinite(value) && value > 0;
     });
 
@@ -143,15 +205,20 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
 
     const preparedItems = validProjects.map((project) => {
       const value = Number(isPlanned ? project.planned : project.actual);
-      const sharePct = Number(((value / total) * 100).toFixed(1));
-      return { project, value, sharePct };
+      const percentage = total > 0 ? (value / total) * 100 : 0;
+      const sharePct = Number(percentage.toFixed(1));
+      return { project, value, percentage, sharePct };
     });
 
-    // เรียงลำดับจากเปอร์เซ็นต์มากไปน้อย (Descending)
-    // โดยโครงการที่มีสัดส่วนมากที่สุดจะอยู่ที่ฐานล่างสุดของแท่ง (เริ่มจาก zeroY)
-    // และลดหลั่นขึ้นไปจนถึงโครงการที่มีสัดส่วนน้อยที่สุดอยู่บนสุด
-    // พร้อมกำหนด tie-breaker ที่แน่นอน (deterministic) เมื่อมีสัดส่วนเท่ากัน
+    // เรียงลำดับเซกเมนต์ภายในแต่ละแท่งอย่างอิสระตามเปอร์เซ็นต์จากมากไปน้อย (Descending numerical sort)
+    // - โครงการที่มีเปอร์เซ็นต์มากที่สุด (Largest) จะอยู่ที่ฐานล่างสุดของแท่ง (เริ่มจาก zeroY ขึ้นไป)
+    // - โครงการที่มีเปอร์เซ็นต์รองลงมาจะซ้อนทับอยู่เหนือขึ้นไปตามลำดับ
+    // - โครงการที่มีเปอร์เซ็นต์น้อยที่สุด (Smallest) จะอยู่บนสุดของแท่ง
+    // - หากมีเปอร์เซ็นต์เท่ากัน ให้ใช้ tie-breaker ที่แน่นอนและเสถียร (ตามมูลค่า แล้วตาม project ID)
     preparedItems.sort((a, b) => {
+      if (b.percentage !== a.percentage) {
+        return b.percentage - a.percentage;
+      }
       if (b.value !== a.value) {
         return b.value - a.value;
       }
@@ -160,21 +227,55 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
 
     const segments = [];
     let currentY = zeroY;
-    preparedItems.forEach(({ project, value, sharePct }) => {
+    let prevLightness = null;
+
+    preparedItems.forEach(({ project, value, percentage, sharePct }) => {
       const segmentHeight = (value / maxY) * chartHeight;
       const segmentY = currentY - segmentHeight;
       currentY = segmentY;
+
+      const rawColor = isPlanned ? project.plannedColor : project.actualColor;
+      let finalColor = rawColor;
+      const hsl = hexToHsl(rawColor);
+      let currentLightness = hsl.l;
+
+      // ตรวจสอบและปรับระดับความสว่างให้เซกเมนต์ที่อยู่ติดกัน (Adjacent Segments) มีความต่างชัดเจน (ΔL >= 20%)
+      // โดยรักษา Base Hue เดิมของแต่ละหมวดหมู่อย่างเคร่งครัด
+      if (prevLightness !== null) {
+        const lightnessDiff = Math.abs(currentLightness - prevLightness);
+        if (lightnessDiff < 20) {
+          if (prevLightness <= 55) {
+            currentLightness = Math.min(84, prevLightness + 28);
+          } else {
+            currentLightness = Math.max(24, prevLightness - 28);
+          }
+          finalColor = hslToHex(hsl.h, Math.max(65, hsl.s), currentLightness);
+        }
+      }
+      prevLightness = currentLightness;
+
+      // คำนวณสีข้อความเปอร์เซ็นต์ให้ตัดกับพื้นหลังเซกเมนต์เสมอ (WCAG AA/AAA contrast)
+      // พื้นสว่างใช้ตัวหนังสือสีเข้ม #0f172a, พื้นเข้มใช้ตัวหนังสือสีขาว #ffffff
+      const isLightBackground = currentLightness >= 65;
+      const textColor = isLightBackground ? '#0f172a' : '#ffffff';
+      const textShadow = isLightBackground
+        ? '0 1px 2px rgba(255, 255, 255, 0.7)'
+        : '0 1px 2px rgba(0, 0, 0, 0.6)';
 
       segments.push({
         key: `${kind}-${project.id}`,
         projectKey: String(project.id),
         y: segmentY,
         height: segmentHeight,
-        color: isPlanned ? project.plannedColor : project.actualColor,
+        color: finalColor,
+        textColor,
+        textShadow,
+        lightness: currentLightness,
         searchState: searchStateOf(project),
         showLabel: segmentHeight > 18,
         shareText: `${sharePct}%`,
         sharePct,
+        percentage,
         value,
         tooltip: buildTooltip(
           project,

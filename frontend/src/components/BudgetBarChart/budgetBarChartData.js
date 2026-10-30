@@ -3,6 +3,15 @@
 // เป็นโครงข้อมูล categories ที่ BudgetBarChart ใช้ (รูปแบบเดียวกับ reference dashboard)
 import { PROJECT_STATUSES } from '../../utils/config.js';
 import { MOCK_EMPLOYEES } from '../../data/mockData.js';
+import {
+  PROJECT_CATEGORY_COLORS,
+  getCategoryBaseColor,
+  DEFAULT_CATEGORY_COLORS,
+} from '../../utils/categoryColors.js';
+import { hexToHsl, generateCategoryTones } from './budgetBarChartUtils.js';
+
+// ส่งออกต่อเพื่อให้คอมโพเนนต์หรือชุดทดสอบใช้งานต่อได้โดยตรง
+export { PROJECT_CATEGORY_COLORS, getCategoryBaseColor, DEFAULT_CATEGORY_COLORS };
 
 // โหมดแสดงผลของกราฟ (ลำดับ = ลำดับปุ่มบน toolbar)
 export const VIEW_MODE_OPTIONS = [
@@ -37,44 +46,31 @@ export const formatThaiMonth = (yearMonth) => {
   return `${THAI_MONTH_NAMES[mm - 1]} ${yyyy + 543}`;
 };
 
-// โทนสีต่อหมวด: แท่งซ้าย (planned) สีสว่าง / แท่งขวา (actual) โทนเข้มของครอบครัวเดียวกัน
-// — โครงสีตาม reference (พัฒนาซอฟต์แวร์=blue, โครงสร้างพื้นฐาน=emerald, ออกแบบ=amber, ข้อมูล&AI=violet, การตลาด=pink)
-const CATEGORY_COLOR_PALETTES = [
-  [
-    { plannedColor: '#3B82F6', actualColor: '#1D4ED8' },
-    { plannedColor: '#60A5FA', actualColor: '#2563EB' },
-    { plannedColor: '#93C5FD', actualColor: '#3B82F6' },
-  ],
-  [
-    { plannedColor: '#10B981', actualColor: '#047857' },
-    { plannedColor: '#34D399', actualColor: '#059669' },
-    { plannedColor: '#6EE7B7', actualColor: '#10B981' },
-  ],
-  [
-    { plannedColor: '#F59E0B', actualColor: '#B45309' },
-    { plannedColor: '#FBBF24', actualColor: '#D97706' },
-    { plannedColor: '#FCD34D', actualColor: '#F59E0B' },
-  ],
-  [
-    { plannedColor: '#8B5CF6', actualColor: '#5B21B6' },
-    { plannedColor: '#A78BFA', actualColor: '#6D28D9' },
-    { plannedColor: '#C4B5FD', actualColor: '#7C3AED' },
-  ],
-  [
-    { plannedColor: '#EC4899', actualColor: '#9D174D' },
-    { plannedColor: '#F472B6', actualColor: '#BE185D' },
-    { plannedColor: '#F9A8D4', actualColor: '#DB2777' },
-  ],
-  [
-    { plannedColor: '#14B8A6', actualColor: '#0F766E' },
-    { plannedColor: '#2DD4BF', actualColor: '#0D9488' },
-    { plannedColor: '#5EEAD4', actualColor: '#14B8A6' },
-  ],
-];
+// โครงสีแม่แบบอ้างอิงจาก Project Category Distribution (ProjectCategoryTreemap.js)
+export const TREEMAP_CATEGORY_BASE_COLORS = {
+  'ระบบซอฟต์แวร์': { token: 'var(--blue)', hex: PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์']) },
+  'คุณภาพและทดสอบ': { token: 'var(--green)', hex: PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ']) },
+  'เอกสารและการฝึกอบรม': { token: 'var(--amber)', hex: PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม'], ...hexToHsl(PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม']) },
+  'ระบบอัตโนมัติ': { token: 'var(--muted)', hex: PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ']) },
+  'ระบบองค์กร': { token: 'var(--red)', hex: PROJECT_CATEGORY_COLORS['ระบบองค์กร'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบองค์กร']) },
+  'ซ่อมบำรุง': { token: 'var(--blue-hover)', hex: PROJECT_CATEGORY_COLORS['ซ่อมบำรุง'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ซ่อมบำรุง']) },
+};
 
-const pickPalette = (categoryIndex, projectIndex) => {
-  const palette = CATEGORY_COLOR_PALETTES[categoryIndex % CATEGORY_COLOR_PALETTES.length];
-  return palette[projectIndex % palette.length];
+// คำนวณพาเลตต์สีสลับโทน (Tonal Variations) แบบ Programmatic จากแม่สีหลักใน PROJECT_CATEGORY_COLORS
+export const CATEGORY_COLOR_PALETTES = Object.values(PROJECT_CATEGORY_COLORS).slice(0, 6).map((baseColor) =>
+  Array.from({ length: 8 }, (_, i) => ({
+    plannedColor: generateCategoryTones(baseColor, i, true),
+    actualColor: generateCategoryTones(baseColor, i, false),
+  }))
+);
+
+export const pickPalette = (categoryName, projectIndex, categoryIndex = 0) => {
+  const baseColor = getCategoryBaseColor(categoryName, categoryIndex);
+  return {
+    plannedColor: generateCategoryTones(baseColor, projectIndex, true),
+    actualColor: generateCategoryTones(baseColor, projectIndex, false),
+    baseColor,
+  };
 };
 
 const employeeNameById = new Map(MOCK_EMPLOYEES.map((employee) => [employee.id, employee.name]));
@@ -154,7 +150,7 @@ export const buildBudgetCategories = (projects = [], costItems = [], monthsBack 
       actual: actualByProject[project.id] || 0,
       status: project.status,
       manager: employeeNameById.get(project.managerId) || project.owner || '',
-      ...pickPalette(categoryIndexByName.get(categoryName), projectIndex),
+      ...pickPalette(categoryName, projectIndex, categoryIndexByName.get(categoryName)),
     });
   });
 
