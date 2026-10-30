@@ -1025,8 +1025,21 @@ body {
 /* tab ที่เลือก — พื้นสีประเภท + ตัวเลขขาว ชัดเจนทั้งจากสีและน้ำหนัก */
 .category-tab-active { color: #FFFFFF; font-weight: 600; border-color: transparent; }
 .category-tab-count { font-size: .7rem; font-weight: 600; }
-.category-back-btn { color: var(--blue) !important; font-weight: 500; }
-.category-back-btn:hover { color: var(--blue-hover) !important; }
+/* ปุ่มย้อนกลับแบบ icon-only ชิดซ้ายสุดของ header — โครงสร้างกลางของ Bootstrap (outline-secondary) + ธีมผ่าน variables */
+.category-back-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: var(--radius);
+  color: var(--blue) !important;
+  border-color: var(--line-strong);
+}
+.category-back-btn:hover { color: var(--blue-hover) !important; border-color: var(--blue); background: var(--blue-tint); }
+.category-back-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; box-shadow: none; }
 /* heading พื้นสีประเภทจริง (ส่งจาก TILE_COLORS ผ่าน inline style) — ข้อความขาวอ่านชัดบนสีกลาง-เข้มทั้งชุด */
 .category-detail-header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; padding: 10px 16px; border-radius: var(--radius); color: #FFFFFF; }
 .category-detail-title { margin: 0; font-size: 1rem; font-weight: 700; color: inherit; }
@@ -1034,12 +1047,19 @@ body {
 .category-detail-search { flex: 0 0 auto; max-width: 420px; }
 .category-detail-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 /* ชื่อโปรเจกต์กินพื้นที่เหลือทั้งหมด — ชื่อยาวตัดคำใน cell ไม่ดันตารางกว้าง */
+/* ตารางโปร่งตัว — ทุก cell มี padding แนวนอนร่วมกัน ส่วนขอบซ้าย/ขวาของตารางเว้นมากกว่า
+   เพื่อไม่ให้คอลัมน์แรก/สุดท้ายชิดขอบกรอบ (header กับข้อมูลใช้ค่าเดียวกันจึงอยู่แนวเดียวกัน) */
 .category-detail-table { min-width: 420px; }
+.category-detail-table th,
+.category-detail-table td { padding: .65rem .85rem; }
+.category-detail-table th { vertical-align: middle; }
+.category-detail-table td:first-child,
+.category-detail-table th:first-child { padding-left: 18px; }
+.category-detail-table td:last-child,
+.category-detail-table th:last-child { padding-right: 18px; }
 .category-detail-table td:first-child { min-width: 180px; overflow-wrap: anywhere; }
-.category-detail-table td:first-child, .category-detail-table th:first-child { padding-left: 12px; }
 /* ชื่อโปรเจกต์ — สีหลักของธีม + น้ำหนักมากกว่าข้อมูลรอง แยกจากคอลัมน์สถานะ/วันที่ชัดเจน */
 .category-detail-name { color: var(--ink); font-weight: 600; }
-.category-detail-table td { padding-top: .55rem; padding-bottom: .55rem; }
 /* badge ตามความหมายสถานะ — ใช้ tint เป็นพื้น + สีเข้มเป็นตัวอักษร เพื่อ contrast และขนาด/รูปทรงเดียวกันทุก badge */
 .category-detail-status { font-weight: 600; padding: .3em .7em; border-radius: var(--radius-sm); }
 .category-status-done { background: var(--green-tint); color: var(--green); }
@@ -1051,8 +1071,14 @@ body {
 @media (max-width: 575.98px) {
   .category-detail { min-height: 300px; gap: 10px; padding: 10px; }
   .category-detail-top { flex-wrap: nowrap; }
-  .category-back-btn { font-size: .72rem; }
   .category-detail-search { max-width: none; }
+  /* mobile: ลด padding ลงแต่ไม่ให้ข้อความชิดขอบตาราง — คง scroll แนวนอนใน wrapper เดิม */
+  .category-detail-table th,
+  .category-detail-table td { padding: .5rem .6rem; }
+  .category-detail-table td:first-child,
+  .category-detail-table th:first-child { padding-left: 14px; }
+  .category-detail-table td:last-child,
+  .category-detail-table th:last-child { padding-right: 14px; }
 }
 
 /* ตัวเลื่อนอยู่ที่ส่วนเนื้อหานี้ (ครอบทั้งตารางและ empty state) — header อยู่นอกจึงมองเห็นตลอด */

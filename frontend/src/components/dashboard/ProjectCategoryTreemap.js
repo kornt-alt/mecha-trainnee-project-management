@@ -6,6 +6,13 @@ import { Card, Form, InputGroup, Table, Button } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
 import { statusLabel } from '../../utils/config';
 
+// ArrowLeft (Lucide) — วาด inline ในไฟล์นี้เพราะ common/Icons.js เป็นไฟล์ shared ที่เพื่อนร่วมทีมใช้
+const ArrowLeft = ({ size = 18, strokeWidth = 2 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className="lucide-icon" style={{ display: 'inline-block', verticalAlign: 'middle' }} aria-hidden="true">
+    <path d="m12 19-7-7 7-7" /><path d="M19 12H5" />
+  </svg>
+);
+
 const TILE_COLORS = ['var(--blue)', 'var(--green)', 'var(--amber)', 'var(--muted)', 'var(--red)', 'var(--blue-hover)'];
 
 // สี badge ตามความหมายของสถานะจริงในระบบ (config.js PROJECT_STATUSES):
@@ -118,8 +125,19 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
         {selectedCategory ? (
           // ── Category Detail Mode: tabs ประเภทด้านบน + ตารางโปรเจกต์เต็มความกว้าง (ไม่มี segment อื่นในพื้นที่เนื้อหา) ──
           <div className="category-detail">
-            {/* tabs เลื่อนแนวนอนได้บนจอเล็ก — ไม่ตัดคำ ไม่พับหลายแถว */}
+            {/* แถวบน: ปุ่มย้อนกลับ (ไอคอนอย่างเดียว) ชิดซ้ายสุด ตามด้วย tabs — ปุ่มกลับเป็น leading control ของ header */}
             <div className="category-detail-top">
+              <Button
+                type="button"
+                variant="outline-secondary"
+                size="sm"
+                className="category-back-btn"
+                onClick={backToOverview}
+                aria-label="กลับไปภาพรวมประเภทโปรเจกต์"
+                title="กลับไปภาพรวม"
+              >
+                <ArrowLeft size={16} />
+              </Button>
               <div className="category-tabs" role="tablist" aria-label="เลือกประเภทโปรเจกต์">
                 {categories.map((category) => (
                   <button
@@ -135,14 +153,6 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
                   </button>
                 ))}
               </div>
-              <Button
-                variant="link"
-                size="sm"
-                className="category-back-btn flex-shrink-0 text-decoration-none p-0"
-                onClick={backToOverview}
-              >
-                ← กลับไปภาพรวม
-              </Button>
             </div>
 
             {/* heading ใช้สีประเภทจริงจาก TILE_COLORS เดียวกับ segment ใน Treemap — ข้อความขาวอ่านชัดบนพื้นสีกลาง-เข้มทั้งชุด */}
