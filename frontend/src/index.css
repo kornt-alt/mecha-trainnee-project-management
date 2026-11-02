@@ -1155,12 +1155,13 @@ body {
   .category-detail-table th:last-child { padding-right: 14px; }
 }
 
-/* ตัวเลื่อนอยู่ที่ส่วนเนื้อหานี้ (ครอบทั้งตารางและ empty state) — header อยู่นอกจึงมองเห็นตลอด */
+/* ตัวเลื่อนอยู่ที่ส่วนเนื้อหานี้ (ครอบทั้งตารางและ empty state) — header อยู่นอกจึงมองเห็นตลอด
+   overflow-x: auto เพื่อไม่ตัดคอลัมน์ให้เหลือบั้งท้าย — กว้างพอก็ซ่อน ต้องเลื่อนก็เป็น scrollbar เดิมของระบบ */
 .unfinished-tasks-card .unfinished-tasks-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 .unfinished-tasks-card .unfinished-tasks-empty {
@@ -1219,6 +1220,12 @@ body {
   background: #F8FAFC;
   border: 1px solid var(--line);
   transition: all 0.15s ease;
+  /* ปุ่มไม่ห่อข้อความและไม่ยืด/ยุบตาม flex — แนวนอนของแถวแท็บจะเลื่อนเองเมื่อจอแคบ */
+  white-space: nowrap;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .filter-pill-btn:hover {
@@ -1245,6 +1252,9 @@ body {
   letter-spacing: 0.5px;
   border-bottom: 1px solid var(--line) !important;
   padding: 12px 14px;
+  position: sticky;
+  top: 0;
+  z-index: 3;
 }
 
 .task-row td {
@@ -1257,6 +1267,8 @@ body {
 
 .task-title {
   font-size: 0.92rem;
+  line-height: 1.35;
+  min-width: 0;
 }
 
 .task-progress-bar {
@@ -1269,6 +1281,164 @@ body {
   font-size: 0.8rem;
   padding: 3px 8px;
   border-radius: 6px;
+}
+
+/* ปุ่มดูงานแบบไอคอนล้วน (คอลัมน์ดูงานกว้างเท่าไอคอน ทำให้ตารางกว้างน้อยและเหลือที่ให้คอลัมน์ข้อมูล) */
+.btn-action-view.btn-icon {
+  padding: 3px 7px;
+  line-height: 1;
+}
+
+/* ── ชื่อบล็อกงาน (ใช้ร่วมตารางและการ์ด) ────────────────────────────── */
+
+.task-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-title-line {
+  display: flex;
+  align-items: start;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.task-urgent-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--red-tint);
+  color: var(--red);
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.task-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+.task-meta-text {
+  font-size: 0.82rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-meta-text[title] {
+  text-decoration: none;
+}
+
+.task-meta-category {
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.task-desc {
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+/* ── ความคืบหน้าในแถวตาราง / การ์ด ─────────────────────────────────── */
+
+.task-progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-progress-value {
+  font-size: 0.82rem;
+  color: var(--muted);
+  min-width: 34px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ── กำหนดส่งในตาราง / การ์ด ───────────────────────────────────────── */
+
+.due-date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.due-date-rel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.due-date-raw {
+  font-size: 0.75rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.due-date-overdue { color: var(--red); }
+.due-date-today   { color: var(--amber); }
+.due-date-soon    { color: var(--ink); }
+.due-date-later   { color: var(--muted); }
+.due-date-none    { color: var(--muted); }
+
+/* ── แถวเลยกำหนด ───────────────────────────────────────────────────── */
+
+.task-row-overdue {
+  border-left: 3px solid var(--red);
+}
+
+.task-row-overdue td {
+  background-color: var(--red-tint);
+}
+
+/* ── การ์ดงานบนมือถือ / แท็บเล็ต (<1200px) ────────────────────────── */
+
+.task-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-card-overdue {
+  border-left: 3px solid var(--red);
+  background-color: var(--red-tint);
+}
+
+.task-card-due {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.task-card-progress {
+  width: 100%;
+}
+
+.task-card-view-btn {
+  align-self: flex-start;
 }
 
 /* ── ป้ายสถานะและประเภทงาน (Badges / Pills) ───────────────────────────── */
