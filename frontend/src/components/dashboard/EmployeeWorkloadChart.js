@@ -1,12 +1,18 @@
 // frontend/src/components/dashboard/EmployeeWorkloadChart.js
-// กราฟแท่งแนวนอน Workload พนักงาน พร้อม capacity/percentage/color thresholds
+// กราฟแสดง Workload พนักงานบน Dashboard หน้าแรก — เวอร์ชัน Compact ตามสไตล์ "Team Workload vs. Maximum Capacity"
 import React, { useState, useMemo } from 'react';
 import { Card, Form, Badge } from 'react-bootstrap';
-import { UserRound, Filter } from '../common/Icons';
-import { MOCK_EMPLOYEES, MOCK_WORK_ENTRIES } from '../../data/mockData';
-import { getEmployeeCapacity, MOCK_PLANNED_WORK_ENTRIES } from '../../data/workloadMockData';
+import { Link } from 'react-router-dom';
+import { UserRound, Filter, ChevronRight } from '../common/Icons';
+import { MOCK_EMPLOYEES } from '../../data/mockData';
+import {
+  MOCK_PLANNED_WORK_ENTRIES,
+  getWorkloadPeriodRange,
+  computeEmployeeWorkloadData,
+  toISODate,
+} from '../../data/workloadMockData';
 
-// รอบระยะเวลาที่รองรับ — คำนวณจากวันที่อ้างอิง (reference date) เดียวกัน
+// รอบระยะเวลาที่รองรับ
 const PERIOD_OPTIONS = [
   { key: 'daily',   label: 'รายวัน' },
   { key: 'weekly',  label: 'รายสัปดาห์' },
@@ -14,133 +20,66 @@ const PERIOD_OPTIONS = [
   { key: 'yearly',  label: 'รายปี' },
 ];
 
-// ── Utilities ──────────────────────────────────────────────────────────────
-
-function toDateString(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-}
-
-// คืนช่วงวันที่ [start, end] ของรอบที่เลือก  (สัปดาห์เริ่มวันจันทร์)
-function getPeriodRange(period, referenceDate) {
-  const y = referenceDate.getFullYear();
-  const m = referenceDate.getMonth();
-  const d = referenceDate.getDate();
-
-  if (period === 'daily') {
-    return { start: toDateString(referenceDate), end: toDateString(referenceDate) };
-  }
-  if (period === 'weekly') {
-    const dow    = referenceDate.getDay();
-    const offset = dow === 0 ? -6 : 1 - dow; // offset ไปวันจันทร์
-    const start  = new Date(y, m, d + offset);
-    const end    = new Date(y, m, d + offset + 6);
-    return { start: toDateString(start), end: toDateString(end) };
-  }
-  if (period === 'monthly') {
-    return {
-      start: toDateString(new Date(y, m, 1)),
-      end:   toDateString(new Date(y, m + 1, 0)),
-    };
-  }
-  // yearly
-  return { start: `${y}-01-01`, end: `${y}-12-31` };
-}
-
 const THAI_MONTHS_SHORT = [
   'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.',
   'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.',
 ];
 
 function formatRangeLabel(period, range) {
+  if (!range?.start) return '';
   const fmt = (iso) => {
     const [y, mo, da] = iso.split('-').map(Number);
     return `${da} ${THAI_MONTHS_SHORT[mo - 1]} ${y + 543}`;
   };
-  if (period === 'daily')                        return fmt(range.start);
+  if (period === 'daily') return fmt(range.start);
   if (period === 'weekly' || period === 'monthly') return `${fmt(range.start)} – ${fmt(range.end)}`;
   return `ปี ${range.start.slice(0, 4)}`;
 }
 
-// คืน CSS color ตาม workload %
-// 0–49% → green (Low), 50–79% → blue (Moderate), 80–100% → amber (High), >100% → red (Overloaded)
-function getWorkloadColor(pct) {
-  if (pct > 100) return 'var(--red)';
-  if (pct >= 80)  return 'var(--amber)';
-  if (pct >= 50)  return 'var(--blue)';
-  return 'var(--green)';
-}
-
-// ── Component ──────────────────────────────────────────────────────────────
+const fmtHours = (hours) =>
+  `${Number(hours || 0).toLocaleString('th-TH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ชม.`;
 
 export default function EmployeeWorkloadChart({
   employees   = MOCK_EMPLOYEES || [],
-  workEntries = MOCK_WORK_ENTRIES || MOCK_PLANNED_WORK_ENTRIES || [],
+  workEntries = MOCK_PLANNED_WORK_ENTRIES || [],
 } = {}) {
-  const [period, setPeriod]             = useState('weekly');
-  const [referenceDate, setReferenceDate] = useState(() => toDateString(new Date()));
+  const [period, setPeriod] = useState('weekly');
+  const [referenceDate, setReferenceDate] = useState(() => toISODate(new Date()));
 
-  // ช่วงวันที่ของรอบที่เลือก
+  // ช่วงวันที่ของรอบที่เลือก คำนวณแบบเดียวกับหน้า Workload
   const range = useMemo(
-    () => getPeriodRange(period, new Date(`${referenceDate}T00:00:00`)),
+    () => getWorkloadPeriodRange(period, referenceDate),
     [period, referenceDate],
   );
 
-  // Capacity คำนวณจากตารางทำงานจริงของพนักงานและรูปแบบวันหยุดในแต่ละสัปดาห์
+  // คำนวณ Workload พนักงานผ่านฟังก์ชันกลางที่ใช้ร่วมกันกับหน้า /workload
+  const data = useMemo(
+    () => computeEmployeeWorkloadData(employees, workEntries, range, 'all'),
+    [employees, workEntries, range],
+  );
 
-  // รวมชั่วโมงประมาณการรายพนักงานภายในช่วงที่เลือก
-  // กันข้อมูลซ้ำด้วย Set ของ entry id · ข้าม record ที่ชั่วโมงไม่ใช่ตัวเลขหรือติดลบ
-  const totalsByEmployee = useMemo(() => {
-    // Guard Clause ป้องกัน runtime crash กรณี workEntries ไม่ใช่ array หรือยังโหลดไม่เสร็จ
-    if (!Array.isArray(workEntries)) return {};
+  const employeesList = useMemo(
+    () => (Array.isArray(data?.employees) ? data.employees : []),
+    [data?.employees],
+  );
+  const plannedTotal  = data?.plannedHours || 0;
+  const capacityTotal = data?.capacityHours || 0;
+  const overCount     = data?.overCapacity || 0;
+  const hasAnyHours   = plannedTotal > 0 || employeesList.some((e) => (e?.plannedHours || 0) > 0);
 
-    const totals  = {};
-    const seenIds = new Set();
+  // สเกลสูงสุดของแท่ง: ค่าเริ่มต้น 130% เพื่อให้ขีด Capacity 100% อยู่ที่ 76.9% ของ Track
+  // หากมีพนักงานเกิน 130% จะขยายสเกลตามจริงอัตโนมัติ เพื่อไม่ให้แท่งล้นกรอบ
+  const scaleMax = useMemo(() => {
+    const maxPercent = employeesList.reduce((max, e) => Math.max(max, e?.percent || 0), 0);
+    return Math.max(130, Math.ceil(maxPercent / 10) * 10);
+  }, [employeesList]);
 
-    (workEntries || [])?.forEach((entry) => {
-      if (!entry || seenIds.has(entry.id)) return;
-      const inRange = entry.date && entry.date >= range?.start && entry.date <= range?.end;
-      if (!inRange) return;
-      const hours = Number(entry.hours);
-      if (!Number.isFinite(hours) || hours < 0) return;
-      seenIds.add(entry.id);
-      totals[entry.employeeId] = (totals[entry.employeeId] || 0) + hours;
-    });
-    return totals;
-  }, [workEntries, range]);
-
-  // แปลงรายชื่อพนักงานพร้อมชั่วโมงและ workload % แล้วเรียงตาม % มากไปน้อย
-  const rankedEmployees = useMemo(() => {
-    if (!Array.isArray(employees)) return [];
-
-    return (employees || [])
-      .map((emp) => {
-        if (!emp) return null;
-        const hours = (totalsByEmployee && totalsByEmployee[emp.id]) || 0;
-        const capacity = getEmployeeCapacity(emp, range?.start, range?.end)?.hours ?? 0;
-        const pct = capacity > 0 ? (hours / capacity) * 100 : 0;
-        return { ...emp, hours, capacityHours: capacity, pct };
-      })
-      .filter(Boolean)
-      .sort((a, b) => b.pct - a.pct || (a.name || '').localeCompare(b.name || '', 'th'));
-  }, [employees, totalsByEmployee, range]);
-
-  const safeRanked = Array.isArray(rankedEmployees) ? rankedEmployees : [];
-
-  // ใช้ maxPct เพื่อ scale ความกว้างแท่ง (แท่งที่ pct สูงสุด = 100% กว้าง)
-  const maxPct      = safeRanked.reduce((max, e) => Math.max(max, e?.pct || 0), 0);
-  const hasAnyHours = maxPct > 0;
-  const grandTotal  = safeRanked.reduce((sum, e) => sum + (e?.hours || 0), 0);
-  const teamCapacity = safeRanked.reduce((sum, e) => sum + (e?.capacityHours || 0), 0);
-
-  // จำนวนพนักงาน overloaded (>100%)
-  const overloadedCount = safeRanked.filter((e) => (e?.pct || 0) > 100).length;
-
-  // format ตัวเลขชั่วโมง: ถ้าเป็น integer แสดงแบบไม่มีทศนิยม ไม่งั้นแสดง 1 ตำแหน่ง
-  const fmtHours = (h) => (Number.isInteger(h) ? String(h) : h.toFixed(1));
-  const capText  = teamCapacity.toFixed(0);
+  // ตำแหน่งเส้น Maximum Capacity (100%) บน Track
+  const capMarkerPos = useMemo(() => (100 / scaleMax) * 100, [scaleMax]);
 
   return (
     <Card className="border-0 shadow-sm side-panel-card workload-card h-100">
+      {/* ── Card Header ────────────────────────────────────────────── */}
       <Card.Header className="bg-white border-bottom py-2 px-3">
         <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2">
@@ -151,16 +90,16 @@ export default function EmployeeWorkloadChart({
             <Badge bg="light" text="dark" className="border fw-medium">Planned Hours</Badge>
           </div>
           <div className="d-flex align-items-center gap-2 flex-wrap">
-            <span className="small text-muted">รวม {fmtHours(grandTotal)} ชม.</span>
-            <span className="small text-muted">|</span>
-            <span className="small text-muted">ความจุรวม {capText} ชม.</span>
-            {overloadedCount > 0 && (
+            <span className="small text-muted">
+              รวม <strong className="text-ink fw-semibold">{fmtHours(plannedTotal)}</strong> / {fmtHours(capacityTotal)}
+            </span>
+            {overCount > 0 && (
               <Badge
                 bg="danger"
                 className="workload-overload-badge"
-                title={`มี ${overloadedCount} คนที่ชั่วโมงเกินความจุ`}
+                title={`มี ${overCount} คนที่ Planned Hours เกิน Capacity`}
               >
-                เกินความจุ {overloadedCount} คน
+                เกินความจุ {overCount} คน
               </Badge>
             )}
           </div>
@@ -200,30 +139,10 @@ export default function EmployeeWorkloadChart({
         </div>
       </Card.Header>
 
-      {/* Legend สี workload */}
-      <div className="workload-legend px-3 py-1 border-bottom d-flex flex-wrap gap-3">
-        <span className="workload-legend-item">
-          <span className="workload-legend-dot" style={{ background: 'var(--green)' }} />
-          <span className="small text-muted">ต่ำ (&lt;50%)</span>
-        </span>
-        <span className="workload-legend-item">
-          <span className="workload-legend-dot" style={{ background: 'var(--blue)' }} />
-          <span className="small text-muted">ปานกลาง (50–79%)</span>
-        </span>
-        <span className="workload-legend-item">
-          <span className="workload-legend-dot" style={{ background: 'var(--amber)' }} />
-          <span className="small text-muted">สูง (80–100%)</span>
-        </span>
-        <span className="workload-legend-item">
-          <span className="workload-legend-dot" style={{ background: 'var(--red)' }} />
-          <span className="small text-muted">เกินความจุ (&gt;100%)</span>
-        </span>
-      </div>
-
-      {/* รายการพนักงาน */}
+      {/* ── Card Body (Workload Employee List) ───────────────────────── */}
       <Card.Body className="py-2 px-3 d-flex flex-column workload-card-body">
         {!hasAnyHours ? (
-          <div className="text-center py-3 px-3 flex-grow-1 d-flex flex-column justify-content-center">
+          <div className="text-center py-4 px-3 flex-grow-1 d-flex flex-column justify-content-center">
             <div className="empty-state-icon mx-auto mb-1 text-muted">
               <UserRound size={28} color="var(--muted)" />
             </div>
@@ -232,42 +151,50 @@ export default function EmployeeWorkloadChart({
           </div>
         ) : (
           <div className="workload-list">
-            {(safeRanked || []).map((emp) => {
+            {employeesList.map((emp) => {
               if (!emp) return null;
-              // ความกว้างแท่ง scale ตาม maxPct (คนที่ pct สูงสุด = กว้างเต็ม)
-              const pct      = emp.pct || 0;
-              const widthPct = maxPct > 0 ? Math.min((pct / maxPct) * 100, 100) : 0;
-              const color    = getWorkloadColor(pct);
-              const pctText  = pct.toFixed(0);
-              const isOver   = pct > 100;
+              const isOver = (emp.percent || 0) > 100;
+              const barWidth = Math.max(0, Math.min(emp.percent || 0, scaleMax) / scaleMax * 100);
+              const plannedText = (emp.plannedHours || 0).toFixed(1);
+              const capText = (emp.capacityHours || 0).toFixed(1);
+              const pctText = (emp.percent || 0).toFixed(0);
 
               return (
                 <div
                   key={emp.id}
-                  className={`workload-row${isOver ? ' workload-row-overloaded' : ''}`}
-                  title={`${emp.name || ''} · ${emp.department || ''} · ${pctText}% (${fmtHours(emp.hours || 0)}/${fmtHours(emp.capacityHours || 0)})`}
+                  className="workload-compact-row"
+                  title={`${emp.name || ''} · ${emp.position || ''} · ${pctText}% (${plannedText} / ${capText} ชม.)`}
                 >
-                  {/* ชื่อพนักงาน */}
-                  <div className="workload-name small text-ink text-truncate">{emp.name || '-'}</div>
-
-                  {/* แท่ง */}
-                  <div className="workload-bar-track">
-                    <div
-                      className={`workload-bar ${(emp.hours || 0) === 0 ? 'workload-bar-zero' : ''}`}
-                      style={{ width: `${widthPct}%`, backgroundColor: (emp.hours || 0) > 0 ? color : undefined }}
-                    />
+                  {/* Left: ชื่อพนักงาน + ตำแหน่ง จัดวางแนวตั้ง */}
+                  <div className="workload-compact-name">
+                    <strong>{emp.name || '-'}</strong>
+                    <small>{emp.position || '-'}</small>
                   </div>
 
-                  {/* ค่าชั่วโมงและ % */}
-                  <div className="workload-value small fw-semibold text-nowrap" style={{ color }}>
-                    {(emp.hours || 0) === 0 ? (
-                      <span className="text-muted">0 ชม.</span>
-                    ) : (
-                      <>
-                        <span>{fmtHours(emp.hours || 0)}/{fmtHours(emp.capacityHours || 0)}</span>
-                        <span className="workload-pct ms-1">({pctText}%)</span>
-                      </>
-                    )}
+                  {/* Center: แถบ Workload + Capacity Marker */}
+                  <div className="workload-compact-track-wrap">
+                    <span className="workload-compact-track">
+                      <span
+                        className={`workload-compact-fill ${isOver ? 'is-over' : ''}`}
+                        style={{ width: `${barWidth}%` }}
+                      />
+                      <span
+                        className="workload-compact-marker"
+                        style={{ left: `${capMarkerPos}%` }}
+                        title="Maximum Capacity (100%)"
+                      />
+                    </span>
+                  </div>
+
+                  {/* Right: Planned / Capacity + Utilization % */}
+                  <div className="workload-compact-values">
+                    <span className="workload-compact-hours">
+                      <strong>{plannedText}</strong>
+                      <small> / {capText} ชม.</small>
+                    </span>
+                    <span className={`workload-compact-util ${isOver ? 'is-over' : ''}`}>
+                      {pctText}%
+                    </span>
                   </div>
                 </div>
               );
@@ -275,6 +202,22 @@ export default function EmployeeWorkloadChart({
           </div>
         )}
       </Card.Body>
+
+      {/* ── Card Footer: Legend + ลิงก์ดูทั้งหมดไปยัง /workload ─────── */}
+      <Card.Footer className="bg-white border-top py-2 px-3 flex-shrink-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div className="workload-chart-legend">
+          <span><i className="normal" /> Normal Load</span>
+          <span><i className="over" /> Overcapacity</span>
+          <span><i className="cap" /> Capacity</span>
+        </div>
+        <Link
+          to="/workload"
+          className="small text-primary text-decoration-none fw-medium d-inline-flex align-items-center gap-1"
+        >
+          <span>ดูทั้งหมด</span>
+          <ChevronRight size={14} />
+        </Link>
+      </Card.Footer>
     </Card>
   );
 }

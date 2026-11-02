@@ -1545,14 +1545,14 @@ body {
   }
 }
 
-/* การ์ด Workload: header + legend สูงตามธรรมชาติ body กินพื้นที่ที่เหลือทั้งหมด */
+/* การ์ด Workload: header + footer สูงตามธรรมชาติ body กินพื้นที่ที่เหลือทั้งหมด */
 .workload-card {
   display: flex;
   flex-direction: column;
 }
 
 .workload-card > .card-header,
-.workload-legend {
+.workload-card > .card-footer {
   flex-shrink: 0;
 }
 
@@ -1560,27 +1560,6 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
-}
-
-/* Legend สีอยู่ระหว่าง header และ body */
-.workload-legend {
-  background: var(--blue-tint);
-  font-size: 0.75rem;
-  gap: 12px !important;
-}
-
-.workload-legend-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.workload-legend-dot {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
 }
 
 /* Badge เกินความจุ */
@@ -1639,59 +1618,184 @@ body {
   }
 }
 
-/* workload-row: 3 คอลัมน์ — ชื่อ | แท่ง | ค่า (ขยายรองรับ X/Y ชม. + %)  */
-.workload-row {
+/* ── Workload Compact Row (สไตล์ Team Workload vs. Maximum Capacity) ── */
+.workload-compact-row {
   display: grid;
-  grid-template-columns: 130px 1fr 100px;
+  grid-template-columns: minmax(130px, 175px) 1fr minmax(135px, 160px);
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  transition: background-color 0.15s ease;
 }
 
-/* แถวพนักงานที่เกินความจุ: พื้นหลังแดงอ่อน */
-.workload-row-overloaded {
-  background: rgba(196, 32, 50, 0.06);
-  border-radius: 4px;
-  padding: 0 4px;
+.workload-compact-row:hover {
+  background-color: var(--blue-tint);
 }
 
-.workload-name {
-  white-space: nowrap;
+.workload-compact-name {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.workload-compact-name strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.workload-bar-track {
-  height: 10px;
-  background: var(--blue-tint);
-  border-radius: 999px;
+.workload-compact-name small {
+  font-size: 0.68rem;
+  color: var(--muted);
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.workload-bar {
-  height: 100%;
-  /* สีกำหนด inline ตาม workload % — ค่าตั้งต้นใช้ blue เผื่อไม่มี style */
-  background: var(--blue);
+.workload-compact-track-wrap {
+  min-width: 0;
+  padding: 2px 0;
+}
+
+.workload-compact-track {
+  position: relative;
+  display: block;
+  height: 10px;
+  background: #edf2fa;
   border-radius: 999px;
-  transition: width 0.4s ease;
+  overflow: visible;
 }
 
-.workload-bar-zero {
-  background: var(--line-strong);
+.workload-compact-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  max-width: 100%;
+  height: 100%;
+  background: #536fe0;
+  border-radius: 999px;
+  transition: width 0.3s ease;
 }
 
-.workload-value {
+.workload-compact-fill.is-over {
+  background: #f05b50;
+}
+
+.workload-compact-marker {
+  position: absolute;
+  z-index: 2;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: #e14c4c;
+  box-shadow: 0 0 0 1px #fff;
+  border-radius: 1px;
+}
+
+.workload-compact-values {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.workload-compact-hours {
+  font-size: 0.76rem;
+  color: var(--ink);
+}
+
+.workload-compact-hours strong {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.workload-compact-hours small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.workload-compact-util {
+  font-size: 0.74rem;
+  font-weight: 600;
+  min-width: 36px;
   text-align: right;
-  line-height: 1.2;
+  color: var(--muted);
 }
 
-.workload-pct {
-  font-size: 0.72em;
-  opacity: 0.85;
+.workload-compact-util.is-over {
+  color: #f05b50;
+  font-weight: 700;
+}
+
+/* Legend สอดคล้องกับหน้า Workload */
+.workload-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: #718096;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.workload-chart-legend span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.workload-chart-legend i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.workload-chart-legend i.normal {
+  background: #4e70df;
+}
+
+.workload-chart-legend i.over {
+  background: #ef5555;
+}
+
+.workload-chart-legend i.cap {
+  width: 12px;
+  height: 2px;
+  border-radius: 0;
+  background: #e34d4d;
 }
 
 @media (max-width: 768px) {
-  .workload-row {
-    grid-template-columns: 100px 1fr 88px;
+  .workload-compact-row {
+    grid-template-columns: minmax(105px, 135px) 1fr auto;
+    gap: 8px;
+    padding: 3px 2px;
+  }
+  .workload-compact-name strong {
+    font-size: 0.74rem;
+  }
+  .workload-compact-name small {
+    font-size: 0.65rem;
+  }
+  .workload-compact-values {
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0;
+  }
+  .workload-compact-hours {
+    font-size: 0.7rem;
+  }
+  .workload-compact-util {
+    font-size: 0.68rem;
+    min-width: unset;
   }
 }
 

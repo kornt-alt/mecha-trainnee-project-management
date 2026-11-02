@@ -3,12 +3,11 @@ import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from '
 import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS, MOCK_TASKS } from '../data/mockData';
 import {
   MOCK_PLANNED_WORK_ENTRIES,
-  addDays,
-  getEmployeeCapacity,
   getWeekSchedulePattern,
-  getWeekStart,
   parseISODate,
   toISODate,
+  getWorkloadPeriodRange as getRange,
+  computeEmployeeWorkloadData,
 } from '../data/workloadMockData';
 import './workload.css';
 
@@ -25,16 +24,6 @@ const fmtHM = (minutes) => `${Math.floor(minutes / 60)} ชม. ${minutes % 60} 
 const fmtDate = (value) => {
   const date = parseISODate(value);
   return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543}`;
-};
-const getRange = (period, reference) => {
-  const date = parseISODate(reference);
-  if (period === 'daily') return { start: reference, end: reference };
-  if (period === 'weekly') {
-    const start = getWeekStart(date);
-    return { start: toISODate(start), end: toISODate(addDays(start, 6)) };
-  }
-  if (period === 'monthly') return { start: toISODate(new Date(date.getFullYear(), date.getMonth(), 1)), end: toISODate(new Date(date.getFullYear(), date.getMonth() + 1, 0)) };
-  return { start: `${date.getFullYear()}-01-01`, end: `${date.getFullYear()}-12-31` };
 };
 const getStatus = (percent) => percent > 100 ? 'danger' : percent >= 80 ? 'warning' : percent >= 50 ? 'primary' : 'success';
 
@@ -59,39 +48,7 @@ export default function Workload() {
   }, [department, position, search]);
 
   const data = useMemo(() => {
-    const rawEntries = Array.isArray(MOCK_PLANNED_WORK_ENTRIES) ? MOCK_PLANNED_WORK_ENTRIES : [];
-    const entries = rawEntries.filter((entry) => (
-      entry &&
-      entry.date >= range.start &&
-      entry.date <= range.end &&
-      (projectFilter === 'all' || String(entry.projectId) === projectFilter)
-    ));
-    const safeVisible = Array.isArray(visibleEmployees) ? visibleEmployees : [];
-    const byEmployee = safeVisible.map((employee) => {
-      const capacity = getEmployeeCapacity(employee, range.start, range.end) || { hours: 0, minutes: 0, days: [] };
-      const ownEntries = entries.filter((entry) => entry && entry.employeeId === employee.id);
-      const planned = ownEntries.reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-      const percent = capacity.hours > 0 ? (planned / capacity.hours) * 100 : 0;
-      return {
-        ...employee,
-        capacityHours: capacity.hours,
-        capacityMinutes: capacity.minutes,
-        plannedHours: planned,
-        percent,
-        entries: ownEntries,
-        schedules: capacity.days || [],
-      };
-    }).sort((a, b) => b.percent - a.percent || (a.name || '').localeCompare(b.name || '', 'en'));
-    const capacityHours = byEmployee.reduce((sum, employee) => sum + (employee.capacityHours || 0), 0);
-    const plannedHours = byEmployee.reduce((sum, employee) => sum + (employee.plannedHours || 0), 0);
-    return {
-      employees: byEmployee,
-      capacityHours,
-      plannedHours,
-      utilization: capacityHours ? (plannedHours / capacityHours) * 100 : 0,
-      overCapacity: byEmployee.filter((employee) => employee.percent > 100).length,
-      entries,
-    };
+    return computeEmployeeWorkloadData(visibleEmployees, MOCK_PLANNED_WORK_ENTRIES, range, projectFilter);
   }, [range, visibleEmployees, projectFilter]);
 
   const rangeDates = useMemo(() => {
