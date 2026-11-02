@@ -1,0 +1,104 @@
+.workload-page { color: var(--ink, #172b4d); padding-bottom: 28px; }
+.workload-page-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
+.workload-page-heading h1 { color:var(--ink, #172b4d); font-size:1.65rem; font-weight:800; margin:2px 0 5px; letter-spacing:-.025em; }
+.workload-page-heading p { color:var(--muted, #64748b); font-size:.9rem; margin:0; }
+.workload-eyebrow { color:var(--blue, #1d4ed8); font-size:.68rem; font-weight:800; letter-spacing:.12em; }
+.workload-mock-badge { white-space:nowrap; padding:7px 10px; border-radius:8px; }
+.workload-toolbar, .workload-kpi, .workload-panel { border:1px solid var(--border, #dce4ef)!important; border-radius:12px!important; background:#fff; box-shadow:0 2px 8px rgba(24,48,83,.045); }
+.workload-toolbar .card-body { padding:14px 16px; }
+.workload-period-tabs { display:inline-flex; gap:4px; padding:4px; background:#eef3fb; border-radius:9px; }
+.workload-period-tabs button { border:0; background:transparent; color:#5d6f89; border-radius:7px; padding:7px 13px; font-size:.82rem; font-weight:650; }
+.workload-period-tabs button.active { color:#174ea6; background:#fff; box-shadow:0 1px 4px rgba(30,64,110,.13); }
+.workload-date-control { width:155px; }
+.workload-toolbar-bottom { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-top:13px; padding-top:12px; border-top:1px solid #edf1f6; color:#66758b; font-size:.8rem; }
+.workload-toolbar-bottom .form-select { width:auto; min-width:170px; max-width:245px; }
+.workload-toolbar-bottom .form-control { width:190px; }
+.workload-kpi .card-body { padding:16px 18px; }
+.workload-kpi-label { color:#68778d; font-size:.78rem; font-weight:650; }
+.workload-kpi-value { color:#152d50; font-size:1.65rem; font-weight:800; line-height:1.3; margin-top:7px; }
+.workload-kpi-value small { font-size:.8rem; font-weight:650; }
+.workload-kpi-foot { color:#8290a3; font-size:.72rem; margin-top:4px; }
+.workload-kpi .progress { height:5px; background:#edf2f8; }
+.workload-panel { overflow:hidden; }
+.workload-panel > .card-header { background:#fff; border-bottom:1px solid #e8edf4; padding:14px 17px; display:flex; justify-content:space-between; align-items:center; gap:12px; }
+.workload-panel > .card-header h2 { color:#172d4d; font-size:.98rem; font-weight:750; margin:0 0 4px; }
+.workload-panel > .card-header p { color:#7a8799; font-size:.76rem; margin:0; }
+.workload-panel > .card-body { padding:16px 17px; }
+.workload-chart-legend { display:flex; flex-wrap:wrap; gap:12px; color:#718096; font-size:.68rem; white-space:nowrap; }
+.workload-chart-legend span { display:flex; align-items:center; gap:5px; }
+.workload-chart-legend i { display:inline-block; width:8px; height:8px; border-radius:2px; }
+.workload-chart-legend i.normal { background:#4e70df; }
+.workload-chart-legend i.over { background:#ef5555; }
+.workload-chart-legend i.cap { width:12px; height:2px; border-radius:0; background:#e34d4d; }
+.workload-employee-chart { display:flex; flex-direction:column; gap:9px; max-height:510px; overflow-y:auto; padding:2px 5px 2px 0; }
+.workload-employee-row { width:100%; display:grid; grid-template-columns:minmax(135px, 190px) minmax(100px, 1fr) minmax(115px, 150px); gap:12px; align-items:center; border:0; background:transparent; padding:5px 7px; border-radius:7px; text-align:left; }
+.workload-employee-row:hover { background:#f5f8fd; }
+.workload-employee-name { min-width:0; display:flex; flex-direction:column; }
+.workload-employee-name strong { color:#263c5c; font-size:.77rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.workload-employee-name small { color:#8a96a8; font-size:.66rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.workload-employee-track { position:relative; display:block; height:12px; background:#edf2fa; border-radius:10px; overflow:visible; }
+.workload-employee-fill { position:absolute; inset:0 auto 0 0; display:block; max-width:100%; background:#536fe0; border-radius:10px; }
+.workload-employee-fill.is-over { background:#f05b50; }
+.workload-cap-marker { position:absolute; z-index:2; top:-3px; bottom:-3px; width:2px; background:#e14c4c; box-shadow:0 0 0 1px #fff; }
+.workload-employee-number { display:flex; align-items:baseline; justify-content:flex-end; gap:4px; white-space:nowrap; }
+.workload-employee-number strong { color:#1c3f79; font-size:.76rem; }
+.workload-employee-number small { color:#8290a3; font-size:.66rem; }
+.workload-schedule-pattern { display:flex; flex-direction:column; gap:4px; padding:11px 12px; border-radius:9px; background:#f2f6fd; margin-bottom:14px; }
+.workload-schedule-pattern span { color:#7c8ba0; font-size:.7rem; }
+.workload-schedule-pattern strong { color:#244d91; font-size:.9rem; }
+.workload-schedule-stat { display:flex; align-items:center; gap:8px; color:#53647c; font-size:.76rem; padding:7px 1px; border-bottom:1px solid #eff2f6; }
+.workload-schedule-stat strong { margin-left:auto; color:#2b3e5a; font-size:.74rem; }
+.schedule-dot { width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+.schedule-dot.standard { background:#5270df; }.schedule-dot.short { background:#e99a35; }.schedule-dot.off { background:#aab5c4; }
+.workload-schedule-note { margin-top:12px; padding:10px 12px; background:#fbfcfe; border:1px solid #edf1f6; border-radius:8px; color:#65758b; font-size:.74rem; line-height:1.7; }
+.workload-schedule-note strong { color:#344966; }
+.workload-schedule-note small { color:#929eae; }
+.workload-daily-summary-title { color:#334966; font-size:.76rem; font-weight:700; margin:17px 0 8px; }
+.workload-daily-bars { height:95px; display:flex; align-items:stretch; justify-content:space-around; gap:8px; border-bottom:1px solid #e6ebf2; }
+.workload-daily-item { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; gap:5px; }
+.workload-daily-bar-track { height:73px; width:100%; max-width:25px; display:flex; align-items:flex-end; border-radius:5px 5px 0 0; background:#f1f4f9; overflow:hidden; }
+.workload-daily-bar-track span { display:block; width:100%; min-height:2px; background:#5876e4; border-radius:5px 5px 0 0; }
+.workload-daily-bar-track span.is-over { background:#ed5c52; }
+.workload-daily-item small { color:#8290a3; font-size:.65rem; }
+.workload-matrix-wrap { max-height:560px; }
+.workload-matrix { min-width:900px; font-size:.73rem; }
+.workload-matrix thead th { position:sticky; top:0; z-index:2; background:#f5f8fc; color:#6e7e94; font-size:.65rem; font-weight:750; letter-spacing:.03em; padding:11px 9px; border-bottom:1px solid #e4eaf2; white-space:nowrap; }
+.workload-matrix thead th small { display:block; font-size:.62rem; font-weight:500; letter-spacing:0; }
+.workload-matrix tbody td { padding:9px; border-color:#edf1f6; }
+.workload-matrix-employee { padding:0; border:0; background:none; color:#214c91; font-weight:700; font-size:.75rem; text-align:left; }
+.workload-matrix-employee:hover { text-decoration:underline; }
+.workload-matrix-dept { color:#75849a; max-width:150px; }
+.workload-matrix-cell { display:inline-flex; flex-direction:column; align-items:center; min-width:44px; padding:4px 6px; border-radius:6px; color:#31538d; background:#eef3ff; font-weight:700; }
+.workload-matrix-cell small { color:#8593a8; font-size:.59rem; font-weight:500; }
+.workload-matrix-cell.is-high { color:#9a5b0c; background:#fff3df; }
+.workload-matrix-cell.is-over { color:#b4232d; background:#ffebeb; }
+.workload-matrix-cell.is-off { color:#98a3b2; background:#f3f5f8; font-weight:500; }
+.workload-advisory > .card-body { padding:14px 17px; }
+.workload-advisory-alert, .workload-advisory-good { display:flex; flex-direction:column; gap:4px; padding:12px 14px; border-radius:8px; font-size:.8rem; }
+.workload-advisory-alert { color:#8e3030; background:#fff2f1; border:1px solid #f7d6d3; }
+.workload-advisory-good { color:#176b4a; background:#effaf4; border:1px solid #d5f0e1; }
+.workload-advisory-alert span, .workload-advisory-good span { font-size:.74rem; opacity:.85; }
+.workload-advisory-person { display:grid; grid-template-columns:1fr auto; gap:3px 8px; padding:9px 10px; border:1px solid #f0dada; border-radius:7px; }
+.workload-advisory-person strong { font-size:.76rem; color:#344966; }
+.workload-advisory-person small { grid-column:1 / -1; color:#8995a5; font-size:.68rem; }
+.workload-detail-modal .modal-content { border:0; border-radius:13px; overflow:hidden; }
+.workload-detail-modal .modal-header { background:#f8faff; border-bottom:1px solid #e7edf5; }
+.workload-detail-modal .modal-title { color:#1e3557; font-size:1.05rem; font-weight:750; }
+.workload-detail-stat { display:flex; flex-direction:column; gap:4px; padding:12px; background:#f4f7fc; border-radius:8px; }
+.workload-detail-stat small { color:#7a899e; font-size:.68rem; }.workload-detail-stat strong { color:#244b8c; font-size:1rem; }
+.workload-detail-schedule { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
+.workload-detail-schedule > div { display:grid; grid-template-columns:1fr auto; gap:3px 8px; padding:8px 10px; background:#f8fafd; border:1px solid #edf1f6; border-radius:7px; font-size:.7rem; }
+.workload-detail-schedule span { color:#6f7f95; }.workload-detail-schedule strong { color:#334a6a; }.workload-detail-schedule small { grid-column:1/-1; color:#8996a8; }
+.workload-project-total { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #edf1f6; font-size:.76rem; }.workload-project-total span { color:#5f7088; }.workload-project-total strong { color:#214c91; white-space:nowrap; }
+@media (max-width: 767.98px) {
+  .workload-page-heading { flex-direction:column; }
+  .workload-page-heading h1 { font-size:1.35rem; }
+  .workload-toolbar-bottom { align-items:stretch; }
+  .workload-toolbar-bottom > div { width:100%; }
+  .workload-toolbar-bottom .form-select, .workload-toolbar-bottom .form-control { width:100%; max-width:none; }
+  .workload-employee-row { grid-template-columns:minmax(105px, 1fr) minmax(65px, 1fr); gap:6px 10px; }
+  .workload-employee-track { grid-column:2; grid-row:1; }
+  .workload-employee-number { grid-column:2; justify-content:flex-end; }
+  .workload-chart-legend { display:none; }
+  .workload-detail-schedule { grid-template-columns:1fr; }
+}
