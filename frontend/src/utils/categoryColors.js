@@ -1,4 +1,3 @@
-// frontend/src/utils/categoryColors.js — สีของ project category ที่ใช้ร่วมกันทั้งระบบ (ไฟล์เดียวเท่านั้น)
 //
 // Treemap (ProjectCategoryTreemap.js) และ Stacked Bar Graph (BudgetBarChart) ต้องเรียกผ่านไฟล์นี้
 // เพื่อให้ category เดียวกันได้สีเดียวกันในทุกกราฟ — ห้าม define palette ซ้ำใน component
