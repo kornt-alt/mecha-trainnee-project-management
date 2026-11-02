@@ -2773,6 +2773,253 @@ function createWorkEntries() {
   pushEntry('emp-013', 'task-113', '2026-09-02', 5.0);
   pushEntry('emp-024', 'task-114', '2026-09-18', 4.5);
 
+  // ============================================================
+  // เพิ่มข้อมูลชั่วโมงทำงานสำหรับพนักงานที่ยังขาด (ครบ 32 คน)
+  // คำนวณจากตารางงานจริง: ปกติ 08:00–17:00 หักพัก 1 ชม. = 8 ชม.
+  // บางวัน 08:00–12:00 = 4 ชม., 09:00–17:00 หักพัก 1 ชม. = 7 ชม.
+  // ============================================================
+
+  // --- สัปดาห์ปัจจุบัน (2026-10-26 ถึง 2026-10-30) ---
+  // emp-005: Monthira — task-7 (พุธ 08:00–17:00), task-50 ต้องตรวจ — ใช้ task-7
+  pushEntry('emp-005', 'task-7',  '2026-10-27', 8.0); // 08:00–17:00 -1h
+  pushEntry('emp-005', 'task-7',  '2026-10-28', 8.0);
+  // emp-006: Kanyarat — task-31, task-9
+  pushEntry('emp-006', 'task-31', '2026-10-27', 8.0); // 08:00–17:00 -1h
+  pushEntry('emp-006', 'task-9',  '2026-10-28', 7.0); // 09:00–17:00 -1h
+  // emp-007: (existing Oct monthly, add weekly)
+  pushEntry('emp-007', 'task-49', '2026-10-27', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-007', 'task-73', '2026-10-28', 8.0);
+  // emp-008: Supachai (Supervisor) — ใช้งานในโปรเจกต์ที่ดูแล
+  pushEntry('emp-008', 'task-1',  '2026-10-27', 4.0); // 08:00–12:00 (review)
+  pushEntry('emp-008', 'task-5',  '2026-10-28', 7.0); // 09:00–17:00 -1h
+  // emp-009: Korn (Senior Dev) — ใช้งานในโปรเจกต์ที่ดูแล
+  pushEntry('emp-009', 'task-7',  '2026-10-27', 4.0); // 08:00–12:00
+  pushEntry('emp-009', 'task-13', '2026-10-28', 8.0); // 08:00–17:00 -1h
+  // emp-012: Napat — task-18, task-26
+  pushEntry('emp-012', 'task-18', '2026-10-27', 8.0);
+  pushEntry('emp-012', 'task-26', '2026-10-29', 7.0); // 09:00–17:00 -1h
+  // emp-013: Wilaiporn — task-19, task-37
+  pushEntry('emp-013', 'task-19', '2026-10-28', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-013', 'task-37', '2026-10-29', 8.0);
+  // emp-016: Yupaporn — task-12, task-33
+  pushEntry('emp-016', 'task-12', '2026-10-28', 8.0);
+  pushEntry('emp-016', 'task-33', '2026-10-29', 8.0);
+  // emp-017: Wichai — task-32, task-96 (มีรายปีแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-017', 'task-32', '2026-10-28', 8.0);
+  pushEntry('emp-017', 'task-96', '2026-10-29', 7.0); // 09:00–17:00 -1h
+  // emp-018: Oranee — task-29, task-67
+  pushEntry('emp-018', 'task-29', '2026-10-28', 4.0); // 08:00–12:00
+  pushEntry('emp-018', 'task-67', '2026-10-29', 8.0);
+  // emp-019: Rattanakorn — task-34
+  pushEntry('emp-019', 'task-34', '2026-10-29', 8.0);
+  pushEntry('emp-019', 'task-34', '2026-10-30', 4.0); // 08:00–12:00
+  // emp-021: Ekkachai — task-85 (มีรายปีแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-021', 'task-85', '2026-10-29', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-021', 'task-85', '2026-10-30', 8.0);
+  // emp-022: Warunya — task-71, task-89
+  pushEntry('emp-022', 'task-71', '2026-10-29', 8.0);
+  pushEntry('emp-022', 'task-89', '2026-10-30', 8.0);
+  // emp-024: Phumin — task-66, task-72 (มีรายปีแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-024', 'task-66', '2026-10-29', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-024', 'task-72', '2026-10-30', 8.0);
+  // emp-027: Napassorn — task-75, task-94
+  pushEntry('emp-027', 'task-75', '2026-10-29', 8.0);
+  pushEntry('emp-027', 'task-94', '2026-10-30', 4.0); // 08:00–12:00
+  // emp-028: Veerapat — task-51, task-76 (มีรายปีแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-028', 'task-51', '2026-10-29', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-028', 'task-76', '2026-10-30', 8.0);
+  // emp-029: Rinrada — task-39, task-82 (มีรายเดือนแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-029', 'task-39', '2026-10-30', 8.0);
+  // emp-030: Chatchai — task-23 (มีรายสัปดาห์ Oct 26 แล้ว)
+  pushEntry('emp-030', 'task-23', '2026-10-27', 7.0); // 09:00–17:00 -1h
+  // emp-031: Benyapa — task-78 (มีรายเดือนแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-031', 'task-78', '2026-10-30', 8.0);
+  // emp-032: task-102 (มีรายเดือนแล้ว เพิ่มรายสัปดาห์)
+  pushEntry('emp-032', 'task-102', '2026-10-30', 7.0); // 09:00–17:00 -1h
+
+  // --- เพิ่มรายเดือน (ต.ค. 2026) สำหรับที่ยังขาด ---
+  // emp-006: Kanyarat
+  pushEntry('emp-006', 'task-46', '2026-10-06', 8.0);
+  pushEntry('emp-006', 'task-31', '2026-10-13', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-006', 'task-9',  '2026-10-20', 8.0);
+  // emp-008: Supachai
+  pushEntry('emp-008', 'task-3',  '2026-10-06', 8.0);
+  pushEntry('emp-008', 'task-1',  '2026-10-14', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-008', 'task-5',  '2026-10-21', 8.0);
+  // emp-009: Korn
+  pushEntry('emp-009', 'task-8',  '2026-10-06', 8.0);
+  pushEntry('emp-009', 'task-13', '2026-10-14', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-009', 'task-7',  '2026-10-21', 8.0);
+  // emp-012: Napat (เพิ่มรายเดือน)
+  pushEntry('emp-012', 'task-18', '2026-10-06', 8.0);
+  pushEntry('emp-012', 'task-20', '2026-10-13', 8.0);
+  pushEntry('emp-012', 'task-26', '2026-10-20', 7.0); // 09:00–17:00 -1h
+  // emp-018: Oranee
+  pushEntry('emp-018', 'task-29', '2026-10-07', 8.0);
+  pushEntry('emp-018', 'task-67', '2026-10-14', 8.0);
+  pushEntry('emp-018', 'task-112','2026-10-21', 7.0); // 09:00–17:00 -1h
+  // emp-019: Rattanakorn
+  pushEntry('emp-019', 'task-34', '2026-10-07', 8.0);
+  pushEntry('emp-019', 'task-34', '2026-10-14', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-019', 'task-34', '2026-10-21', 8.0);
+  // emp-021: Ekkachai (เพิ่มรายเดือน)
+  pushEntry('emp-021', 'task-85', '2026-10-06', 8.0);
+  pushEntry('emp-021', 'task-85', '2026-10-13', 7.0); // 09:00–17:00 -1h
+  pushEntry('emp-021', 'task-85', '2026-10-20', 8.0);
+  // emp-022: Warunya
+  pushEntry('emp-022', 'task-71', '2026-10-06', 8.0);
+  pushEntry('emp-022', 'task-89', '2026-10-13', 8.0);
+  pushEntry('emp-022', 'task-71', '2026-10-20', 7.0); // 09:00–17:00 -1h
+  // emp-024: Phumin (เพิ่มรายเดือน)
+  pushEntry('emp-024', 'task-66', '2026-10-07', 8.0);
+  pushEntry('emp-024', 'task-72', '2026-10-14', 8.0);
+  pushEntry('emp-024', 'task-114','2026-10-21', 7.0); // 09:00–17:00 -1h
+  // emp-027: Napassorn
+  pushEntry('emp-027', 'task-75', '2026-10-07', 8.0);
+  pushEntry('emp-027', 'task-94', '2026-10-14', 8.0);
+  pushEntry('emp-027', 'task-75', '2026-10-21', 7.0); // 09:00–17:00 -1h
+  // emp-028: Veerapat (เพิ่มรายเดือน)
+  pushEntry('emp-028', 'task-51', '2026-10-07', 8.0);
+  pushEntry('emp-028', 'task-91', '2026-10-14', 8.0);
+  pushEntry('emp-028', 'task-105','2026-10-21', 7.0); // 09:00–17:00 -1h
+
+  // --- เพิ่มรายปี (2026) สำหรับที่ยังขาด ---
+  // emp-006: Kanyarat — ช่วงก่อนหน้า
+  pushEntry('emp-006', 'task-46', '2026-04-15', 8.0);
+  pushEntry('emp-006', 'task-9',  '2026-06-10', 8.0);
+  pushEntry('emp-006', 'task-31', '2026-08-20', 7.0);
+  // emp-008: Supachai (Supervisor)
+  pushEntry('emp-008', 'task-1',  '2026-03-10', 8.0);
+  pushEntry('emp-008', 'task-3',  '2026-05-12', 8.0);
+  pushEntry('emp-008', 'task-5',  '2026-07-08', 7.0);
+  // emp-009: Korn (Senior Dev)
+  pushEntry('emp-009', 'task-7',  '2026-03-15', 8.0);
+  pushEntry('emp-009', 'task-8',  '2026-05-20', 8.0);
+  pushEntry('emp-009', 'task-13', '2026-07-14', 7.0);
+  // emp-018: Oranee
+  pushEntry('emp-018', 'task-29', '2026-04-08', 8.0);
+  pushEntry('emp-018', 'task-67', '2026-06-17', 8.0);
+  pushEntry('emp-018', 'task-112','2026-08-12', 7.0);
+  // emp-019: Rattanakorn
+  pushEntry('emp-019', 'task-34', '2026-04-22', 8.0);
+  pushEntry('emp-019', 'task-34', '2026-07-01', 7.0);
+  // emp-022: Warunya
+  pushEntry('emp-022', 'task-71', '2026-04-14', 8.0);
+  pushEntry('emp-022', 'task-89', '2026-07-22', 8.0);
+  pushEntry('emp-022', 'task-71', '2026-09-09', 7.0);
+  // emp-027: Napassorn
+  pushEntry('emp-027', 'task-75', '2026-05-05', 8.0);
+  pushEntry('emp-027', 'task-94', '2026-07-16', 8.0);
+  pushEntry('emp-027', 'task-75', '2026-09-03', 7.0);
+
+  // ── Bulk Yearly Data Generator ─────────────────────────────────────────────
+  // สร้างชั่วโมงทำงานสมจริงตลอดปี 2026 สำหรับพนักงาน 32 คน
+  // ใช้ deterministic hash (ไม่ใช้ Math.random) → ผลลัพธ์คงที่ทุก build
+  // skip วันที่มีข้อมูลอยู่แล้ว เพื่อหลีกเลี่ยงการซ้ำ
+  (function generateBulkYearlyData() {
+    // 1. สร้าง task pool จาก MOCK_TASKS (assigneeId)
+    const pool = {};
+    MOCK_TASKS.forEach((t) => {
+      if (t.assigneeId) {
+        pool[t.assigneeId] = pool[t.assigneeId] || [];
+        pool[t.assigneeId].push(t.id);
+      }
+    });
+    // Supervisor/Manager ที่ไม่มี assigned task → ใช้ task จากโปรเจกต์ที่ดูแล
+    pool['emp-008'] = (pool['emp-008'] && pool['emp-008'].length > 0)
+      ? pool['emp-008'] : ['task-1', 'task-3', 'task-5', 'task-30', 'task-6'];
+    pool['emp-009'] = (pool['emp-009'] && pool['emp-009'].length > 0)
+      ? pool['emp-009'] : ['task-7', 'task-8', 'task-13', 'task-14', 'task-33'];
+
+    // 2. config ต่อพนักงาน
+    //    target  = สัดส่วนวันที่มีงาน (0–1.0+; >1.0 ไม่ส่งผล แต่ทุกวันจะถูกเลือก)
+    //    h       = ชั่วโมง/วัน ตามตาราง: 8.0=ปกติ, 7.0=09:00–17:00, 4.0=ครึ่งวัน, 8.5=OT
+    //    workload%_yearly ≈ (target × h / 8) × 100
+    //    Green<50% | Blue 50–79% | Amber 80–100% | Red>100%
+    const cfg = {
+      'emp-001': { target: 0.92, h: 8.0 }, // ~92%  Amber
+      'emp-002': { target: 0.87, h: 8.0 }, // ~87%  Amber
+      'emp-003': { target: 0.78, h: 8.0 }, // ~78%  Blue
+      'emp-004': { target: 0.82, h: 8.0 }, // ~82%  Amber
+      'emp-005': { target: 0.75, h: 7.0 }, // ~66%  Blue  (09:00–17:00 -1h)
+      'emp-006': { target: 0.80, h: 7.5 }, // ~75%  Blue
+      'emp-007': { target: 0.79, h: 8.0 }, // ~79%  Blue
+      'emp-008': { target: 0.46, h: 7.0 }, // ~40%  Green (Supervisor)
+      'emp-009': { target: 0.56, h: 7.0 }, // ~49%  Green
+      'emp-010': { target: 0.84, h: 8.0 }, // ~84%  Amber
+      'emp-011': { target: 0.78, h: 8.0 }, // ~78%  Blue
+      'emp-012': { target: 0.89, h: 8.0 }, // ~89%  Amber
+      'emp-013': { target: 0.63, h: 7.0 }, // ~55%  Blue
+      'emp-014': { target: 0.93, h: 8.0 }, // ~93%  Amber
+      'emp-015': { target: 0.86, h: 8.0 }, // ~86%  Amber
+      'emp-016': { target: 0.74, h: 8.0 }, // ~74%  Blue
+      'emp-017': { target: 0.69, h: 7.5 }, // ~65%  Blue
+      'emp-018': { target: 0.60, h: 7.0 }, // ~53%  Blue
+      'emp-019': { target: 0.99, h: 8.5 }, // ~105% Red  (OT — overloaded)
+      'emp-020': { target: 0.88, h: 8.0 }, // ~88%  Amber
+      'emp-021': { target: 0.73, h: 8.0 }, // ~73%  Blue
+      'emp-022': { target: 0.84, h: 8.0 }, // ~84%  Amber
+      'emp-023': { target: 0.80, h: 8.0 }, // ~80%  Amber
+      'emp-024': { target: 0.63, h: 7.5 }, // ~59%  Blue
+      'emp-025': { target: 0.90, h: 8.0 }, // ~90%  Amber
+      'emp-026': { target: 0.77, h: 8.0 }, // ~77%  Blue
+      'emp-027': { target: 0.54, h: 7.0 }, // ~47%  Green
+      'emp-028': { target: 0.85, h: 8.0 }, // ~85%  Amber
+      'emp-029': { target: 0.69, h: 7.0 }, // ~60%  Blue
+      'emp-030': { target: 0.92, h: 8.0 }, // ~92%  Amber
+      'emp-031': { target: 0.62, h: 4.0 }, // ~31%  Green (part-time 08:00–12:00)
+      'emp-032': { target: 1.00, h: 8.5 }, // ~106% Red  (OT — overloaded)
+    };
+
+    // 3. snapshot วันที่ที่มีข้อมูลอยู่แล้ว → ป้องกันซ้ำ
+    const existingDates = {};
+    entries.forEach((e) => {
+      if (!existingDates[e.employeeId]) existingDates[e.employeeId] = new Set();
+      existingDates[e.employeeId].add(e.date);
+    });
+
+    // 4. helper: Date → 'YYYY-MM-DD'
+    const fmtDate = (dt) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+
+    // 5. pre-validate: สร้าง taskId Set สำหรับ O(1) lookup
+    const validTaskIds = new Set(MOCK_TASKS.map((t) => t.id));
+
+    // 6. วนผ่านทุกวันทำงาน (จันทร์–ศุกร์) ปี 2026
+    const empIds = Object.keys(cfg);
+    const cur = new Date('2026-01-01T00:00:00');
+    const fin = new Date('2026-12-31T00:00:00');
+    let di = 0; // day index สำหรับ deterministic hash
+
+    while (cur <= fin) {
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) {
+        const ds = fmtDate(cur);
+        const dayIndex = di; // capture เพื่อหลีกเลี่ยง no-loop-func (di ใช้ใน forEach)
+        empIds.forEach((empId, ei) => {
+          const { target, h } = cfg[empId];
+          const empPool = pool[empId];
+          if (!empPool || empPool.length === 0) return;
+          // skip ถ้ามีข้อมูลวันนี้อยู่แล้ว
+          if (!existingDates[empId]) existingDates[empId] = new Set();
+          if (existingDates[empId].has(ds)) return;
+          // deterministic 0–99 (ไม่ใช้ Math.random)
+          const hash = (ei * 17 + dayIndex * 31) % 100;
+          if (hash >= Math.round(target * 100)) return; // ไม่ทำงานวันนี้
+          // เลือก task แบบ rotation
+          const taskId = empPool[(dayIndex + ei * 3) % empPool.length];
+          if (!validTaskIds.has(taskId)) return;
+          // ชั่วโมง: 1 ใน 8 วันจะสั้นกว่า 1 ชม.
+          const hrs = hash % 8 === 0 ? Math.max(h - 1.0, 1.0) : h;
+          pushEntry(empId, taskId, ds, hrs);
+          existingDates[empId].add(ds);
+        });
+        di++;
+      }
+      cur.setDate(cur.getDate() + 1);
+    }
+  })();
+
   return entries;
 }
 

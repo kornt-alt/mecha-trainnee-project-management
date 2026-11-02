@@ -1545,19 +1545,47 @@ body {
   }
 }
 
-/* การ์ด Workload: header สูงตามธรรมชาติ body กินพื้นที่ที่เหลือทั้งหมด */
+/* การ์ด Workload: header + legend สูงตามธรรมชาติ body กินพื้นที่ที่เหลือทั้งหมด */
 .workload-card {
   display: flex;
   flex-direction: column;
 }
 
-.workload-card > .card-header {
+.workload-card > .card-header,
+.workload-legend {
   flex-shrink: 0;
 }
 
-.workload-card > .card-body {
+.workload-card-body {
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+}
+
+/* Legend สีอยู่ระหว่าง header และ body */
+.workload-legend {
+  background: var(--blue-tint);
+  font-size: 0.75rem;
+  gap: 12px !important;
+}
+
+.workload-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.workload-legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Badge เกินความจุ */
+.workload-overload-badge {
+  font-size: 0.72rem;
 }
 
 .workload-period-pills {
@@ -1611,11 +1639,19 @@ body {
   }
 }
 
+/* workload-row: 3 คอลัมน์ — ชื่อ | แท่ง | ค่า (ขยายรองรับ X/Y ชม. + %)  */
 .workload-row {
   display: grid;
-  grid-template-columns: 132px 1fr 58px;
+  grid-template-columns: 130px 1fr 100px;
   align-items: center;
   gap: 6px;
+}
+
+/* แถวพนักงานที่เกินความจุ: พื้นหลังแดงอ่อน */
+.workload-row-overloaded {
+  background: rgba(196, 32, 50, 0.06);
+  border-radius: 4px;
+  padding: 0 4px;
 }
 
 .workload-name {
@@ -1633,6 +1669,7 @@ body {
 
 .workload-bar {
   height: 100%;
+  /* สีกำหนด inline ตาม workload % — ค่าตั้งต้นใช้ blue เผื่อไม่มี style */
   background: var(--blue);
   border-radius: 999px;
   transition: width 0.4s ease;
@@ -1644,11 +1681,17 @@ body {
 
 .workload-value {
   text-align: right;
+  line-height: 1.2;
+}
+
+.workload-pct {
+  font-size: 0.72em;
+  opacity: 0.85;
 }
 
 @media (max-width: 768px) {
   .workload-row {
-    grid-template-columns: 104px 1fr 58px;
+    grid-template-columns: 100px 1fr 88px;
   }
 }
 
