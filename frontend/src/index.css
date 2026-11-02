@@ -1394,7 +1394,7 @@ body {
 
 .due-date-overdue { color: var(--red); }
 .due-date-today   { color: var(--amber); }
-.due-date-soon    { color: var(--ink); }
+.due-date-soon    { color: #E8851C; }
 .due-date-later   { color: var(--muted); }
 .due-date-none    { color: var(--muted); }
 
