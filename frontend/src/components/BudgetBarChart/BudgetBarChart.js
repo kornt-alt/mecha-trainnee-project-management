@@ -143,7 +143,7 @@ const BudgetBarChart = ({
               <text
                 className="budget-bar-chart__segment-label"
                 x={bar.centerX}
-                y={segment.y + segment.height / 2 + 4}
+                y={segment.y + segment.height / 2 + 3.5} // baseline offset ปรับตามฟอนต์ 9px ที่ต้องอยู่กลางเซกเมนต์ที่เตี้ยลง
                 textAnchor="middle"
                 style={{
                   fill: segment.textColor || '#ffffff',
@@ -208,7 +208,7 @@ const BudgetBarChart = ({
   return (
     <Card className={`budget-bar-chart ${className}`.trim()}>
       <Card.Header className="budget-bar-chart__header">
-        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+        <div className="d-flex flex-wrap align-items-center justify-content-between gap-3 budget-bar-chart__title-row">
           <div className="d-flex align-items-center gap-2">
             <div className="panel-icon-wrap text-primary">
               <ChartNoAxesColumn size={18} />
