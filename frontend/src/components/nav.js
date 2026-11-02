@@ -4,6 +4,7 @@ export const NAV = [
   { to: '/', label: 'หน้าหลัก', icon: 'House', end: true },
   { to: '/projects', label: 'โปรเจกต์', icon: 'Folder' },
   { to: '/tasks', label: 'ตารางงาน', icon: 'ClipboardList' },
+  { to: '/workload', label: 'Workload', icon: 'ChartNoAxesColumn' },
   { to: '/reports', label: 'รายงาน', icon: 'ChartNoAxesColumn' },
   { to: '/settings', label: 'ตั้งค่า', icon: 'Settings' },
 ];

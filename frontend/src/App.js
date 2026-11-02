@@ -8,6 +8,7 @@ import About from './components/About';
 import Projects from './components/Projects';
 import Tasks from './components/Tasks';
 import Reports from './components/Reports';
+import Workload from './components/Workload';
 import PlaceholderPage from './components/PlaceholderPage';
 import NotFound from './components/NotFound';
 import { APP_BASE } from './utils/config';
@@ -22,6 +23,7 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="projects" element={<Projects />} />
           <Route path="tasks" element={<Tasks />} />
+          <Route path="workload" element={<Workload />} />
           <Route path="reports" element={<Reports />} />
           <Route
             path="settings"
