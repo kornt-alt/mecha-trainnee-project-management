@@ -1694,3 +1694,41 @@ body {
     grid-template-columns: 100px 1fr 88px;
   }
 }
+
+/* ── Scrollbar แบบ auto-hide ทั้งเว็บ ─────────────────────────────────────
+   thumb โปร่งใสตอน idle (แม้ชี้เมาส์ค้าง) และแสดงเฉพาะ "ระหว่างเลื่อนจริง" —
+   class .is-scrolling ใส่/ถอดโดย utils/scrollbarActivity.js ที่ฟัง scroll event
+   จุดเดียวแบบ capture ครอบคลุม document, modal, dropdown และ container ที่เรนเดอร์
+   dynamic โดยไม่ต้องแก้ component — สีดึงจาก tokens.css จึงไปกับธีมอัตโนมัติ */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.3s ease;
+}
+
+*.is-scrolling {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 999px;
+  transition: background-color 0.3s ease;
+}
+
+*.is-scrolling::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}

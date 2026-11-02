@@ -30,8 +30,10 @@ export const VIEW_MODES = {
 
 export const ALL_STATUSES = 'ALL';
 
-const MARGIN = { top: 50, right: 20, bottom: 65, left: 70 };
-const CHART_HEIGHT = 460;
+// มาร์จิ้นบางลงเพื่อทำให้การ์ดเตี้ยลง 25-30% บน desktop: top เผื่อแบดจ์ยอดรวม (สูงสุดลอยได้จาก headroom 18%), bottom เผื่อ 2 บรรทัด label หมวดหมู่
+const MARGIN = { top: 34, right: 20, bottom: 46, left: 70 };
+// ความสูง viewBox กำหนดความสูงจริงของ SVG (rendered = containerWidth × height/width) — ลดจาก 460 เป็น 328 ทำให้กราฟเตี้ยลงโดยสเกลแนวนอน/ขนาดตัวอักษรคงเดิม
+const CHART_HEIGHT = 328;
 
 /** ฿1,234,567 style, Thai locale, no decimals (sample money values are whole baht). */
 export const formatCurrency = (value) =>
@@ -238,7 +240,7 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
         textShadow,
         lightness: currentLightness,
         searchState: searchStateOf(project),
-        showLabel: segmentHeight > 18,
+        showLabel: segmentHeight > 12, // ลดจาก 18 ตามสัดส่วน plot ที่เตี้ยลง (18×248/345≈12.9) เพื่อเก็บ label เดิมทุกอันไว้ได้ในแท่งที่สั้นลง
         shareText: `${sharePct}%`,
         sharePct,
         percentage,
