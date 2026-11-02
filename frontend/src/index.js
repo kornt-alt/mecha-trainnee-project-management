@@ -9,8 +9,10 @@ import ReactDOM from 'react-dom/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/tokens.css';
 import './index.css';
-
 import App from './App';
+import { startScrollbarActivity } from './utils/scrollbarActivity';
+
+startScrollbarActivity();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
