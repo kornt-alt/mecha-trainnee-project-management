@@ -5,8 +5,8 @@ import React, { useMemo, useState } from 'react';
 import { Card, Form, InputGroup, Table, Button } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
 import { statusLabel } from '../../utils/config';
-// สี category จากไฟล์กลาง — BudgetBarChart ใช้ไฟล์เดียวกันนี้เพื่อให้กราฟทุกตัวมีสี category ตรงกัน
-import { categoryColorByIndex } from '../../utils/categoryColors';
+// สี category จากไฟล์กลาง — ผูกสีกับ "ชื่อ" ประเภท (ไม่ใช่ลำดับ) เพื่อให้ได้สีเดิมเสมอแม้ filter แล้วเหลือ category น้อย
+import { categoryColorVariable } from '../../utils/categoryColors';
 
 // ArrowLeft (Lucide) — วาด inline ในไฟล์นี้เพราะ common/Icons.js เป็นไฟล์ shared ที่เพื่อนร่วมทีมใช้
 const ArrowLeft = ({ size = 18, strokeWidth = 2 }) => (
@@ -58,7 +58,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
     }, {});
     const total = projects.length;
     return Object.entries(counts)
-      .map(([name, count], index) => ({ name, count, percentage: total > 0 ? (count / total) * 100 : 0, color: categoryColorByIndex(index) }))
+      .map(([name, count], index) => ({ name, count, percentage: total > 0 ? (count / total) * 100 : 0, color: categoryColorVariable(name, index) }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'th'));
   }, [projects]);
 

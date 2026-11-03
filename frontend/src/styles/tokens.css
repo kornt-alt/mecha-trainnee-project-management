@@ -28,6 +28,30 @@
   --line: #E2E8F0;
   --line-strong: #CBD5E1;
 
+  /* ── Chart Palette (พาเลตต์กราฟของ Dashboard) ─────────────────────────
+   * ระบบสีเดียวกันทั้ง Dashboard โดยอ้างอิงสีจาก Workload Progress Bar
+   * (legend ของ workload.css: normal #4E70DF · over #EF5555 · track #EDF2FA)
+   * ใช้ผ่าน src/utils/categoryColors.js และ var(--chart-*) เท่านั้น — ห้าม hardcode สีใน component
+   * น้ำเงิน = ตระกูลหลัก · เขียว = สำเร็จ · เหลืองอ่อน = รอ/วางแผน · แดง = ยกเลิก/เตือน · เทา = พักไว้
+   */
+  --chart-blue: #4E70DF;        /* Primary Blue — สีหลักตาม Workload (Normal Load) */
+  --chart-deep-blue: #35549E;   /* Deep Blue */
+  --chart-sky: #7B97E8;         /* Medium Blue */
+  --chart-teal: #16A6A1;        /* Teal */
+  --chart-green: #27AE75;       /* Green — สำเร็จ/เสร็จสิ้น */
+  --chart-purple: #8067D8;      /* Purple */
+  --chart-amber: #E5A52B;       /* Amber — รอดำเนินการ/วางแผน */
+  --chart-red: #EF5555;         /* Red — ยกเลิก/เตือน (โทนเดียวกับ Overcapacity ของ Workload) */
+  --chart-cyan: #279DD8;        /* Cyan */
+  --chart-indigo: #6256C9;      /* Indigo */
+  --chart-orange: #E87936;      /* Orange */
+  --chart-rose: #D95783;        /* Rose */
+  --chart-slate: #8492A6;       /* Slate Blue-Grey */
+  --chart-blue-grey: #71869E;   /* Blue Grey — พักไว้/neutral */
+  --chart-track: #EDF2FA;       /* Track — พื้นหลังแถบ progress (โทนเดียวกับ Workload Track) */
+  --chart-border: #DCE4F1;      /* Border — เส้นขอบ/เส้นกริดของกราฟ */
+  --chart-text: #344054;        /* Text — สีตัวหนังสือบนกราฟ */
+
   --radius-sm: 6px;
   --radius: 8px;
   --radius-lg: 12px;

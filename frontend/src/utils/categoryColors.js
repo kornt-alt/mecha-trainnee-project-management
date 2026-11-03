@@ -4,15 +4,42 @@
 //
 // ⚠️ ค่าทั้งหมดอ้างอิง CSS variables จาก styles/tokens.css (ห้ามใส่สีตรงตามกติกาของ repo)
 // ลำดับใน CATEGORY_COLORS = ลำดับการ assign สี (วนตาม index ของ category หลัง sort)
+// โทนรวม: น้ำเงินเป็นตระกูลหลักตามกราฟ Workload (--chart-blue #4E70DF) — สีอื่นเป็น complementary ที่คุม saturation ใกล้กัน
 
 export const CATEGORY_COLORS = [
-  { variable: 'var(--blue)', hex: '#1B4FA0' },
-  { variable: 'var(--green)', hex: '#1F7A4D' },
-  { variable: 'var(--amber)', hex: '#D97706' },
-  { variable: 'var(--muted)', hex: '#5B6B82' },
-  { variable: 'var(--red)', hex: '#C42032' },
-  { variable: 'var(--blue-hover)', hex: '#153E7E' },
+  { variable: 'var(--chart-blue)', hex: '#4E70DF' },
+  { variable: 'var(--chart-teal)', hex: '#16A6A1' },
+  { variable: 'var(--chart-purple)', hex: '#8067D8' },
+  { variable: 'var(--chart-amber)', hex: '#E5A52B' },
+  { variable: 'var(--chart-deep-blue)', hex: '#35549E' },
+  { variable: 'var(--chart-blue-grey)', hex: '#71869E' },
+  { variable: 'var(--chart-sky)', hex: '#7B97E8' },
+  { variable: 'var(--chart-slate)', hex: '#8492A6' },
+  { variable: 'var(--chart-cyan)', hex: '#279DD8' },
+  { variable: 'var(--chart-indigo)', hex: '#6256C9' },
+  { variable: 'var(--chart-orange)', hex: '#E87936' },
+  { variable: 'var(--chart-rose)', hex: '#D95783' },
 ];
+
+// สีสถานะโปรเจกต์ (ใช้ร่วมกับ PROJECT_STATUS_META ใน DonutChart/donutChartData.js)
+// คงความหมายเชิงสัญลักษณ์: เขียว=สำเร็จ · น้ำเงิน=กำลังทำ · เหลืองอ่อน=วางแผน · เทา=พักไว้ · แดงอ่อน=ยกเลิก
+export const PROJECT_STATUS_COLORS = {
+  in_progress: 'var(--chart-blue)',
+  completed: 'var(--chart-green)',
+  planning: 'var(--chart-amber)',
+  on_hold: 'var(--chart-blue-grey)',
+  cancelled: 'var(--chart-red)',
+};
+
+// สีอ้างอิงของกราฟ Workload — "คงสีเดิมทุกประการ" (แก้ได้ที่ workload.css/index.css .workload-*)
+// --chart-blue (#4E70DF), --chart-red (#EF5555) และ --chart-track (#EDF2FA) ใน tokens.css
+// ตั้งค่าให้ตรงกับ normal / over / track ตรงนี้ จึงเป็นจุดผูกโทนของพาเลตต์กราฟทุกตัวบน Dashboard
+export const WORKLOAD_REFERENCE_COLORS = {
+  normal: '#4E70DF',
+  over: '#EF5555',
+  capacity: '#E34D4D',
+  track: '#EDF2FA',
+};
 
 /** สี (CSS variable) ของ category ที่อยู่ลำดับ index หลัง sort — วนกลับเมื่อเกินจำนวนสี */
 export const categoryColorByIndex = (index) => CATEGORY_COLORS[index % CATEGORY_COLORS.length].variable;
@@ -28,20 +55,50 @@ export const DEFAULT_CATEGORY_COLORS = CATEGORY_COLORS.map((c) => c.hex);
  * เชื่อมโยงโดยตรงกับแม่สีใน CATEGORY_COLORS เพื่อเป็น Single Source of Truth ร่วมกัน
  */
 export const PROJECT_CATEGORY_COLORS = {
-  'ระบบซอฟต์แวร์': CATEGORY_COLORS[0].hex,       // #1B4FA0 var(--blue)
-  'คุณภาพและทดสอบ': CATEGORY_COLORS[1].hex,      // #1F7A4D var(--green)
-  'เอกสารและการฝึกอบรม': CATEGORY_COLORS[2].hex, // #D97706 var(--amber)
-  'ระบบอัตโนมัติ': CATEGORY_COLORS[3].hex,       // #5B6B82 var(--muted)
-  'ระบบองค์กร': CATEGORY_COLORS[4].hex,          // #C42032 var(--red)
-  'ซ่อมบำรุง': CATEGORY_COLORS[5].hex,           // #153E7E var(--blue-hover)
+  'ระบบซอฟต์แวร์': CATEGORY_COLORS[0].hex,       // #4E70DF var(--chart-blue)
+  'คุณภาพและทดสอบ': CATEGORY_COLORS[2].hex,      // #8067D8 var(--chart-purple)
+  'เอกสารและการฝึกอบรม': CATEGORY_COLORS[3].hex, // #E5A52B var(--chart-amber)
+  'ระบบอัตโนมัติ': CATEGORY_COLORS[1].hex,       // #16A6A1 var(--chart-teal)
+  'ระบบองค์กร': CATEGORY_COLORS[4].hex,          // #35549E var(--chart-deep-blue)
+  'ซ่อมบำรุง': CATEGORY_COLORS[5].hex,           // #71869E var(--chart-blue-grey)
 
   // English aliases สำหรับเรียกใช้งานในโค้ดส่วนอื่น
   software: CATEGORY_COLORS[0].hex,
-  quality: CATEGORY_COLORS[1].hex,
-  documentation: CATEGORY_COLORS[2].hex,
-  automation: CATEGORY_COLORS[3].hex,
+  quality: CATEGORY_COLORS[2].hex,
+  documentation: CATEGORY_COLORS[3].hex,
+  automation: CATEGORY_COLORS[1].hex,
   corporate: CATEGORY_COLORS[4].hex,
   maintenance: CATEGORY_COLORS[5].hex,
+};
+
+/**
+ * สีรูปแบบ CSS variable ของแต่ละประเภท (ผูกกับ PROJECT_CATEGORY_COLORS โดยลำดับเดียวกัน)
+ * ใช้กับ component ที่รับสีเป็น CSS ได้โดยตรง เช่น Treemap — ต้องเป็นสีเดียวกับ hex ใน PROJECT_CATEGORY_COLORS เสมอ
+ */
+export const PROJECT_CATEGORY_COLOR_VARIABLES = {
+  'ระบบซอฟต์แวร์': CATEGORY_COLORS[0].variable,
+  'คุณภาพและทดสอบ': CATEGORY_COLORS[2].variable,
+  'เอกสารและการฝึกอบรม': CATEGORY_COLORS[3].variable,
+  'ระบบอัตโนมัติ': CATEGORY_COLORS[1].variable,
+  'ระบบองค์กร': CATEGORY_COLORS[4].variable,
+  'ซ่อมบำรุง': CATEGORY_COLORS[5].variable,
+};
+
+/**
+ * สี (CSS variable) ของประเภทตามชื่อ — คืนสีเดิมเสมอแม้จำนวน category ที่แสดงเปลี่ยนจากการ filter
+ * (ผูกสีกับ "ชื่อ" ไม่ใช่ "ลำดับ" — fallback เป็นลำดับเฉพาะประเภทที่ยังไม่รู้จัก)
+ */
+export const categoryColorVariable = (categoryName, fallbackIndex = 0) => {
+  if (categoryName && PROJECT_CATEGORY_COLOR_VARIABLES[categoryName]) {
+    return PROJECT_CATEGORY_COLOR_VARIABLES[categoryName];
+  }
+  if (categoryName && typeof categoryName === 'string') {
+    const canonical = CATEGORY_ALIAS_MAP[normalizeCategoryName(categoryName)];
+    if (canonical && PROJECT_CATEGORY_COLOR_VARIABLES[canonical]) {
+      return PROJECT_CATEGORY_COLOR_VARIABLES[canonical];
+    }
+  }
+  return categoryColorByIndex(fallbackIndex);
 };
 
 /**
@@ -49,19 +106,19 @@ export const PROJECT_CATEGORY_COLORS = {
  * เข้าสู่ Canonical Category Key เพื่อให้ได้สีเดียวกันอย่างสม่ำเสมอ 100%
  */
 export const CATEGORY_ALIAS_MAP = {
-  // ระบบอัตโนมัติ (Automation) -> var(--muted) #5B6B82
+  // ระบบอัตโนมัติ (Automation) -> var(--chart-teal) #16A6A1
   'ระบบอัตโนมัติ': 'ระบบอัตโนมัติ',
   'อัตโนมัติ': 'ระบบอัตโนมัติ',
   'automation': 'ระบบอัตโนมัติ',
   'mas': 'ระบบอัตโนมัติ',
   'mechanical automation & software': 'ระบบอัตโนมัติ',
 
-  // ระบบซอฟต์แวร์ (Software) -> var(--blue) #1B4FA0
+  // ระบบซอฟต์แวร์ (Software) -> var(--chart-blue) #4E70DF
   'ระบบซอฟต์แวร์': 'ระบบซอฟต์แวร์',
   'ซอฟต์แวร์': 'ระบบซอฟต์แวร์',
   'software': 'ระบบซอฟต์แวร์',
 
-  // คุณภาพและทดสอบ (Quality & Testing) -> var(--green) #1F7A4D
+  // คุณภาพและทดสอบ (Quality & Testing) -> var(--chart-purple) #8067D8
   'คุณภาพและทดสอบ': 'คุณภาพและทดสอบ',
   'คุณภาพ': 'คุณภาพและทดสอบ',
   'ทดสอบ': 'คุณภาพและทดสอบ',
@@ -69,20 +126,20 @@ export const CATEGORY_ALIAS_MAP = {
   'testing': 'คุณภาพและทดสอบ',
   'qa': 'คุณภาพและทดสอบ',
 
-  // เอกสารและการฝึกอบรม (Documentation & Training) -> var(--amber) #D97706
+  // เอกสารและการฝึกอบรม (Documentation & Training) -> var(--chart-amber) #E5A52B
   'เอกสารและการฝึกอบรม': 'เอกสารและการฝึกอบรม',
   'เอกสาร': 'เอกสารและการฝึกอบรม',
   'การฝึกอบรม': 'เอกสารและการฝึกอบรม',
   'documentation': 'เอกสารและการฝึกอบรม',
   'training': 'เอกสารและการฝึกอบรม',
 
-  // ระบบองค์กร (Corporate / Enterprise) -> var(--red) #C42032
+  // ระบบองค์กร (Corporate / Enterprise) -> var(--chart-deep-blue) #35549E
   'ระบบองค์กร': 'ระบบองค์กร',
   'องค์กร': 'ระบบองค์กร',
   'corporate': 'ระบบองค์กร',
   'enterprise': 'ระบบองค์กร',
 
-  // ซ่อมบำรุง (Maintenance) -> var(--blue-hover) #153E7E
+  // ซ่อมบำรุง (Maintenance) -> var(--chart-blue-grey) #71869E
   'ซ่อมบำรุง': 'ซ่อมบำรุง',
   'บำรุงรักษา': 'ซ่อมบำรุง',
   'maintenance': 'ซ่อมบำรุง',

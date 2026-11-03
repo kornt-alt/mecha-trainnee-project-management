@@ -3,15 +3,16 @@
    the dark-mode block below only activates if the app ever defines data-bs-theme="dark"). */
 
 /* ---------- Theme variables (mapped to src/styles/tokens.css) ---------- */
+/* โครงสร้างข้อความ/เส้นขอบใช้ token กราฟของพาเลตต์กลาง (--chart-text / --chart-border) ให้โทนเดียวกับกราฟอื่น */
 .donut-chart {
   --donut-surface: var(--surface, #ffffff);
-  --donut-text: var(--ink, #1e293b);
+  --donut-text: var(--chart-text, var(--ink, #1e293b));
   --donut-text-muted: var(--muted, #64748b);
-  --donut-border: var(--line, #e2e8f0);
+  --donut-border: var(--chart-border, var(--line, #e2e8f0));
   --donut-label-bg: rgba(255, 255, 255, 0.95);
-  --donut-label-border: var(--line, #e2e8f0);
-  --donut-label-divider: var(--line, #f1f5f9);
-  --donut-center-value: var(--ink, #0f172a);
+  --donut-label-border: var(--chart-border, var(--line, #e2e8f0));
+  --donut-label-divider: var(--chart-border, #f1f5f9);
+  --donut-center-value: var(--chart-text, #0f172a);
   --donut-shadow: rgba(0, 0, 0, 0.18);
 
   background-color: var(--donut-surface);
