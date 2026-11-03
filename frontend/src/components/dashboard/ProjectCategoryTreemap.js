@@ -52,7 +52,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
 
   const categories = useMemo(() => {
     const counts = projects.reduce((result, project) => {
-      const category = project.category || 'ไม่ระบุประเภท';
+      const category = project.category || project.categoryName || 'ไม่ระบุประเภท';
       result[category] = (result[category] || 0) + 1;
       return result;
     }, {});
@@ -68,7 +68,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
 
   // โปรเจกต์เฉพาะประเภทที่เลือก (ไม่แก้ array ต้นทาง) แล้วค่อยกรองด้วยคำค้น — trim + ไม่สนตัวพิมพ์
   const categoryProjects = useMemo(
-    () => (selectedName ? projects.filter((p) => (p.category || 'ไม่ระบุประเภท') === selectedName) : []),
+    () => (selectedName ? projects.filter((p) => ((p.category || p.categoryName || 'ไม่ระบุประเภท')) === selectedName) : []),
     [projects, selectedName],
   );
   const filteredProjects = useMemo(() => {

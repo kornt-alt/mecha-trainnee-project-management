@@ -157,7 +157,7 @@ export const buildBudgetCategories = (projects = [], costItems = [], monthsBack 
 
   projectList.forEach((project) => {
     if (!project) return;
-    const categoryName = project.category || 'ไม่ระบุหมวดหมู่';
+    const categoryName = project.category || project.categoryName || 'ไม่ระบุประเภท';
     if (!categoryIndexByName.has(categoryName)) {
       categoryIndexByName.set(categoryName, categories.length);
       projectIndexByCategory.set(categoryName, 0);

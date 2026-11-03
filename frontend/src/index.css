@@ -1401,31 +1401,31 @@ body {
 /* ── แถวเลยกำหนด ───────────────────────────────────────────────────── */
 
 .task-row-overdue {
-  border-left: 3px solid #DC2626;
+  border-left: 3px solid var(--task-urgent-overdue);
 }
 
 .task-row-overdue td {
-  background-color: #FEF2F2;
+  background-color: var(--task-urgent-overdue-tint);
 }
 
 .task-row-today {
-  border-left: 3px solid #EA580C;
+  border-left: 3px solid var(--task-urgent-today);
 }
 
 .task-row-today td {
-  background-color: #fff0e2;
+  background-color: var(--task-urgent-today-tint);
 }
 
 .task-row-soon {
-  border-left: 3px solid #EAB308;
+  border-left: 3px solid var(--task-urgent-soon);
 }
 
 .task-row-soon td {
-  background-color: #fff6e7;
+  background-color: var(--task-urgent-soon-tint);
 }
 
 .task-row-normal {
-  border-left: 3px solid #E5E7EB;
+  border-left: 3px solid var(--task-urgent-normal);
 }
 
 .task-row-normal td {
@@ -1447,22 +1447,22 @@ body {
 }
 
 .task-card-overdue {
-  border-left: 3px solid #DC2626;
-  background-color: #FEF2F2;
+  border-left: 3px solid var(--task-urgent-overdue);
+  background-color: var(--task-urgent-overdue-tint);
 }
 
 .task-card-today {
-  border-left: 3px solid #EA580C;
-  background-color: #fff0e2;
+  border-left: 3px solid var(--task-urgent-today);
+  background-color: var(--task-urgent-today-tint);
 }
 
 .task-card-soon {
-  border-left: 3px solid #EAB308;
-  background-color: #fff6e7;
+  border-left: 3px solid var(--task-urgent-soon);
+  background-color: var(--task-urgent-soon-tint);
 }
 
 .task-card-normal {
-  border-left: 3px solid #E5E7EB;
+  border-left: 3px solid var(--task-urgent-normal);
   background-color: #FFFFFF;
 }
 

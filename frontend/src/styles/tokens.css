@@ -28,6 +28,15 @@
   --line: #E2E8F0;
   --line-strong: #CBD5E1;
 
+  /* ── Task Urgency Colors (UnfinishedTasks) ───────────────────────────── */
+  --task-urgent-overdue: #DC2626;
+  --task-urgent-overdue-tint: #FEF2F2;
+  --task-urgent-today: #EA580C;
+  --task-urgent-today-tint: #fff0e2;
+  --task-urgent-soon: #EAB308;
+  --task-urgent-soon-tint: #fff6e7;
+  --task-urgent-normal: #E5E7EB;
+
   /* ── Chart Palette (พาเลตต์กราฟของ Dashboard) ─────────────────────────
    * ระบบสีเดียวกันทั้ง Dashboard โดยอ้างอิงสีจาก Workload Progress Bar
    * (legend ของ workload.css: normal #4E70DF · over #EF5555 · track #EDF2FA)

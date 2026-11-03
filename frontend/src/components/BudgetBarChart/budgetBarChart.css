@@ -11,7 +11,7 @@
   --budget-line: var(--chart-border, #e2e8f0);
   --budget-line-strong: var(--line-strong, #cbd5e1);
   --budget-paper: var(--paper, #f7f8fa);
-  --budget-blue: var(--chart-blue, #1b4fa0);
+  --budget-blue: var(--chart-blue, #050c16);
   --budget-blue-tint: var(--blue-tint, #eaf0f9);
   background-color: var(--budget-surface);
   border: 1px solid var(--budget-line);
