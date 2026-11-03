@@ -102,3 +102,32 @@
   .workload-chart-legend { display:none; }
   .workload-detail-schedule { grid-template-columns:1fr; }
 }
+
+/* ── 6-Month Workload Forecast Matrix (Matrix-only styles) ─────────────── */
+.workload-forecast-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.workload-forecast-controls select { min-width:150px; }
+.workload-forecast-nav { display:flex; align-items:center; gap:8px; }
+.workload-forecast-nav-btn { border:1px solid #cdd9ea; background:#fff; color:#214c91; font-size:.72rem; font-weight:700; padding:4px 12px; border-radius:6px; }
+.workload-forecast-nav-btn:hover { background:#eef3ff; }
+.workload-forecast-window { font-size:.72rem; font-weight:700; color:#31538d; white-space:nowrap; min-width:150px; text-align:center; }
+.workload-forecast-table { min-width:820px; font-size:.75rem; }
+.workload-forecast-table thead th { background:#f5f8fc; color:#6e7e94; font-size:.65rem; font-weight:750; letter-spacing:.03em; padding:11px 9px; border-bottom:1px solid #e4eaf2; white-space:nowrap; }
+.workload-forecast-table thead th small { display:block; font-size:.62rem; font-weight:500; letter-spacing:0; }
+.workload-forecast-employee strong { font-size:.75rem; color:#1f2d3d; display:block; }
+.workload-forecast-employee small { color:#75849a; font-size:.63rem; }
+.workload-forecast-cell { display:inline-flex; flex-direction:column; align-items:center; gap:1px; min-width:78px; padding:6px 8px; border:1px solid transparent; border-radius:7px; font-weight:700; line-height:1.15; }
+.workload-forecast-cell strong { font-size:.72rem; }
+.workload-forecast-cell small { font-size:.62rem; font-weight:600; }
+.workload-forecast-cell.is-available { background:#e7f6ec; color:#1d7a3e; border-color:#bfe6cc; }
+.workload-forecast-cell.is-near { background:#fff5dd; color:#9a6700; border-color:#f0dc9f; }
+.workload-forecast-cell.is-over { background:#fdeaea; color:#b02a37; border-color:#f3c1c5; }
+.workload-forecast-cell.is-na { background:#eef0f3; color:#6c757d; border-color:#dde1e6; }
+.workload-forecast-cell:hover { filter:brightness(.96); cursor:pointer; }
+.workload-forecast-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:10px 16px; border-top:1px solid #edf1f6; font-size:.68rem; color:#5c6b80; }
+.workload-forecast-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+.workload-forecast-legend i.is-available { background:#2ea44f; }
+.workload-forecast-legend i.is-near { background:#e3b341; }
+.workload-forecast-legend i.is-over { background:#e5534b; }
+.workload-forecast-legend i.is-na { background:#aab2bd; }
+.workload-forecast-legend-note { margin-left:auto; color:#8593a8; }
+.workload-detail-capacity-note { font-size:.7rem; color:#75849a; background:#f5f8fc; border-radius:6px; padding:8px 10px; }

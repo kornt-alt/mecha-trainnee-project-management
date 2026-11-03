@@ -10,6 +10,7 @@ import {
   computeEmployeeWorkloadData,
 } from '../data/workloadMockData';
 import './workload.css';
+import WorkloadMatrix from './WorkloadMatrix';
 
 const PERIODS = [
   { key: 'daily', label: 'รายวัน' },
@@ -229,29 +230,13 @@ export default function Workload() {
         </Col>
       </Row>
 
-      <Card className="workload-panel mb-3">
-        <Card.Header><div><h2>Workload Matrix</h2><p>เปรียบเทียบ Planned Hours กับ Capacity ของพนักงานตามช่วงเวลาที่เลือก</p></div><Badge bg="light" text="primary" className="border">{data.employees.length} Employees</Badge></Card.Header>
-        <Card.Body className="p-0">
-          <div className="table-responsive workload-matrix-wrap">
-            <Table hover className="workload-matrix mb-0 align-middle">
-              <thead><tr><th>EMPLOYEE</th><th>DEPARTMENT</th>{matrixBuckets.map((bucket) => <th key={bucket.key} className="text-center">{period === 'yearly' ? bucket.label : DAY_LABELS[parseISODate(bucket.start).getDay()]}<small>{period === 'yearly' ? '' : `${parseISODate(bucket.start).getDate()}/${parseISODate(bucket.start).getMonth() + 1}`}</small></th>)}<th className="text-end">PLANNED / CAP.</th></tr></thead>
-              <tbody>{data.employees.map((employee) => <tr key={employee.id}>
-                <td><button type="button" className="workload-matrix-employee" onClick={() => setSelectedEmployee(employee)}>{employee.name}</button><small className="d-block text-muted">{employee.position}</small></td>
-                <td className="workload-matrix-dept">{employee.department}</td>
-                {matrixBuckets.map((bucket) => {
-                  const empEntries = Array.isArray(employee?.entries) ? employee.entries : [];
-                  const empSchedules = Array.isArray(employee?.schedules) ? employee.schedules : [];
-                  const planned = empEntries.filter((entry) => entry && entry.date >= bucket.start && entry.date <= bucket.end).reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-                  const cap = empSchedules.filter((item) => item && item.date >= bucket.start && item.date <= bucket.end).reduce((sum, item) => sum + Number(item.capacityHours || 0), 0);
-                  const pct = cap ? (planned / cap) * 100 : 0;
-                  return <td key={bucket.key} className="text-center"><span className={`workload-matrix-cell ${!cap ? 'is-off' : pct > 100 ? 'is-over' : pct >= 80 ? 'is-high' : ''}`}>{!cap ? 'หยุด' : planned.toFixed(1)}{cap > 0 && <small> / {cap.toFixed(1)}</small>}</span></td>;
-                })}
-                <td className="text-end fw-semibold text-nowrap">{employee.plannedHours.toFixed(1)} / {employee.capacityHours.toFixed(1)}</td>
-              </tr>)}</tbody>
-            </Table>
-          </div>
-        </Card.Body>
-      </Card>
+      <WorkloadMatrix
+        employees={MOCK_EMPLOYEES}
+        department={department}
+        position={position}
+        projectFilter={projectFilter}
+        search={search}
+      />
 
       <Card className="workload-panel workload-advisory">
         <Card.Header><div><h2>Resource Planning Advisory</h2><p>ข้อสังเกตจากการจัดสรร Planned Hours ในช่วงที่เลือก</p></div><Badge bg={data.overCapacity ? 'danger' : 'success'}>{data.overCapacity ? 'Action Required' : 'Within Capacity'}</Badge></Card.Header>
