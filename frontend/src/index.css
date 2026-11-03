@@ -1401,11 +1401,35 @@ body {
 /* ── แถวเลยกำหนด ───────────────────────────────────────────────────── */
 
 .task-row-overdue {
-  border-left: 3px solid var(--red);
+  border-left: 3px solid #DC2626;
 }
 
 .task-row-overdue td {
-  background-color: var(--red-tint);
+  background-color: #FEF2F2;
+}
+
+.task-row-today {
+  border-left: 3px solid #EA580C;
+}
+
+.task-row-today td {
+  background-color: #fff0e2;
+}
+
+.task-row-soon {
+  border-left: 3px solid #EAB308;
+}
+
+.task-row-soon td {
+  background-color: #fff6e7;
+}
+
+.task-row-normal {
+  border-left: 3px solid #E5E7EB;
+}
+
+.task-row-normal td {
+  background-color: #FFFFFF;
 }
 
 /* ── การ์ดงานบนมือถือ / แท็บเล็ต (<1200px) ────────────────────────── */
@@ -1423,8 +1447,23 @@ body {
 }
 
 .task-card-overdue {
-  border-left: 3px solid var(--red);
-  background-color: var(--red-tint);
+  border-left: 3px solid #DC2626;
+  background-color: #FEF2F2;
+}
+
+.task-card-today {
+  border-left: 3px solid #EA580C;
+  background-color: #fff0e2;
+}
+
+.task-card-soon {
+  border-left: 3px solid #EAB308;
+  background-color: #fff6e7;
+}
+
+.task-card-normal {
+  border-left: 3px solid #E5E7EB;
+  background-color: #FFFFFF;
 }
 
 .task-card-due {
