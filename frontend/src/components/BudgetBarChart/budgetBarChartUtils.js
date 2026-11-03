@@ -223,9 +223,9 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
       const currentLightness = calculateTargetLightness(percentage);
 
       // คำนวณสีข้อความเปอร์เซ็นต์ให้ตัดกับพื้นหลังเซกเมนต์เสมอ (WCAG AA/AAA contrast)
-      // พื้นสว่างใช้ตัวหนังสือสีเข้ม #0f172a, พื้นเข้มใช้ตัวหนังสือสีขาว #ffffff
+      // พื้นสว่างใช้สีข้อความกราฟจากพาเลตต์กลาง var(--chart-text), พื้นเข้มใช้ตัวหนังสือสีขาว #ffffff
       const isLightBackground = currentLightness >= 65;
-      const textColor = isLightBackground ? '#0f172a' : '#ffffff';
+      const textColor = isLightBackground ? 'var(--chart-text, #0f172a)' : '#ffffff';
       const textShadow = isLightBackground
         ? '0 1px 2px rgba(255, 255, 255, 0.7)'
         : '0 1px 2px rgba(0, 0, 0, 0.6)';
@@ -333,7 +333,8 @@ export const buildChartModel = (categories, { viewMode, keyword = '', statusLabe
           width: barWidth,
           height: barHeight,
           centerX,
-          color: isPositive ? '#10B981' : '#F43F5E',
+          // ผลต่างงบประมาณ: ผลต่างเป็นบวก/ติดลบ ใช้สีคู่จากพาเลตต์กลาง (--chart-green / --chart-red)
+          color: isPositive ? 'var(--chart-green)' : 'var(--chart-red)',
           valueText: `${isPositive ? '+' : ''}${formatShortCurrency(variance)}`,
           labelY: zeroY - barHeight - 8,
           tooltip: {

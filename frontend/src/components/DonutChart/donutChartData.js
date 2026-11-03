@@ -2,13 +2,16 @@
 // สถานะโปรเจกต์ของระบบ (ต้องตรงกับ PROJECT_STATUSES ใน src/utils/config.js และ ENUM ใน db/schema.sql)
 // + adapter แปลงรายการโปรเจกต์ที่ Dashboard ใช้อยู่เป็น items ของ DonutChart
 
-// สีอ้างอิง design token จาก src/styles/tokens.css (แก้สีที่ token เดียว กราฟเปลี่ยนตาม)
+// สีดึงจาก PROJECT_STATUS_COLORS ใน src/utils/categoryColors.js — พาเลตต์เดียวกับกราฟอื่นบน Dashboard
+// คงความหมายเชิงสัญลักษณ์: น้ำเงิน=กำลังดำเนินการ · เขียว=เสร็จสิ้น · เหลืองอ่อน=วางแผน · เทา=พักไว้ · แดง=ยกเลิก
+import { PROJECT_STATUS_COLORS } from '../../utils/categoryColors';
+
 export const PROJECT_STATUS_META = [
-  { id: 'in_progress', label: 'กำลังดำเนินการ', color: 'var(--blue)', matches: ['in_progress'] },
-  { id: 'on_hold', label: 'พักไว้ / รอตรวจสอบ', color: 'var(--amber)', matches: ['on_hold', 'pending_review', 'review'] },
-  { id: 'planning', label: 'วางแผน', color: 'var(--muted)', matches: ['planning'] },
-  { id: 'completed', label: 'เสร็จสิ้น', color: 'var(--green)', matches: ['done', 'completed'] },
-  { id: 'cancelled', label: 'ยกเลิก', color: 'var(--red)', matches: ['cancelled'] },
+  { id: 'in_progress', label: 'กำลังดำเนินการ', color: PROJECT_STATUS_COLORS.in_progress, matches: ['in_progress'] },
+  { id: 'on_hold', label: 'พักไว้ / รอตรวจสอบ', color: PROJECT_STATUS_COLORS.on_hold, matches: ['on_hold', 'pending_review', 'review'] },
+  { id: 'planning', label: 'วางแผน', color: PROJECT_STATUS_COLORS.planning, matches: ['planning'] },
+  { id: 'completed', label: 'เสร็จสิ้น', color: PROJECT_STATUS_COLORS.completed, matches: ['done', 'completed'] },
+  { id: 'cancelled', label: 'ยกเลิก', color: PROJECT_STATUS_COLORS.cancelled, matches: ['cancelled'] },
 ];
 
 /**

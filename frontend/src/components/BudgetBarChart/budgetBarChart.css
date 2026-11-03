@@ -4,17 +4,17 @@
  */
 
 .budget-bar-chart {
-  --chart-surface: var(--surface, #ffffff);
-  --chart-ink: var(--ink, #0b1f3a);
-  --chart-muted: var(--muted, #5b6b82);
-  --chart-line: var(--line, #e2e8f0);
-  --chart-line-strong: var(--line-strong, #cbd5e1);
-  --chart-paper: var(--paper, #f7f8fa);
-  --chart-blue: var(--blue, #1b4fa0);
-  --chart-blue-tint: var(--blue-tint, #eaf0f9);
-
-  background-color: var(--chart-surface);
-  border: 1px solid var(--chart-line);
+  /* ตั้งชื่อ alias ภายในด้วย prefix --budget-* เพื่อไม่บัง (shadow) token --chart-* กลางจาก tokens.css */
+  --budget-surface: var(--surface, #ffffff);
+  --budget-ink: var(--chart-text, #0b1f3a);
+  --budget-muted: var(--muted, #5b6b82);
+  --budget-line: var(--chart-border, #e2e8f0);
+  --budget-line-strong: var(--line-strong, #cbd5e1);
+  --budget-paper: var(--paper, #f7f8fa);
+  --budget-blue: var(--chart-blue, #1b4fa0);
+  --budget-blue-tint: var(--blue-tint, #eaf0f9);
+  background-color: var(--budget-surface);
+  border: 1px solid var(--budget-line);
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--shadow-card);
   overflow: hidden;
@@ -23,14 +23,14 @@
 /* รองรับโหมดมืด (Dark Mode) */
 [data-bs-theme='dark'] .budget-bar-chart,
 .dark .budget-bar-chart {
-  --chart-surface: #0f172a;
-  --chart-ink: #f1f5f9;
-  --chart-muted: #94a3b8;
-  --chart-line: #1e293b;
-  --chart-line-strong: #334155;
-  --chart-paper: #1e293b;
-  --chart-blue: #60a5fa;
-  --chart-blue-tint: rgba(59, 130, 246, 0.15);
+  --budget-surface: #0f172a;
+  --budget-ink: #f1f5f9;
+  --budget-muted: #94a3b8;
+  --budget-line: #1e293b;
+  --budget-line-strong: #334155;
+  --budget-paper: #1e293b;
+  --budget-blue: #60a5fa;
+  --budget-blue-tint: rgba(78, 112, 223, 0.15);
 }
 
 /* ── หัวการ์ดและแถบเครื่องมือ ── */
@@ -40,8 +40,8 @@
 }
 
 .budget-bar-chart__header {
-  background-color: var(--chart-surface);
-  border-bottom: 1px solid var(--chart-line);
+  background-color: var(--budget-surface);
+  border-bottom: 1px solid var(--budget-line);
   /* บีบ padding บน/ล่างให้แคบลง — ลดความสูงส่วนหัวโดยไม่แตะเนื้อหา */
   padding: 0.5rem 1.25rem;
 }
@@ -59,16 +59,16 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 0.25rem;
-  background-color: var(--chart-paper);
+  background-color: var(--budget-paper);
   padding: 0.25rem;
   border-radius: var(--radius, 8px);
-  border: 1px solid var(--chart-line);
+  border: 1px solid var(--budget-line);
 }
 
 .budget-bar-chart__mode {
   border: none !important;
   background: transparent !important;
-  color: var(--chart-muted) !important;
+  color: var(--budget-muted) !important;
   font-size: 0.75rem !important;
   font-weight: 500 !important;
   padding: 0.35rem 0.65rem !important;
@@ -80,7 +80,7 @@
 }
 
 .budget-bar-chart__mode:hover {
-  color: var(--chart-ink) !important;
+  color: var(--budget-ink) !important;
   background-color: rgba(0, 0, 0, 0.04) !important;
 }
 
@@ -90,8 +90,8 @@
 }
 
 .budget-bar-chart__mode--active {
-  background-color: var(--chart-surface) !important;
-  color: var(--chart-blue) !important;
+  background-color: var(--budget-surface) !important;
+  color: var(--budget-blue) !important;
   font-weight: 600 !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -104,15 +104,15 @@
 }
 
 .budget-bar-chart__swatch--planned {
-  background-color: #3b82f6;
+  background-color: var(--chart-blue);
 }
 
 .budget-bar-chart__swatch--actual {
-  background-color: #1e3a8a;
+  background-color: var(--chart-deep-blue);
 }
 
 .budget-bar-chart__swatch--variance {
-  background-color: #10b981;
+  background-color: var(--chart-green);
 }
 
 .budget-bar-chart__filters {
@@ -137,9 +137,9 @@
 .budget-bar-chart__range,
 .budget-bar-chart__status {
   font-size: 0.8125rem;
-  border-color: var(--chart-line);
-  color: var(--chart-ink);
-  background-color: var(--chart-surface);
+  border-color: var(--budget-line);
+  color: var(--budget-ink);
+  background-color: var(--budget-surface);
   border-radius: var(--radius, 8px);
 }
 
@@ -153,9 +153,9 @@
 
 .budget-bar-chart__search {
   font-size: 0.8125rem;
-  border-color: var(--chart-line);
-  color: var(--chart-ink);
-  background-color: var(--chart-surface);
+  border-color: var(--budget-line);
+  color: var(--budget-ink);
+  background-color: var(--budget-surface);
   border-radius: var(--radius, 8px);
   min-width: 190px;
   max-width: 240px;
@@ -164,8 +164,8 @@
 .budget-bar-chart__range:focus,
 .budget-bar-chart__status:focus,
 .budget-bar-chart__search:focus {
-  border-color: var(--chart-blue);
-  box-shadow: 0 0 0 0.2rem rgba(27, 79, 160, 0.15);
+  border-color: var(--budget-blue);
+  box-shadow: 0 0 0 0.2rem rgba(78, 112, 223, 0.15);
 }
 
 /* ── ส่วนลำตัวกราฟ ── */
@@ -194,13 +194,13 @@
 .budget-bar-chart__empty-title {
   font-weight: 600;
   font-size: 0.9375rem;
-  color: var(--chart-ink);
+  color: var(--budget-ink);
   margin-bottom: 0.25rem;
 }
 
 .budget-bar-chart__empty-hint {
   font-size: 0.8125rem;
-  color: var(--chart-muted);
+  color: var(--budget-muted);
   margin-bottom: 0.5rem;
 }
 
@@ -221,36 +221,36 @@
 }
 
 .budget-bar-chart__grid {
-  stroke: var(--chart-line);
+  stroke: var(--budget-line);
   stroke-dasharray: 4 4;
   stroke-width: 1;
 }
 
 .budget-bar-chart__tick-label {
-  fill: var(--chart-muted);
+  fill: var(--budget-muted);
   font-size: 11px;
 }
 
 .budget-bar-chart__baseline {
-  stroke: var(--chart-line-strong);
+  stroke: var(--budget-line-strong);
   stroke-width: 1.5;
 }
 
 .budget-bar-chart__category-label {
-  fill: var(--chart-ink);
+  fill: var(--budget-ink);
   font-size: 12px;
   font-weight: 600;
 }
 
 .budget-bar-chart__category-count {
-  fill: var(--chart-muted);
+  fill: var(--budget-muted);
   font-size: 10px;
 }
 
 /* ── แท่งและ Segment ── */
 .budget-bar-chart__segment {
   cursor: pointer;
-  stroke: var(--chart-surface);
+  stroke: var(--budget-surface);
   stroke-width: 1.5;
   stroke-linejoin: round;
   transition: transform 0.15s ease, opacity 0.2s ease, filter 0.2s ease;
@@ -262,12 +262,12 @@
 
 .budget-bar-chart__segment:focus,
 .budget-bar-chart__segment:focus-visible {
-  outline: 2px solid var(--chart-blue);
+  outline: 2px solid var(--budget-blue);
   outline-offset: 1px;
 }
 
 .budget-bar-chart__segment--match {
-  filter: drop-shadow(0 0 6px rgba(59, 130, 246, 0.85)) brightness(1.15) !important;
+  filter: drop-shadow(0 0 6px rgba(78, 112, 223, 0.85)) brightness(1.15) !important;
   opacity: 1 !important;
 }
 
@@ -277,14 +277,14 @@
 }
 
 .budget-bar-chart__segment--linked {
-  filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.7)) brightness(1.1);
-  stroke: var(--chart-blue) !important;
+  filter: drop-shadow(0 0 5px rgba(78, 112, 223, 0.7)) brightness(1.1);
+  stroke: var(--budget-blue) !important;
   stroke-width: 1.5;
 }
 
 /* เส้นขอบรอบนอกของแท่ง (Outer Outline) วาดทับหลังสุดเพื่อรักษาขอบบนและมุมโค้งไม่ให้ถูกทับ */
 .budget-bar-chart__bar-outline {
-  stroke: var(--chart-surface);
+  stroke: var(--budget-surface);
   stroke-width: 1.5;
   stroke-linejoin: round;
   pointer-events: none;
@@ -292,11 +292,11 @@
 
 /* เส้นขอบไฮไลต์เมื่อ hover ป้องกันไม่ให้เซกเมนต์ถัดไปใน DOM วาดทับขอบบนของเซกเมนต์ล่าง */
 .budget-bar-chart__segment-highlight {
-  stroke: var(--chart-blue);
+  stroke: var(--budget-blue);
   stroke-width: 1.5;
   stroke-linejoin: round;
   pointer-events: none;
-  filter: drop-shadow(0 0 5px rgba(59, 130, 246, 0.7));
+  filter: drop-shadow(0 0 5px rgba(78, 112, 223, 0.7));
 }
 
 .budget-bar-chart__segment-label {
@@ -322,11 +322,11 @@
 }
 
 .budget-bar-chart__badge--planned rect {
-  fill: #2563eb;
+  fill: var(--chart-blue);
 }
 
 .budget-bar-chart__badge--actual rect {
-  fill: #0f172a;
+  fill: var(--chart-deep-blue);
 }
 
 [data-bs-theme='dark'] .budget-bar-chart__badge--actual rect,
@@ -347,7 +347,7 @@
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   line-height: 1.4;
-  border-top: 1px solid var(--chart-line);
+  border-top: 1px solid var(--budget-line);
   font-size: 0.8125rem;
 }
 
@@ -355,7 +355,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  color: var(--chart-muted);
+  color: var(--budget-muted);
 }
 
 /* ── กล่อง Tooltip ลอย ── */

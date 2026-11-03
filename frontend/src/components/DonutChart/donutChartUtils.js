@@ -1,6 +1,8 @@
 // frontend/src/components/DonutChart/donutChartUtils.js
 // Pure calculation helpers for DonutChart (no React, no DOM) so they stay easy to test and reuse.
 
+import { UNMAPPED_CATEGORY_COLOR } from '../../utils/categoryColors.js';
+
 const FULL_CIRCLE = 2 * Math.PI;
 
 // SVG angle 0 points at 3 o'clock; shifting by -90° makes the first slice start at 12 o'clock.
@@ -10,7 +12,8 @@ const START_ANGLE = -Math.PI / 2;
 // Trimming a tiny amount (~0.01px at r=135) keeps a single 100% slice visible.
 const FULL_CIRCLE_EPSILON = 0.0001;
 
-export const DEFAULT_SLICE_COLOR = '#64748B';
+// เฉดเทาสำรองของ slice ที่ไม่มีสีระบุ — ดึงจากไฟล์กลาง categoryColors.js (ค่าเดียวกับ UNMAPPED_CATEGORY_COLOR)
+export const DEFAULT_SLICE_COLOR = UNMAPPED_CATEGORY_COLOR;
 
 /**
  * Build the chart geometry. All coordinates live in the SVG viewBox space.

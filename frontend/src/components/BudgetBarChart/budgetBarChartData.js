@@ -76,12 +76,12 @@ export const formatThaiMonth = (yearMonth) => {
 
 // โครงสีแม่แบบอ้างอิงจาก Project Category Distribution (ProjectCategoryTreemap.js)
 export const TREEMAP_CATEGORY_BASE_COLORS = {
-  'ระบบซอฟต์แวร์': { token: 'var(--blue)', hex: PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์']) },
-  'คุณภาพและทดสอบ': { token: 'var(--green)', hex: PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ']) },
-  'เอกสารและการฝึกอบรม': { token: 'var(--amber)', hex: PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม'], ...hexToHsl(PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม']) },
-  'ระบบอัตโนมัติ': { token: 'var(--muted)', hex: PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ']) },
-  'ระบบองค์กร': { token: 'var(--red)', hex: PROJECT_CATEGORY_COLORS['ระบบองค์กร'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบองค์กร']) },
-  'ซ่อมบำรุง': { token: 'var(--blue-hover)', hex: PROJECT_CATEGORY_COLORS['ซ่อมบำรุง'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ซ่อมบำรุง']) },
+  'ระบบซอฟต์แวร์': { token: 'var(--chart-blue)', hex: PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบซอฟต์แวร์']) },
+  'คุณภาพและทดสอบ': { token: 'var(--chart-purple)', hex: PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['คุณภาพและทดสอบ']) },
+  'เอกสารและการฝึกอบรม': { token: 'var(--chart-amber)', hex: PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม'], ...hexToHsl(PROJECT_CATEGORY_COLORS['เอกสารและการฝึกอบรม']) },
+  'ระบบอัตโนมัติ': { token: 'var(--chart-teal)', hex: PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบอัตโนมัติ']) },
+  'ระบบองค์กร': { token: 'var(--chart-deep-blue)', hex: PROJECT_CATEGORY_COLORS['ระบบองค์กร'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ระบบองค์กร']) },
+  'ซ่อมบำรุง': { token: 'var(--chart-blue-grey)', hex: PROJECT_CATEGORY_COLORS['ซ่อมบำรุง'], ...hexToHsl(PROJECT_CATEGORY_COLORS['ซ่อมบำรุง']) },
 };
 
 // คำนวณพาเลตต์สีสลับโทน (Tonal Variations) แบบ Programmatic จากแม่สีหลักใน PROJECT_CATEGORY_COLORS
