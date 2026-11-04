@@ -90,6 +90,80 @@
 .workload-detail-schedule > div { display:grid; grid-template-columns:1fr auto; gap:3px 8px; padding:8px 10px; background:#f8fafd; border:1px solid #edf1f6; border-radius:7px; font-size:.7rem; }
 .workload-detail-schedule span { color:#6f7f95; }.workload-detail-schedule strong { color:#334a6a; }.workload-detail-schedule small { grid-column:1/-1; color:#8996a8; }
 .workload-project-total { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #edf1f6; font-size:.76rem; }.workload-project-total span { color:#5f7088; }.workload-project-total strong { color:#214c91; white-space:nowrap; }
+
+/* ── Employee Workload Detail Modal (Project-Based Workload View) ───────── */
+.workload-detail-modal-header { background:#f8faff; padding:16px 20px; }
+.workload-modal-meta { display:flex; flex-wrap:wrap; align-items:center; font-size:.76rem; color:#64748b; }
+.workload-modal-kpi-card {
+  display:flex;
+  flex-direction:column;
+  padding:14px 16px;
+  background:#f8fafd;
+  border:1px solid #e7edf5;
+  border-radius:10px;
+  height:100%;
+}
+.workload-modal-kpi-label {
+  font-size:.73rem;
+  font-weight:700;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.workload-modal-kpi-value {
+  font-size:1.45rem;
+  font-weight:800;
+  line-height:1.25;
+  margin-top:4px;
+}
+.workload-modal-kpi-value small {
+  font-size:.85rem;
+  font-weight:600;
+  color:#64748b;
+}
+.workload-modal-kpi-sub {
+  font-size:.7rem;
+  color:#8a99ad;
+  margin-top:2px;
+}
+.workload-modal-table-wrap {
+  max-height:380px;
+  overflow-y:auto;
+  border:1px solid #edf1f6;
+  border-radius:8px;
+}
+.workload-modal-table thead th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafd;
+  color:#596b82;
+  font-size:.74rem;
+  font-weight:750;
+  letter-spacing:.02em;
+  padding:10px 12px;
+  border-bottom:1px solid #e4eaf2;
+  white-space:nowrap;
+}
+.workload-modal-sort-th {
+  cursor:pointer;
+  user-select:none;
+}
+.workload-modal-sort-th:hover {
+  background:#edf3fc;
+  color:#1e3557;
+}
+.workload-modal-project-name strong {
+  display:block;
+  color:#1e3557;
+  font-size:.82rem;
+  line-height:1.35;
+}
+.workload-modal-project-name small {
+  font-size:.7rem;
+  color:#75849a;
+  margin-top:2px;
+}
 @media (max-width: 767.98px) {
   .workload-page-heading { flex-direction:column; }
   .workload-page-heading h1 { font-size:1.35rem; }
