@@ -14,6 +14,35 @@ const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'S
 const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} hrs`;
 const fmtPercent = (utilization) => (utilization === null || utilization === undefined ? 'N/A' : `${Math.round(utilization)}%`);
 
+const getEmployeePrimary = (employee) => {
+  if (!employee) return '—';
+  if (employee.nickname) {
+    const primaryId = employee.email || employee.name || employee.fullName || '—';
+    return `${primaryId} (${employee.nickname})`;
+  }
+  return employee.name || employee.fullName || employee.email || '—';
+};
+
+const getEmployeeSecondary = (employee) => {
+  if (!employee) return '—';
+  const parts = [];
+  if (employee.id) parts.push(employee.id);
+  if (employee.email) parts.push(employee.email);
+  return parts.length ? parts.join(' | ') : '—';
+};
+
+const getEmployeeOrg = (employee) => {
+  if (!employee) return { section: '—', subSection: '—' };
+  const section = employee.section || employee.department || '—';
+  const subSection = employee.subSection || employee.sub_section || employee.role || employee.position || '—';
+  return { section, subSection };
+};
+
+const getEmployeeStandardCap = (employee) => {
+  const cap = employee?.standardCapMo || employee?.standardCapacity || employee?.capMo || STANDARD_CAP_MO;
+  return fmtHours(cap);
+};
+
 // 6-Month Workload Planning Matrix — Matrix-owned component.
 // Forecast window state is independent from the Dashboard's global date picker.
 export default function WorkloadMatrix({ employees = [], department = 'all', position = 'all', projectFilter = 'all', search = '' }) {
@@ -27,7 +56,8 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
   const filteredEmployees = useMemo(() => employees.filter((employee) => {
     const matchesDepartment = department === 'all' || employee.departmentId === department;
     const matchesPosition = position === 'all' || employee.position === position;
-    const matchesSearch = `${employee.name} ${employee.id} ${employee.position}`.toLowerCase().includes(search.toLowerCase());
+    const searchTarget = `${employee.name || ''} ${employee.id || ''} ${employee.position || ''} ${employee.department || ''} ${employee.email || ''} ${employee.nickname || ''}`.toLowerCase();
+    const matchesSearch = searchTarget.includes(search.toLowerCase());
     return matchesDepartment && matchesPosition && matchesSearch;
   }), [employees, department, position, search]);
 
@@ -80,39 +110,56 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
           <Table hover className="workload-forecast-table mb-0 align-middle">
             <thead>
               <tr>
-                <th>EMPLOYEE</th>
+                <th className="workload-forecast-col-emp workload-forecast-sticky-col">EMP. NO / NAME</th>
+                <th className="workload-forecast-col-org">SECTION / SUB SECTION</th>
+                <th className="text-center workload-forecast-col-cap">CAP/MO</th>
                 {months.map((month) => (
-                  <th key={month.key} className="text-center">{MONTH_LABELS[month.month]}<small>{month.year}</small></th>
+                  <th key={month.key} className="text-center workload-forecast-col-month">{MONTH_LABELS[month.month]}<small>{month.year}</small></th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {visibleRows.map((row) => (
-                <tr key={row.employee.id}>
-                  <td className="workload-forecast-employee">
-                    <strong>{row.employee.name}</strong>
-                    <small>{row.employee.id} · {row.employee.position}</small>
-                  </td>
-                  {row.cells.map((cell) => {
-                    const meta = WORKLOAD_STATUS_META[cell.status];
-                    return (
-                      <td key={cell.key} className="text-center">
-                        <button
-                          type="button"
-                          className={`workload-forecast-cell ${meta.className}`}
-                          onClick={() => setDrillDown({ employee: row.employee, cell })}
-                          title={`${row.employee.name} · ${MONTH_LABELS[cell.month]} ${cell.year} — ${meta.label}`}
-                        >
-                          <strong>{fmtHours(cell.plannedHours)}</strong>
-                          <small>({fmtPercent(cell.utilization)})</small>
-                        </button>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
+              {visibleRows.map((row) => {
+                const primaryText = getEmployeePrimary(row.employee);
+                const secondaryText = getEmployeeSecondary(row.employee);
+                const org = getEmployeeOrg(row.employee);
+                return (
+                  <tr key={row.employee.id}>
+                    <td className="workload-forecast-employee workload-forecast-sticky-col" title={`${primaryText} (${secondaryText})`}>
+                      <div className="workload-forecast-info-wrap">
+                        <strong title={primaryText}>{primaryText}</strong>
+                        <small title={secondaryText}>{secondaryText}</small>
+                      </div>
+                    </td>
+                    <td className="workload-forecast-org" title={`${org.section} / ${org.subSection}`}>
+                      <div className="workload-forecast-info-wrap">
+                        <strong title={org.section}>{org.section}</strong>
+                        <small title={org.subSection}>{org.subSection}</small>
+                      </div>
+                    </td>
+                    <td className="text-center text-nowrap workload-forecast-cap">
+                      {getEmployeeStandardCap(row.employee)}
+                    </td>
+                    {row.cells.map((cell) => {
+                      const meta = WORKLOAD_STATUS_META[cell.status];
+                      return (
+                        <td key={cell.key} className="text-center">
+                          <button
+                            type="button"
+                            className={`workload-forecast-cell ${meta.className}`}
+                            onClick={() => setDrillDown({ employee: row.employee, cell })}
+                            title={`${row.employee.name} · ${MONTH_LABELS[cell.month]} ${cell.year} — ${meta.label}`}
+                          >
+                            {fmtHours(cell.plannedHours)} ({fmtPercent(cell.utilization)})
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
               {!visibleRows.length && (
-                <tr><td colSpan={7} className="text-center text-muted py-5">ไม่พบข้อมูลพนักงานตามตัวกรอง</td></tr>
+                <tr className="workload-forecast-empty-row"><td colSpan={9} className="text-center text-muted py-5">ไม่พบข้อมูลพนักงานตามตัวกรอง</td></tr>
               )}
             </tbody>
           </Table>
@@ -129,9 +176,9 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
       <Modal show={!!drillDown} onHide={() => setDrillDown(null)} size="lg" centered className="workload-detail-modal">
         <Modal.Header closeButton>
           <div>
-            <Modal.Title>{drillDown?.employee?.name}</Modal.Title>
+            <Modal.Title>{drillDown?.employee?.name || drillDown?.employee?.email}</Modal.Title>
             <div className="small text-muted">
-              {drillDown && `${drillDown.employee.id} · ${drillDown.employee.position} · ${MONTH_LABELS[drillDown.cell.month]} ${drillDown.cell.year}`}
+              {drillDown && `${drillDown.employee.id || ''} · ${drillDown.employee.position || drillDown.employee.role || ''} · ${MONTH_LABELS[drillDown.cell.month]} ${drillDown.cell.year}`}
             </div>
           </div>
         </Modal.Header>
@@ -143,7 +190,7 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
               <>
                 <Row className="g-2 mb-3">
                   <Col sm={4}><div className="workload-detail-stat"><small>Actual Monthly Capacity</small><strong>{fmtHours(cell.capacityHours)}</strong></div></Col>
-                  <Col sm={4}><div className="workload-detail-stat"><small>Standard CAP/MO</small><strong>{STANDARD_CAP_MO} hrs</strong></div></Col>
+                  <Col sm={4}><div className="workload-detail-stat"><small>Standard CAP/MO</small><strong>{getEmployeeStandardCap(drillDown.employee)}</strong></div></Col>
                   <Col sm={4}><div className="workload-detail-stat"><small>Planned Hours</small><strong>{fmtHours(cell.plannedHours)}</strong></div></Col>
                   <Col sm={4}><div className="workload-detail-stat"><small>Available Hours</small><strong className={cell.availableHours < 0 ? 'text-danger' : ''}>{fmtHours(cell.availableHours)}</strong></div></Col>
                   <Col sm={4}><div className="workload-detail-stat"><small>Utilization</small><strong>{fmtPercent(cell.utilization)}</strong></div></Col>
