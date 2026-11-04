@@ -90,6 +90,80 @@
 .workload-detail-schedule > div { display:grid; grid-template-columns:1fr auto; gap:3px 8px; padding:8px 10px; background:#f8fafd; border:1px solid #edf1f6; border-radius:7px; font-size:.7rem; }
 .workload-detail-schedule span { color:#6f7f95; }.workload-detail-schedule strong { color:#334a6a; }.workload-detail-schedule small { grid-column:1/-1; color:#8996a8; }
 .workload-project-total { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #edf1f6; font-size:.76rem; }.workload-project-total span { color:#5f7088; }.workload-project-total strong { color:#214c91; white-space:nowrap; }
+
+/* ── Employee Workload Detail Modal (Project-Based Workload View) ───────── */
+.workload-detail-modal-header { background:#f8faff; padding:16px 20px; }
+.workload-modal-meta { display:flex; flex-wrap:wrap; align-items:center; font-size:.76rem; color:#64748b; }
+.workload-modal-kpi-card {
+  display:flex;
+  flex-direction:column;
+  padding:14px 16px;
+  background:#f8fafd;
+  border:1px solid #e7edf5;
+  border-radius:10px;
+  height:100%;
+}
+.workload-modal-kpi-label {
+  font-size:.73rem;
+  font-weight:700;
+  color:#64748b;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.workload-modal-kpi-value {
+  font-size:1.45rem;
+  font-weight:800;
+  line-height:1.25;
+  margin-top:4px;
+}
+.workload-modal-kpi-value small {
+  font-size:.85rem;
+  font-weight:600;
+  color:#64748b;
+}
+.workload-modal-kpi-sub {
+  font-size:.7rem;
+  color:#8a99ad;
+  margin-top:2px;
+}
+.workload-modal-table-wrap {
+  max-height:380px;
+  overflow-y:auto;
+  border:1px solid #edf1f6;
+  border-radius:8px;
+}
+.workload-modal-table thead th {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafd;
+  color:#596b82;
+  font-size:.74rem;
+  font-weight:750;
+  letter-spacing:.02em;
+  padding:10px 12px;
+  border-bottom:1px solid #e4eaf2;
+  white-space:nowrap;
+}
+.workload-modal-sort-th {
+  cursor:pointer;
+  user-select:none;
+}
+.workload-modal-sort-th:hover {
+  background:#edf3fc;
+  color:#1e3557;
+}
+.workload-modal-project-name strong {
+  display:block;
+  color:#1e3557;
+  font-size:.82rem;
+  line-height:1.35;
+}
+.workload-modal-project-name small {
+  font-size:.7rem;
+  color:#75849a;
+  margin-top:2px;
+}
 @media (max-width: 767.98px) {
   .workload-page-heading { flex-direction:column; }
   .workload-page-heading h1 { font-size:1.35rem; }
@@ -102,3 +176,49 @@
   .workload-chart-legend { display:none; }
   .workload-detail-schedule { grid-template-columns:1fr; }
 }
+
+/* ── 6-Month Workload Forecast Matrix (Matrix-only styles) ─────────────── */
+.workload-forecast-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.workload-forecast-controls select { min-width:150px; }
+.workload-forecast-nav { display:flex; align-items:center; gap:8px; }
+.workload-forecast-nav-btn { border:1px solid #cdd9ea; background:#fff; color:#214c91; font-size:.72rem; font-weight:700; padding:4px 12px; border-radius:6px; }
+.workload-forecast-nav-btn:hover { background:#eef3ff; }
+.workload-forecast-window { font-size:.72rem; font-weight:700; color:#31538d; white-space:nowrap; min-width:150px; text-align:center; }
+.workload-forecast-table { min-width:1080px; font-size:.75rem; border-collapse:separate; border-spacing:0; }
+.workload-forecast-table thead th { position:sticky; top:0; z-index:2; background:#f5f8fc; color:#6e7e94; font-size:.65rem; font-weight:750; letter-spacing:.03em; padding:11px 9px; border-bottom:1px solid #e4eaf2; white-space:nowrap; }
+.workload-forecast-table thead th small { display:block; font-size:.62rem; font-weight:500; letter-spacing:0; }
+.workload-forecast-table thead th.workload-forecast-sticky-col { position:sticky; left:0; z-index:4; background:#f5f8fc; box-shadow:1px 0 0 #e4eaf2; }
+.workload-forecast-table tbody tr { height:68px; }
+.workload-forecast-table tbody td { height:68px; vertical-align:middle; padding-top:0; padding-bottom:0; border-bottom:1px solid #edf1f6; box-sizing:border-box; }
+.workload-forecast-table tbody td.workload-forecast-sticky-col { position:sticky; left:0; z-index:1; background:#fff; box-shadow:1px 0 0 #e4eaf2; }
+.workload-forecast-table tbody tr:hover td.workload-forecast-sticky-col { background:#f8faff; }
+.workload-forecast-table tbody tr.workload-forecast-empty-row,
+.workload-forecast-table tbody tr.workload-forecast-empty-row td { height:auto; }
+.workload-forecast-col-emp { min-width:220px; width:220px; max-width:220px; }
+.workload-forecast-col-org { min-width:190px; width:190px; max-width:190px; }
+.workload-forecast-col-cap { min-width:85px; width:85px; max-width:85px; }
+.workload-forecast-col-month { min-width:100px; width:100px; }
+.workload-forecast-employee { min-width:220px; width:220px; max-width:220px; padding:0 12px; }
+.workload-forecast-org { min-width:190px; width:190px; max-width:190px; padding:0 12px; }
+.workload-forecast-info-wrap { min-width:0; max-width:100%; display:flex; flex-direction:column; justify-content:center; }
+.workload-forecast-info-wrap strong { font-size:.75rem; color:#1f2d3d; display:block; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.workload-forecast-info-wrap small { color:#75849a; font-size:.63rem; display:block; line-height:1.3; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.workload-forecast-employee strong, .workload-forecast-org strong { font-size:.75rem; color:#1f2d3d; display:block; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.workload-forecast-employee small, .workload-forecast-org small { color:#75849a; font-size:.63rem; display:block; line-height:1.3; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.workload-forecast-cap { font-size:.74rem; font-weight:600; color:#334966; padding:0 8px; }
+.workload-forecast-cell { display:inline-flex; align-items:center; justify-content:center; gap:3px; min-width:92px; padding:5px 8px; border:1px solid transparent; border-radius:6px; font-weight:700; font-size:.72rem; line-height:1.2; white-space:nowrap; }
+.workload-forecast-cell strong { font-size:inherit; font-weight:inherit; }
+.workload-forecast-cell small { font-size:inherit; font-weight:inherit; }
+.workload-forecast-cell.is-available { background:#e7f6ec; color:#1d7a3e; border-color:#bfe6cc; }
+.workload-forecast-cell.is-near { background:#fff5dd; color:#9a6700; border-color:#f0dc9f; }
+.workload-forecast-cell.is-over { background:#fdeaea; color:#b02a37; border-color:#f3c1c5; }
+.workload-forecast-cell.is-na { background:#eef0f3; color:#6c757d; border-color:#dde1e6; }
+.workload-forecast-cell:hover { filter:brightness(.96); cursor:pointer; }
+.workload-forecast-legend { display:flex; align-items:center; gap:16px; flex-wrap:wrap; padding:10px 16px; border-top:1px solid #edf1f6; font-size:.68rem; color:#5c6b80; }
+.workload-forecast-legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+.workload-forecast-legend i.is-available { background:#2ea44f; }
+.workload-forecast-legend i.is-near { background:#e3b341; }
+.workload-forecast-legend i.is-over { background:#e5534b; }
+.workload-forecast-legend i.is-na { background:#aab2bd; }
+.workload-forecast-legend-note { margin-left:auto; color:#8593a8; }
+.workload-detail-capacity-note { font-size:.7rem; color:#75849a; background:#f5f8fc; border-radius:6px; padding:8px 10px; }
