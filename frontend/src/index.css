@@ -1715,6 +1715,56 @@ body {
   background: var(--surface);
 }
 
+/* ── Scroll ภายในการ์ดรายการโปรเจกต์ ─────────────────────────────────
+ * ลิสต์โปรเจกต์จำกัดความสูงสูงสุด เลื่อนภายในการ์ดเท่านั้น
+ * (container เดียวจาก <Table responsive> จัดการทั้งตั้ง/นอน → ไม่มี nested scroll)
+ */
+.project-table-card .table-responsive {
+  max-height: 560px;            /* desktop — การ์ดไม่กินหน้ายาวเกิน */
+  min-height: 0;                /* ให้ shrink ได้ใน flex context */
+  overflow-y: auto;
+  scroll-behavior: smooth;      /* เลื่อนนุ่มตามธรรมชาติ */
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;        /* Firefox: แถบบาง */
+  scrollbar-color: rgba(var(--blue-rgb), 0.35) var(--blue-tint);
+}
+
+/* จอแท็บเล็ต/มือถือ: ล็อกสูงด้วย vh ให้พอดีจอเล็ก */
+@media (max-width: 1199.98px) {
+  .project-table-card .table-responsive { max-height: 62vh; }
+}
+@media (max-width: 575.98px) {
+  .project-table-card .table-responsive { max-height: 55vh; }
+}
+
+/* Scrollbar WebKit: track ฟ้าอ่อนจาง · thumb ฟ้ามิวท์บาง ๆ */
+.project-table-card .table-responsive::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.project-table-card .table-responsive::-webkit-scrollbar-track {
+  background: var(--blue-tint);
+  border-radius: 999px;
+}
+.project-table-card .table-responsive::-webkit-scrollbar-thumb {
+  background-color: rgba(var(--blue-rgb), 0.35);
+  border-radius: 999px;
+  border: 2px solid var(--blue-tint);   /* ให้ thumb ดูแทบลอยบน track */
+}
+.project-table-card .table-responsive::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(var(--blue-rgb), 0.6);
+}
+.project-table-card .table-responsive::-webkit-scrollbar-corner {
+  background: var(--blue-tint);
+}
+
+/* หัวตาราง pin อยู่บนสุดตอน scroll — ชื่อคอลัมน์มองเห็นตลอด */
+.projects-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
 .projects-table {
   --bs-table-bg: var(--surface);
   --bs-table-hover-bg: rgba(var(--blue-rgb), 0.06);
