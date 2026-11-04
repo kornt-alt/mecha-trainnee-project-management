@@ -1675,6 +1675,344 @@ body {
   font-weight: 500;
 }
 
+/* ── หน้ารายการโปรเจกต์ (Projects page) ────────────────────────────── */
+
+.project-desc {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 420px;
+}
+
+.project-progress-bar {
+  max-width: 160px;
+}
+
+.project-progress-bar .progress-bar {
+  background-color: var(--blue);
+  border-radius: 999px;
+}
+
+/* track (พื้นหลัง) ของแถบความคืบหน้า ใช้โทน track จากพาเลตต์กราฟ */
+.project-progress-bar {
+  background-color: var(--chart-track);
+  border-radius: 999px;
+}
+
+.project-pending {
+  color: var(--red);
+}
+
+/* ── ตารางโปรเจกต์ — โทนสว่างสะอาด (scoped — ไม่กระทบ dashboard ที่แชร์ .status-badge)
+ * พื้นหลังหน้าและตารางยังเป็นขาวเดิม — เน้น layout กะทัดรัด ตัวหนังสือชัด คอลัมน์ตรงแนว
+ */
+
+.project-table-card {
+  border: 1px solid var(--line) !important;
+  border-radius: var(--radius-lg) !important;
+  overflow: hidden;
+  background: var(--surface);
+}
+
+.projects-table {
+  --bs-table-bg: var(--surface);
+  --bs-table-hover-bg: rgba(var(--blue-rgb), 0.06);
+  --bs-table-hover-color: var(--ink);
+}
+
+/* หัวตาราง: ขาว สะอาด — ข้อความรองตัวเล็ก อยู่แนวเดียวกับคอลัมน์ข้อมูล */
+.projects-table thead th {
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+
+/* แถวข้อมูล: กะทัดรัด เส้นแบ่งบางสม่ำเสมอ */
+.projects-table tbody td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  color: var(--ink);
+}
+
+/* แถวสลับ: ฟ้าเทาจางมากให้แนวตาไล่ลงได้ แต่ยังดูเป็นขาว */
+.projects-table tbody tr:nth-child(even) td {
+  background: rgba(var(--blue-rgb), 0.015);
+}
+
+.projects-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* hover แถว: ฟ้าอ่อนจาง เรียบนุ่ม */
+.projects-table tbody tr:hover td {
+  color: var(--ink);
+  background: rgba(var(--blue-rgb), 0.06);
+}
+
+/* ข้อความหลัก / รอง */
+.projects-table .project-name {
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.projects-table .project-owner {
+  color: var(--muted);
+}
+
+.projects-table .project-date {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.projects-table .project-date-muted {
+  color: var(--muted);
+}
+
+/* เลยกำหนด — แดงเน้นตามธีม */
+.projects-table .text-overdue {
+  color: var(--red) !important;
+  font-weight: 500;
+}
+
+.projects-table .project-pending {
+  color: var(--amber);
+}
+
+/* badge สถานะในตาราง: pill เตี้ย โทนอ่อนนุ่ม */
+.projects-table .status-badge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.22rem 0.6rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  text-decoration: none; /* ยกเลิกขีดฆ่าของ status-cancelled ในตาราง */
+  white-space: nowrap;
+}
+
+/* วางแผน — เทาฟ้ามิวท์ */
+.projects-table .status-planning {
+  color: #64748B;
+  background-color: #F1F5F9;
+  border-color: #E2E8F0;
+}
+
+/* กำลังทำ — ฟ้ามิวท์ */
+.projects-table .status-in_progress {
+  color: #1D5BD6;
+  background-color: #EAF1FD;
+  border-color: #D5E3FA;
+}
+
+/* พักไว้ = ส้มอ่อน (muted orange) */
+.projects-table .status-on_hold {
+  color: #B45309;
+  background-color: #FEF3E2;
+  border-color: #FBEBD0;
+}
+
+/* เสร็จแล้ว — เขียวอ่อนมิวท์ */
+.projects-table .status-done {
+  color: #186A48;
+  background-color: #E3F6EC;
+  border-color: #CFEDDD;
+}
+
+/* ยกเลิก — เทากลาง */
+.projects-table .status-cancelled {
+  color: #6B7280;
+  background-color: #F3F4F6;
+  border-color: #E5E7EB;
+}
+
+/* แถบความคืบหน้า: track เทาอ่อน + fill ฟ้าหลัก */
+.projects-table .project-progress-bar {
+  background-color: var(--chart-track) !important;
+  border-radius: 999px;
+}
+
+.projects-table .project-progress-bar .progress-bar {
+  background-color: var(--blue) !important;
+  border-radius: 999px;
+}
+
+.projects-table .project-progress-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.projects-table .project-task-count {
+  color: var(--muted);
+}
+
+.projects-table .project-desc {
+  color: var(--muted);
+}
+
+
+/* ── แถบค้นหาและตัวกรอง: โฟกัสเป็นวงแหวนฟ้า ────────────────────────── */
+.projects-toolbar .form-control,
+.projects-toolbar .form-select {
+  border-color: var(--line);
+}
+
+.projects-toolbar .form-control:hover,
+.projects-toolbar .form-select:hover {
+  border-color: var(--line-strong);
+}
+
+.projects-toolbar .form-control:focus,
+.projects-toolbar .form-select:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 0.2rem rgba(var(--blue-rgb), 0.12);
+}
+
+.project-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin-inline: auto;
+  border-radius: 50%;
+  background: var(--blue-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ปุ่มเมนูรายการ (⋯) — ghost style ให้ทัชพอดี 32px */
+.project-row-menu {
+  color: var(--muted);
+  border: 0;
+  padding: 4px 8px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+.project-row-menu::after { content: none; } /* ซ้อนลูกศรเริ่มต้นของ bootstrap */
+.project-row-menu:hover,
+.project-row-menu:focus,
+.project-row-menu.show {
+  color: var(--blue);
+  background: var(--blue-tint);
+}
+
+/* ปุ่ม ⋮ บนพื้นตาราง navy — ไอคอนสีอ่อนและ hover ฟ้าจางโปร่งแสง */
+.projects-table .project-row-menu {
+  color: #8FA3C0;
+}
+.projects-table .project-row-menu:hover,
+.projects-table .project-row-menu:focus,
+.projects-table .project-row-menu.show {
+  color: #B9CBEE;
+  background: rgba(78, 112, 223, 0.22);
+}
+
+/* เมนูแถว (⋮) ของหน้ารายการโปรเจกต์ — โทนเรียบ: เท็กซ์เข้ม + hover ฟ้าอ่อน */
+.project-row-dropdown .dropdown-item {
+  color: var(--ink);
+  font-weight: 500;
+  transition: background-color 0.15s ease, color 0.15s ease, translate 0.15s ease;
+}
+.project-row-dropdown .dropdown-item:hover,
+.project-row-dropdown .dropdown-item:focus,
+.project-row-dropdown .dropdown-item:focus-visible,
+.project-row-dropdown .dropdown-item:not(.disabled):active {
+  background-color: var(--blue-tint);
+  color: var(--blue);
+  translate: 2px 0;
+}
+
+/* สถานะที่เลือกอยู่ — ปิดใช้งาน แสดงเป็นเทากลาง */
+.project-row-dropdown .dropdown-item.disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+/* ── Animation: fade + slide + scale (CSS-only) ────────────────────────
+ * react-bootstrap คงเมนูไว้ใน DOM หลังจากเปิดครั้งแรก, Bootstrap 5 ควบคุม
+ * การมองเห็นด้วยคลาส .show + display:none/block จึง override display
+ * และคุมการซ่อนด้วย opacity/visibility เพื่อให้ transition ได้ทั้งเปิดและปิด
+ * ⚠️ Popper วางตำแหน่งด้วย inline style.transform — จึงต้องใช้
+ *    translate/scale (independent properties) เพื่อไม่กระทบตำแหน่ง
+ */
+.project-row-dropdown .dropdown-menu {
+  display: block;
+  opacity: 0;
+  translate: 0 -4px;
+  scale: 0.98;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s ease, translate 0.18s ease, scale 0.18s ease, visibility 0s linear 0.18s;
+  border-radius: var(--radius);
+  border-color: var(--line);
+  box-shadow: var(--shadow-card);
+  padding: 0.3rem;
+  min-width: 210px;
+}
+
+.project-row-dropdown .dropdown-menu.show {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* รายการในเมนูเป็นมุมมน + ระยะห่างเท่ากัน */
+.project-row-dropdown .dropdown-item {
+  border-radius: var(--radius-sm);
+  padding: 0.42rem 0.6rem;
+  font-size: 0.875rem;
+}
+
+/* ไอคอนในรายการตรงแนวเดียวกับข้อความ */
+.project-row-dropdown .dropdown-item .lucide-icon {
+  flex: none;
+}
+
+.project-row-dropdown .dropdown-divider {
+  margin: 0.3rem 0;
+  opacity: 1;
+}
+
+.project-row-dropdown .dropdown-header {
+  font-size: 0.72rem;
+  padding: 0.35rem 0.6rem 0.25rem;
+}
+
+.project-row-dropdown .dropdown-menu.show {
+  opacity: 1;
+  translate: 0 0;
+  scale: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition-delay: 0s;
+}
+
+/* keyboard focus ชัดเจน */
+.project-row-dropdown .dropdown-item:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-row-dropdown .dropdown-menu,
+  .project-row-dropdown .dropdown-menu.show {
+    transition: none;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
 /* ── Responsive Rules ─────────────────────────────────────────────────── */
 
 @media (max-width: 991px) {
