@@ -14,10 +14,9 @@ import {
   Table,
 } from 'react-bootstrap';
 import {
-  MOCK_TASKS,
-  MOCK_PROJECTS,
   MOCK_EMPLOYEES,
 } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import {
   CalendarDays,
   ChevronLeft,
@@ -44,7 +43,8 @@ const today = () => {
 };
 
 export default function Tasks() {
-  const [taskList, setTaskList] = useState(MOCK_TASKS);
+  const { tasks: taskList, setTasks: setTaskList, projects } = useMockData();
+  const MOCK_PROJECTS = projects;
   const [currentView, setCurrentView] = useState('list'); // 'list' หรือ 'kanban'
   const [projectFilter, setProjectFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -597,8 +597,9 @@ export default function Tasks() {
 }
 
 function NewTaskModal({ onClose, onAdd }) {
+  const { projects } = useMockData();
+  const MOCK_PROJECTS = projects;
   const [form, setForm] = useState({
-    title: '',
     projectId: MOCK_PROJECTS[0]?.id || 1,
     assigneeId: MOCK_EMPLOYEES[0]?.id || 'emp-001',
     category: 'Frontend',

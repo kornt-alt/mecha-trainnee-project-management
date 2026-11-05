@@ -249,9 +249,10 @@ export default function Reports() {
           </div>
         </Card.Header>
         <Card.Body className="p-3">
-          <Row className="g-3">
+          {/* row-cols-*: จอเล็ก 2 คอลัมน์/แถว → md 3 → lg 5 (เทียบเท่าเดิม xs={6} md={4} lg~2.4 แต่ใช้ค่าที่ Bootstrap รองรับ) */}
+          <Row className="g-3 row-cols-2 row-cols-md-3 row-cols-lg-5">
             {categoryStats.map((cat) => (
-              <Col key={cat.name} xs={6} md={4} lg={2.4}>
+              <Col key={cat.name}>
                 <div className="p-3 border rounded text-center h-100">
                   <span className="small text-muted d-block mb-1">{cat.name}</span>
                   <div className="h4 fw-bold text-ink mb-1">{cat.count} <small className="small fw-normal text-muted">งาน</small></div>

@@ -18,7 +18,7 @@ import {
 } from 'react-bootstrap';
 import { api, useLoad } from '../utils/api';
 import { PROJECT_STATUSES, statusLabel } from '../utils/config';
-import { MOCK_PROJECTS_FALLBACK } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
@@ -47,6 +47,38 @@ const isOverdue = (p) => {
   return n !== null && n < 0 && hasDeadline(p);
 };
 
+// เรียงลำดับตามความเร่งด่วนของกำหนดส่ง: เลยกำหนด → ภายใน 7 วัน → อนาคต → ไม่มีกำหนดส่ง
+// ทุกกลุ่มเรียงวันที่กำหนดส่งจากน้อยไปมาก · stable เมื่อกำหนดส่งเท่ากัน · ไม่แก้ array เดิม
+const sortProjectsByUrgency = (projects) => {
+  const t = today();
+  // วันที่แบบ calendar date (ไม่ใช้ timezone): แปลง "YYYY-MM-DD" เป็นจำนวนวัน · คืน null เมื่อว่าง/ไม่ถูกต้อง
+  const dueDay = (v) => {
+    if (!v || typeof v !== 'string') return null;
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) {
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 86400000) - new Date(0).getTimezoneOffset() / 1440;
+    }
+    return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1970, 0, 1)) / 86400000);
+  };
+  const tDay = dueDay(t);
+  const groupOf = (p) => {
+    const diff = dueDay(p.dueDate) - tDay; // null ต่างกัน = NaN → กลุ่มสุดท้าย
+    if (Number.isNaN(diff)) return 3; // ไม่มีวันที่ถูกต้อง
+    if (diff < 0) return 0; // เลยกำหนด
+    if (diff <= 7) return 1; // ภายใน 7 วัน (รวมวันนี้)
+    return 2; // อนาคต
+  };
+  return projects
+    .map((p, i) => ({ p, i, group: groupOf(p), day: dueDay(p.dueDate) }))
+    .sort((a, b) =>
+      a.group - b.group // ลำดับความสำคัญของกลุ่ม
+      || a.day - b.day // ภายในกลุ่ม + กลุ่มอนาคต: ใกล้สุดก่อน (null จะอยู่กลุ่ม 3 อยู่แล้ว)
+      || a.i - b.i // stable: ลำดับเดิมเมื่อเท่ากัน
+    )
+    .map((x) => x.p);
+};
+
 // ข้อความบริบทกำหนดส่ง: เหลือ 5 วัน · เลยกำหนด 3 วัน · ครบกำหนดวันนี้ — คืน null เมื่อไม่มีอะไรแสดง
 const dueContext = (p) => {
   const n = daysUntil(p.dueDate);
@@ -66,12 +98,14 @@ export default function Projects() {
   const [deleting, setDeleting] = useState(null); // โปรเจกต์ที่รอยืนยันการลบ
   const [actionError, setActionError] = useState('');
 
-  // สำรอง mock projects ในกรณีที่ยังไม่ได้รัน backend
-  const [mockList, setMockList] = useState(MOCK_PROJECTS_FALLBACK);
+  // Mock Mode ใช้ชุดข้อมูลกลางจาก MockDataContext (แชร์ข้ามหน้า กับ Tasks) — ไม่มี local copy อีกต่อไป
+  const { projects, setProjects, tasks } = useMockData();
 
-  // เลือกว่าใช้ข้อมูลจาก API หรือ mockData กลาง
-  const isApiConnected = Array.isArray(data) && data.length > 0;
-  const baseProjects = isApiConnected ? data : mockList.filter((p) => !filter || p.status === filter);
+  // API Mode = คำขอล่าสุด "สำเร็จ" (data ไม่ใช่ null) · ห้ามใช้ data.length ตัดสินการเชื่อมต่อ
+  // เพราะ backend ตอบ array ว่าง [] เมื่อ DB ยังไม่มีโปรเจกต์ — ยังเป็นคำตอบที่สำเร็จเสมอ
+  // ตอนโหลดครั้งแรก/คำขอล้มเหลว data = null → ใช้ mockData กลาง (ระหว่าง reload คง data เดิมไว้)
+  const isApiConnected = data !== null;
+  const baseProjects = isApiConnected ? data : projects.filter((p) => !filter || p.status === filter);
 
   // ค้นหา (ชื่อและผู้รับผิดชอบ) — ค้นหาแบบ client-side ทับทั้งแถวที่มาจาก API และ mock
   const q = search.trim().toLowerCase();
@@ -81,6 +115,11 @@ export default function Projects() {
       )
     : baseProjects;
 
+  // เรียงตามความเร่งด่วนของกำหนดส่ง (คำนวณใหม่ทุก render เมื่อข้อมูล/ตัวกรองเปลี่ยน)
+  const sortedProjects = sortProjectsByUrgency(
+    Array.isArray(currentProjects) ? [...currentProjects] : []
+  );
+
   const filtersActive = Boolean(search.trim() || filter);
   const clearFilters = () => {
     setSearch('');
@@ -89,14 +128,19 @@ export default function Projects() {
 
   const changeStatus = async (p, status) => {
     setActionError('');
+    if (!isApiConnected) {
+      // โหมดตัวอย่าง: อัปเดตใน shared mock state โดยตรง (ไม่ยิง API) — immutable update
+      setProjects((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
+      );
+      return;
+    }
     try {
       await api.patch(`/projects/${p.id}`, { status });
       reload();
-    } catch {
-      // โหมดตัวอย่าง: อัปเดตใน frontend state เพื่อให้ทดสอบ interactive ได้
-      setMockList((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
-      );
+    } catch (err) {
+      // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่ให้เบี้ยวกับข้อมูลจริงที่แสดงอยู่
+      setActionError(err?.message || 'เปลี่ยนสถานะโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
@@ -105,17 +149,31 @@ export default function Projects() {
     if (!p) return;
     setDeleting(null);
     setActionError('');
+    if (!isApiConnected) {
+      // Policy B (ผ่านการอนุมัติ): มีงาน (Tasks) ผูกกับโปรเจกต์นี้อยู่ → ห้ามลบ ให้จัดการงานก่อน
+      // (เช็คเฉพาะ Mock Mode เพราะ tasks ใน Context คือ mock; ฝั่ง API ต้องตรวจที่ backend — deferred)
+      // (id เทียบแบบ String เพราะ project.id และ task.projectId ผ่านฟอร์ม input เป็น string ได้)
+      const hasRelatedTasks = tasks.some((t) => String(t.projectId) === String(p.id));
+      if (hasRelatedTasks) {
+        setActionError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงาน (Tasks) ที่ผูกกับโปรเจกต์นี้อยู่ — กรุณาจัดการงานที่เกี่ยวข้องก่อนลบโปรเจกต์');
+        return;
+      }
+      // โหมดตัวอย่าง: ลบจาก shared mock state โดยตรง (ไม่ยิง API) — immutable update
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      return;
+    }
     try {
       await api.del(`/projects/${p.id}`);
       reload();
-    } catch {
-      // โหมดตัวอย่าง: ลบจาก frontend state
-      setMockList((prev) => prev.filter((item) => item.id !== p.id));
+    } catch (err) {
+      // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่
+      // (modal ปิดแล้ว แต่ข้อมูลเดิมยังอยู่ครบจาก API — ผู้ใช้ลองใหม่ได้)
+      setActionError(err?.message || 'ลบโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
   // สถานะของลิสต์: ยังไม่มีโปรเจกต์เลยในระบบ (ไม่มี mock ก็คือไม่มีข้อมูล API ด้วย)
-  const noProjectsAtAll = !isApiConnected && mockList.length === 0;
+  const noProjectsAtAll = !isApiConnected && projects.length === 0;
 
   return (
     <>
@@ -198,7 +256,7 @@ export default function Projects() {
             <Spinner animation="border" size="sm" className="mb-3" />
           ) : (
             <div className="d-flex align-items-center gap-2 mb-2 small">
-              <span className="fw-medium">{currentProjects.length}</span>
+              <span className="fw-medium">{sortedProjects.length}</span>
               <span className="text-muted">โปรเจกต์{q || filter ? 'ที่ตรงเงื่อนไข' : ''}</span>
               {filter && <Badge bg="light" text="dark" className="border fw-normal">{statusLabel(filter)}</Badge>}
             </div>
@@ -206,7 +264,7 @@ export default function Projects() {
 
           {actionError && <Alert variant="danger" dismissible onClose={() => setActionError('')}>{actionError}</Alert>}
 
-          {currentProjects.length === 0 && !loading ? (
+          {sortedProjects.length === 0 && !loading ? (
             // ── Empty state: ไม่มีโปรเจกต์ที่ตรงกับการค้นหา/ตัวกรอง ─────
             <Card className="border-0 shadow-sm">
               <Card.Body className="text-center py-5">
@@ -234,7 +292,7 @@ export default function Projects() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentProjects.map((p) => {
+                  {sortedProjects.map((p) => {
                     const ctx = dueContext(p);
                     return (
                       <tr key={p.id}>
@@ -330,18 +388,21 @@ export default function Projects() {
         <ProjectForm
           initial={editing}
           onClose={() => setEditing(null)}
+          mockMode={!isApiConnected}
           onSaved={(savedProject) => {
             setEditing(null);
             if (isApiConnected) {
               reload();
             } else {
-              // อัปเดตใน mockList
-              if (savedProject.id) {
-                setMockList((prev) => prev.map((item) => item.id === savedProject.id ? { ...item, ...savedProject } : item));
-              } else {
-                const newId = Math.max(0, ...mockList.map((m) => m.id)) + 1;
-                setMockList((prev) => [...prev, { ...savedProject, id: newId, totalTasks: 0, completedTasks: 0, unfinishedTasks: 0, progress: 0 }]);
-              }
+              // อัปเดตใน shared mock state (Context) — immutable update ทุกเส้นทาง
+              setProjects((prev) => {
+                if (savedProject.id) {
+                  return prev.map((item) => (item.id === savedProject.id ? { ...item, ...savedProject } : item));
+                }
+                // create: id ใหม่ต่อจากตัวใหญ่สุดของชุดปัจจุบัน (เทคนิคเดิม)
+                const newId = Math.max(0, ...prev.map((m) => m.id)) + 1;
+                return [...prev, { ...savedProject, id: newId, totalTasks: 0, completedTasks: 0, unfinishedTasks: 0, progress: 0 }];
+              });
             }
           }}
         />
@@ -372,7 +433,9 @@ export default function Projects() {
 }
 
 // Modal เพิ่ม / แก้ไข — initial.id มี = แก้ไข (PATCH) · ไม่มี = เพิ่มใหม่ (POST)
-function ProjectForm({ initial, onClose, onSaved }) {
+// mockMode = ยังไม่ต่อ backend → บันทึกในหน่วยความจำผ่าน onSaved() โดยตรง (parent อัปเดต mock state ที่แชร์เอง)
+// ปกติ (API mode): ยิง POST/PATCH จริง — ล้มเหลวแสดง error และค้างฟอร์มไว้แก้/ลองใหม่
+function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
   const [form, setForm] = useState({
     name: initial.name ?? '',
     owner: initial.owner ?? '',
@@ -391,12 +454,19 @@ function ProjectForm({ initial, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
+      if (mockMode) {
+        // โหมดตัวอย่าง: ไม่ยิง API — onSaved จะอัปเดต mock state ที่แชร์ฝั่ง parent แล้วปิดฟอร์มตามปกติ
+        onSaved({ ...form, id: initial.id });
+        return;
+      }
       if (initial.id) await api.patch(`/projects/${initial.id}`, form);
       else await api.post('/projects', form);
       onSaved({ ...form, id: initial.id });
-    } catch {
-      // โหมดตัวอย่าง: บันทึกสำเร็จในหน่วยความจำ
-      onSaved({ ...form, id: initial.id });
+    } catch (err) {
+      // API mode ล้มเหลว — ห้ามทำตัวเหมือนบันทึกสำเร็จ: แสดงข้อความผิดพลาดจริง และค้างฟอร์มไว้ให้แก้/ลองใหม่
+      setError(err?.message || 'บันทึกโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setSaving(false);
     }
   };
 
