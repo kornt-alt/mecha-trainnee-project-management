@@ -2,7 +2,7 @@
 // backend ตอบ error มาในรูป { error: "..." } เสมอ (backend/middleware/errorHandler.js)
 //
 // ⚠️ ถ้าเพิ่มระบบ login ทีหลัง: 401 ห้าม redirect เตะผู้ใช้ออก — ดูแบบใน MECHA2_QC_GAUGE_SYSTEM
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_ORIGIN, APP_BASE } from './config';
 
 export const API_BASE = `${API_ORIGIN}${APP_BASE}/api`;
@@ -44,13 +44,32 @@ export const api = {
 /** โหลดข้อมูลจาก GET url → { data, error, loading, reload } · url = null คือยังไม่โหลด */
 export function useLoad(url) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
+  // ลำดับของ request ล่าสุด — เทียบก่อน setState ทุกครั้ง เพื่อไม่ให้ response เก่า
+  // ที่ตอบช้ากว่า overwrite ข้อมูลใหม่ (กรณี url/filter เปลี่ยนเร็ว ๆ)
+  const requestIdRef = useRef(0);
+
   const reload = useCallback(() => {
+    const requestId = ++requestIdRef.current;
     if (!url) { setState({ data: null, error: null, loading: false }); return; }
     setState((s) => ({ ...s, loading: true }));
     api.get(url)
-      .then((data) => setState({ data, error: null, loading: false }))
-      .catch((e) => setState({ data: null, error: e.message, loading: false }));
+      .then((data) => {
+        if (requestId !== requestIdRef.current) return; // มี request ใหม่กว่า — ทิ้ง response นี้
+        setState({ data, error: null, loading: false });
+      })
+      .catch((e) => {
+        if (requestId !== requestIdRef.current) return;
+        setState({ data: null, error: e.message, loading: false });
+      });
   }, [url]);
-  useEffect(reload, [reload]);
+
+  // รัน useEffect แทนเดิม (เดิมใช้ useEffect(reload) แบบไม่มี cleanup)
+  // cleanup เพิ่มเลข request → ยกเลิก pending request เมื่อ url เปลี่ยน
+  // และกัน setState หลัง component unmount (รวมถึงกรณี React Strict Mode ที่ effect รันซ้ำ)
+  useEffect(() => {
+    reload();
+    return () => { requestIdRef.current += 1; };
+  }, [reload]);
+
   return { ...state, reload };
 }

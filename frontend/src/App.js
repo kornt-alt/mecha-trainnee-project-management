@@ -12,12 +12,14 @@ import Workload from './components/Workload';
 import PlaceholderPage from './components/PlaceholderPage';
 import NotFound from './components/NotFound';
 import { APP_BASE } from './utils/config';
+import { MockDataProvider } from './context/MockDataContext';
 
 // ⚠️ ไม่ import CSS ที่นี่ — ทั้งแอป import ที่ src/index.js ที่เดียวเพื่อคุมลำดับ
 
 export default function App() {
   return (
     <Router basename={APP_BASE}>
+      <MockDataProvider>
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<Home />} />
@@ -38,6 +40,7 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
+      </MockDataProvider>
     </Router>
   );
 }

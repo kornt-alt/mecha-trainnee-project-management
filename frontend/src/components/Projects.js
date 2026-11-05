@@ -18,7 +18,7 @@ import {
 } from 'react-bootstrap';
 import { api, useLoad } from '../utils/api';
 import { PROJECT_STATUSES, statusLabel } from '../utils/config';
-import { MOCK_PROJECTS_FALLBACK } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
@@ -98,12 +98,14 @@ export default function Projects() {
   const [deleting, setDeleting] = useState(null); // โปรเจกต์ที่รอยืนยันการลบ
   const [actionError, setActionError] = useState('');
 
-  // สำรอง mock projects ในกรณีที่ยังไม่ได้รัน backend
-  const [mockList, setMockList] = useState(MOCK_PROJECTS_FALLBACK);
+  // Mock Mode ใช้ชุดข้อมูลกลางจาก MockDataContext (แชร์ข้ามหน้า กับ Tasks) — ไม่มี local copy อีกต่อไป
+  const { projects, setProjects, tasks } = useMockData();
 
-  // เลือกว่าใช้ข้อมูลจาก API หรือ mockData กลาง
-  const isApiConnected = Array.isArray(data) && data.length > 0;
-  const baseProjects = isApiConnected ? data : mockList.filter((p) => !filter || p.status === filter);
+  // API Mode = คำขอล่าสุด "สำเร็จ" (data ไม่ใช่ null) · ห้ามใช้ data.length ตัดสินการเชื่อมต่อ
+  // เพราะ backend ตอบ array ว่าง [] เมื่อ DB ยังไม่มีโปรเจกต์ — ยังเป็นคำตอบที่สำเร็จเสมอ
+  // ตอนโหลดครั้งแรก/คำขอล้มเหลว data = null → ใช้ mockData กลาง (ระหว่าง reload คง data เดิมไว้)
+  const isApiConnected = data !== null;
+  const baseProjects = isApiConnected ? data : projects.filter((p) => !filter || p.status === filter);
 
   // ค้นหา (ชื่อและผู้รับผิดชอบ) — ค้นหาแบบ client-side ทับทั้งแถวที่มาจาก API และ mock
   const q = search.trim().toLowerCase();
@@ -126,14 +128,19 @@ export default function Projects() {
 
   const changeStatus = async (p, status) => {
     setActionError('');
+    if (!isApiConnected) {
+      // โหมดตัวอย่าง: อัปเดตใน shared mock state โดยตรง (ไม่ยิง API) — immutable update
+      setProjects((prev) =>
+        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
+      );
+      return;
+    }
     try {
       await api.patch(`/projects/${p.id}`, { status });
       reload();
-    } catch {
-      // โหมดตัวอย่าง: อัปเดตใน frontend state เพื่อให้ทดสอบ interactive ได้
-      setMockList((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
-      );
+    } catch (err) {
+      // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่ให้เบี้ยวกับข้อมูลจริงที่แสดงอยู่
+      setActionError(err?.message || 'เปลี่ยนสถานะโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
@@ -142,17 +149,31 @@ export default function Projects() {
     if (!p) return;
     setDeleting(null);
     setActionError('');
+    if (!isApiConnected) {
+      // Policy B (ผ่านการอนุมัติ): มีงาน (Tasks) ผูกกับโปรเจกต์นี้อยู่ → ห้ามลบ ให้จัดการงานก่อน
+      // (เช็คเฉพาะ Mock Mode เพราะ tasks ใน Context คือ mock; ฝั่ง API ต้องตรวจที่ backend — deferred)
+      // (id เทียบแบบ String เพราะ project.id และ task.projectId ผ่านฟอร์ม input เป็น string ได้)
+      const hasRelatedTasks = tasks.some((t) => String(t.projectId) === String(p.id));
+      if (hasRelatedTasks) {
+        setActionError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงาน (Tasks) ที่ผูกกับโปรเจกต์นี้อยู่ — กรุณาจัดการงานที่เกี่ยวข้องก่อนลบโปรเจกต์');
+        return;
+      }
+      // โหมดตัวอย่าง: ลบจาก shared mock state โดยตรง (ไม่ยิง API) — immutable update
+      setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      return;
+    }
     try {
       await api.del(`/projects/${p.id}`);
       reload();
-    } catch {
-      // โหมดตัวอย่าง: ลบจาก frontend state
-      setMockList((prev) => prev.filter((item) => item.id !== p.id));
+    } catch (err) {
+      // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่
+      // (modal ปิดแล้ว แต่ข้อมูลเดิมยังอยู่ครบจาก API — ผู้ใช้ลองใหม่ได้)
+      setActionError(err?.message || 'ลบโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
   // สถานะของลิสต์: ยังไม่มีโปรเจกต์เลยในระบบ (ไม่มี mock ก็คือไม่มีข้อมูล API ด้วย)
-  const noProjectsAtAll = !isApiConnected && mockList.length === 0;
+  const noProjectsAtAll = !isApiConnected && projects.length === 0;
 
   return (
     <>
@@ -367,18 +388,21 @@ export default function Projects() {
         <ProjectForm
           initial={editing}
           onClose={() => setEditing(null)}
+          mockMode={!isApiConnected}
           onSaved={(savedProject) => {
             setEditing(null);
             if (isApiConnected) {
               reload();
             } else {
-              // อัปเดตใน mockList
-              if (savedProject.id) {
-                setMockList((prev) => prev.map((item) => item.id === savedProject.id ? { ...item, ...savedProject } : item));
-              } else {
-                const newId = Math.max(0, ...mockList.map((m) => m.id)) + 1;
-                setMockList((prev) => [...prev, { ...savedProject, id: newId, totalTasks: 0, completedTasks: 0, unfinishedTasks: 0, progress: 0 }]);
-              }
+              // อัปเดตใน shared mock state (Context) — immutable update ทุกเส้นทาง
+              setProjects((prev) => {
+                if (savedProject.id) {
+                  return prev.map((item) => (item.id === savedProject.id ? { ...item, ...savedProject } : item));
+                }
+                // create: id ใหม่ต่อจากตัวใหญ่สุดของชุดปัจจุบัน (เทคนิคเดิม)
+                const newId = Math.max(0, ...prev.map((m) => m.id)) + 1;
+                return [...prev, { ...savedProject, id: newId, totalTasks: 0, completedTasks: 0, unfinishedTasks: 0, progress: 0 }];
+              });
             }
           }}
         />
@@ -409,7 +433,9 @@ export default function Projects() {
 }
 
 // Modal เพิ่ม / แก้ไข — initial.id มี = แก้ไข (PATCH) · ไม่มี = เพิ่มใหม่ (POST)
-function ProjectForm({ initial, onClose, onSaved }) {
+// mockMode = ยังไม่ต่อ backend → บันทึกในหน่วยความจำผ่าน onSaved() โดยตรง (parent อัปเดต mock state ที่แชร์เอง)
+// ปกติ (API mode): ยิง POST/PATCH จริง — ล้มเหลวแสดง error และค้างฟอร์มไว้แก้/ลองใหม่
+function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
   const [form, setForm] = useState({
     name: initial.name ?? '',
     owner: initial.owner ?? '',
@@ -428,12 +454,19 @@ function ProjectForm({ initial, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
+      if (mockMode) {
+        // โหมดตัวอย่าง: ไม่ยิง API — onSaved จะอัปเดต mock state ที่แชร์ฝั่ง parent แล้วปิดฟอร์มตามปกติ
+        onSaved({ ...form, id: initial.id });
+        return;
+      }
       if (initial.id) await api.patch(`/projects/${initial.id}`, form);
       else await api.post('/projects', form);
       onSaved({ ...form, id: initial.id });
-    } catch {
-      // โหมดตัวอย่าง: บันทึกสำเร็จในหน่วยความจำ
-      onSaved({ ...form, id: initial.id });
+    } catch (err) {
+      // API mode ล้มเหลว — ห้ามทำตัวเหมือนบันทึกสำเร็จ: แสดงข้อความผิดพลาดจริง และค้างฟอร์มไว้ให้แก้/ลองใหม่
+      setError(err?.message || 'บันทึกโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+    } finally {
+      setSaving(false);
     }
   };
 
