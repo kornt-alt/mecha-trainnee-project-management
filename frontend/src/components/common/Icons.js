@@ -322,5 +322,36 @@ export const X = createIcon(
 );
 
 // Aliases for common icon naming conventions
+// 28. MoreVertical (เมนูแถว เพิ่มเติม)
+export const MoreVertical = createIcon(
+  <>
+    <circle cx="12" cy="5" r="1" />
+    <circle cx="12" cy="12" r="1" />
+    <circle cx="12" cy="19" r="1" />
+  </>,
+  'MoreVertical'
+);
+
+// 29. Pencil (แก้ไข)
+export const Pencil = createIcon(
+  <>
+    <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.587a.5.5 0 0 0 .62.62l4.587-1.321a2 2 0 0 0 .83-.5z" />
+    <path d="m15 5 4 4" />
+  </>,
+  'Pencil'
+);
+
+// 30. Trash2 (ลบ)
+export const Trash2 = createIcon(
+  <>
+    <path d="M3 6h18" />
+    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+    <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    <line x1="10" x2="10" y1="11" y2="17" />
+    <line x1="14" x2="14" y1="11" y2="17" />
+  </>,
+  'Trash2'
+);
+
 export const CheckCircle2 = CircleCheck;
 export const AlertCircle = CircleAlert;
