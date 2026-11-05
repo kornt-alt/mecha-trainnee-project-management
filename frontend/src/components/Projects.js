@@ -47,6 +47,38 @@ const isOverdue = (p) => {
   return n !== null && n < 0 && hasDeadline(p);
 };
 
+// เรียงลำดับตามความเร่งด่วนของกำหนดส่ง: เลยกำหนด → ภายใน 7 วัน → อนาคต → ไม่มีกำหนดส่ง
+// ทุกกลุ่มเรียงวันที่กำหนดส่งจากน้อยไปมาก · stable เมื่อกำหนดส่งเท่ากัน · ไม่แก้ array เดิม
+const sortProjectsByUrgency = (projects) => {
+  const t = today();
+  // วันที่แบบ calendar date (ไม่ใช้ timezone): แปลง "YYYY-MM-DD" เป็นจำนวนวัน · คืน null เมื่อว่าง/ไม่ถูกต้อง
+  const dueDay = (v) => {
+    if (!v || typeof v !== 'string') return null;
+    const m = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) {
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 86400000) - new Date(0).getTimezoneOffset() / 1440;
+    }
+    return Math.round((Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(1970, 0, 1)) / 86400000);
+  };
+  const tDay = dueDay(t);
+  const groupOf = (p) => {
+    const diff = dueDay(p.dueDate) - tDay; // null ต่างกัน = NaN → กลุ่มสุดท้าย
+    if (Number.isNaN(diff)) return 3; // ไม่มีวันที่ถูกต้อง
+    if (diff < 0) return 0; // เลยกำหนด
+    if (diff <= 7) return 1; // ภายใน 7 วัน (รวมวันนี้)
+    return 2; // อนาคต
+  };
+  return projects
+    .map((p, i) => ({ p, i, group: groupOf(p), day: dueDay(p.dueDate) }))
+    .sort((a, b) =>
+      a.group - b.group // ลำดับความสำคัญของกลุ่ม
+      || a.day - b.day // ภายในกลุ่ม + กลุ่มอนาคต: ใกล้สุดก่อน (null จะอยู่กลุ่ม 3 อยู่แล้ว)
+      || a.i - b.i // stable: ลำดับเดิมเมื่อเท่ากัน
+    )
+    .map((x) => x.p);
+};
+
 // ข้อความบริบทกำหนดส่ง: เหลือ 5 วัน · เลยกำหนด 3 วัน · ครบกำหนดวันนี้ — คืน null เมื่อไม่มีอะไรแสดง
 const dueContext = (p) => {
   const n = daysUntil(p.dueDate);
@@ -80,6 +112,11 @@ export default function Projects() {
         (p) => (p.name ?? '').toLowerCase().includes(q) || (p.owner ?? '').toLowerCase().includes(q)
       )
     : baseProjects;
+
+  // เรียงตามความเร่งด่วนของกำหนดส่ง (คำนวณใหม่ทุก render เมื่อข้อมูล/ตัวกรองเปลี่ยน)
+  const sortedProjects = sortProjectsByUrgency(
+    Array.isArray(currentProjects) ? [...currentProjects] : []
+  );
 
   const filtersActive = Boolean(search.trim() || filter);
   const clearFilters = () => {
@@ -198,7 +235,7 @@ export default function Projects() {
             <Spinner animation="border" size="sm" className="mb-3" />
           ) : (
             <div className="d-flex align-items-center gap-2 mb-2 small">
-              <span className="fw-medium">{currentProjects.length}</span>
+              <span className="fw-medium">{sortedProjects.length}</span>
               <span className="text-muted">โปรเจกต์{q || filter ? 'ที่ตรงเงื่อนไข' : ''}</span>
               {filter && <Badge bg="light" text="dark" className="border fw-normal">{statusLabel(filter)}</Badge>}
             </div>
@@ -206,7 +243,7 @@ export default function Projects() {
 
           {actionError && <Alert variant="danger" dismissible onClose={() => setActionError('')}>{actionError}</Alert>}
 
-          {currentProjects.length === 0 && !loading ? (
+          {sortedProjects.length === 0 && !loading ? (
             // ── Empty state: ไม่มีโปรเจกต์ที่ตรงกับการค้นหา/ตัวกรอง ─────
             <Card className="border-0 shadow-sm">
               <Card.Body className="text-center py-5">
@@ -234,7 +271,7 @@ export default function Projects() {
                   </tr>
                 </thead>
                 <tbody>
-                  {currentProjects.map((p) => {
+                  {sortedProjects.map((p) => {
                     const ctx = dueContext(p);
                     return (
                       <tr key={p.id}>
