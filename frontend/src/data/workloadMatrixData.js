@@ -1,51 +1,30 @@
 // Workload Matrix — 6-month capacity planning fixtures and calculation engine.
 // Matrix-only module: does not alter any data consumed by other Dashboard sections.
 import { MOCK_EMPLOYEES, MOCK_PROJECTS, MOCK_TASKS } from './mockData';
-import { getEmployeeDaySchedule, toISODate, parseISODate } from './workloadMockData';
+import {
+  getEmployeeDaySchedule,
+  MOCK_APPROVED_LEAVE,
+  toISODate,
+  parseISODate,
+} from './workloadMockData';
 
 // ── Standard reference capacity ──────────────────────────────────────────
 export const STANDARD_CAP_MO = 165; // reference hours per month, not a fixed capacity
 
-// ── Thai public holidays (mock fixtures, 2026-10 → 2027-09) ─────────────
-export const MOCK_HOLIDAYS = [
-  '2026-10-23', // วันปิยมหาราช
-  '2026-12-07', // ชดเชยวันพ่อแห่งชาติ
-  '2026-12-10', // วันรัฐธรรมนูญ
-  '2026-12-31', // วันสิ้นปี
-  '2027-01-01', // วันขึ้นปีใหม่
-  '2027-03-06', // วันมาฆบูชา (mock)
-  '2027-04-13', // สงกรานต์
-  '2027-04-14',
-  '2027-04-15',
-  '2027-05-05', // วันฉัตรมงคล (mock)
-];
+// ── Public holidays ───────────────────────────────────────────────────────
+// Holiday data is intentionally kept as an empty set until the Calendar
+// system is fully configured with authoritative holiday data.
+// When the Calendar is ready, populate MOCK_HOLIDAYS with confirmed dates.
+// Capacity deductions for holidays will then apply automatically.
+export const MOCK_HOLIDAYS = [];
+// eslint-disable-next-line no-unused-vars
 const HOLIDAY_SET = new Set(MOCK_HOLIDAYS);
 
-// ── Approved leave (full-day and half-day) ───────────────────────────────
-// hours: 8 = full day, 4 = half day. Dates are fixtures for the forecast window.
-export const MOCK_APPROVED_LEAVE = [
-  { id: 'lv-01', employeeId: 'emp-002', date: '2026-11-09', hours: 8, reason: 'ลากิจ' },
-  { id: 'lv-02', employeeId: 'emp-002', date: '2026-12-14', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
-  { id: 'lv-03', employeeId: 'emp-005', date: '2026-11-17', hours: 8, reason: 'ลาป่วย' },
-  { id: 'lv-04', employeeId: 'emp-009', date: '2027-01-11', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-05', employeeId: 'emp-009', date: '2027-01-12', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-06', employeeId: 'emp-009', date: '2027-01-13', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-07', employeeId: 'emp-009', date: '2027-01-14', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-08', employeeId: 'emp-009', date: '2027-01-15', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-09', employeeId: 'emp-013', date: '2026-12-21', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
-  { id: 'lv-10', employeeId: 'emp-020', date: '2027-02-08', hours: 8, reason: 'ลาพักร้อน' },
-  { id: 'lv-11', employeeId: 'emp-020', date: '2027-02-09', hours: 8, reason: 'ลาพักร้อน' },
-  // Full-month leave (Feb 2027) → zero actual capacity that month (drives the N/A scenario).
-  ...Array.from({ length: 27 }, (_, index) => {
-    const date = `2027-02-${String(index + 1).padStart(2, '0')}`;
-    return { id: `lv-12-${date}`, employeeId: 'emp-016', date, hours: 8, reason: 'ลาคลอดบุตร' };
-  }),
-  { id: 'lv-31', employeeId: 'emp-031', date: '2026-11-23', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
-  { id: 'lv-32', employeeId: 'emp-024', date: '2027-01-25', hours: 8, reason: 'ลาป่วย' },
-  { id: 'lv-33', employeeId: 'emp-006', date: '2026-12-02', hours: 8, reason: 'ลากิจ' },
-  { id: 'lv-34', employeeId: 'emp-030', date: '2027-03-08', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
-];
+// Re-export approved leave from the shared source of truth so external consumers
+// (e.g. the drilldown modal) can still import it from this module if needed.
+export { MOCK_APPROVED_LEAVE };
 
+// Pre-index leave by employee for O(1) lookup within this module.
 const LEAVE_BY_EMPLOYEE = new Map();
 MOCK_APPROVED_LEAVE.forEach((leave) => {
   if (!LEAVE_BY_EMPLOYEE.has(leave.employeeId)) LEAVE_BY_EMPLOYEE.set(leave.employeeId, []);
@@ -53,9 +32,10 @@ MOCK_APPROVED_LEAVE.forEach((leave) => {
 });
 
 // ── Capacity engine ──────────────────────────────────────────────────────
-// Actual capacity = employee working schedule (existing engine), minus public
-// holidays and approved leave. Leave is NOT in the base schedule, so no
-// double-subtraction occurs.
+// Actual capacity = employee working schedule minus approved leave.
+// Weekly non-working days (weekends per company pattern) are already excluded
+// by getEmployeeDaySchedule. Public holidays are NOT deducted until the
+// Calendar system is fully configured; MOCK_HOLIDAYS is kept empty for now.
 export function getEmployeeMonthlyCapacity(employee, year, month) {
   const start = new Date(year, month, 1);
   const end = new Date(year, month + 1, 0);
@@ -63,7 +43,6 @@ export function getEmployeeMonthlyCapacity(employee, year, month) {
   const leaveByDate = new Map(leaveDays.map((leave) => [leave.date, leave]));
 
   let baseHours = 0;
-  let holidayHours = 0;
   let leaveHours = 0;
   let workingDays = 0;
   const cursor = new Date(start);
@@ -71,17 +50,13 @@ export function getEmployeeMonthlyCapacity(employee, year, month) {
     const iso = toISODate(cursor);
     const schedule = getEmployeeDaySchedule(employee, iso);
     if (!schedule.dayOff && schedule.capacityHours > 0) {
-      if (HOLIDAY_SET.has(iso)) {
-        holidayHours += schedule.capacityHours; // working day consumed by a public holiday
+      const leave = leaveByDate.get(iso);
+      if (leave) {
+        leaveHours += Math.min(Number(leave.hours) || 0, schedule.capacityHours);
       } else {
-        const leave = leaveByDate.get(iso);
-        if (leave) {
-          leaveHours += Math.min(Number(leave.hours) || 0, schedule.capacityHours);
-        } else {
-          workingDays += 1;
-        }
-        baseHours += schedule.capacityHours;
+        workingDays += 1;
       }
+      baseHours += schedule.capacityHours;
     }
     cursor.setDate(cursor.getDate() + 1);
   }
@@ -91,7 +66,8 @@ export function getEmployeeMonthlyCapacity(employee, year, month) {
     month, // 0-based
     standardHours: STANDARD_CAP_MO,
     baseScheduleHours: Number(baseHours.toFixed(2)),
-    holidayHours: Number(holidayHours.toFixed(2)),
+    // holidayHours kept for forward-compatibility when Calendar integration is added
+    holidayHours: 0,
     leaveHours: Number(leaveHours.toFixed(2)),
     actualHours: Number(actualHours.toFixed(2)),
     workingDays,
@@ -245,7 +221,10 @@ function buildAssignments() {
 export const MOCK_PROJECT_ASSIGNMENTS = buildAssignments();
 
 // ── Planned hours allocation ─────────────────────────────────────────────
-function getWorkingDaysBetween(employee, startISO, endISO, capCache) {
+// Counts actual working days (non-weekend, non-leave) between two ISO dates.
+// HOLIDAY_SET is intentionally empty until Calendar integration is complete,
+// so !isHoliday is always true for now — the check remains for forward-compat.
+function getWorkingDaysBetween(employee, startISO, endISO) {
   let days = 0;
   const cursor = parseISODate(startISO);
   const end = parseISODate(endISO);
@@ -256,12 +235,19 @@ function getWorkingDaysBetween(employee, startISO, endISO, capCache) {
     const onLeave = (LEAVE_BY_EMPLOYEE.get(employee.id) || []).some((leave) => leave.date === iso);
     if (!schedule.dayOff && schedule.capacityHours > 0 && !isHoliday && !onLeave) days += 1;
     cursor.setDate(cursor.getDate() + 1);
-    if (capCache) capCache.days += 1;
   }
   return days;
 }
 
 // Hours from one assignment credited to a specific month (year: number, month: 0-based).
+//
+// FIX (Phase 1): For 'total'-type assignments the denominator is now the
+// TOTAL working days across the ENTIRE assignment range, not the working days
+// in the individual month. This ensures the sum of hours across all months
+// never exceeds assignment.totalPlannedHours.
+//
+// Before fix: ratio = overlapWorkingDays / monthWorkingDays  → duplicates hours
+// After fix:  ratio = overlapWorkingDays / totalAssignmentWorkingDays  → correct
 export function getAssignmentHoursInMonth(assignment, employee, year, month) {
   if (!assignment || assignment.status === 'cancelled') return 0;
   const monthKey = `${year}-${String(month + 1).padStart(2, '0')}`;
@@ -270,8 +256,7 @@ export function getAssignmentHoursInMonth(assignment, employee, year, month) {
     return Number(assignment.monthlyAllocations[monthKey]) || 0;
   }
 
-  // Total-hours assignment: distribute in proportion to the employee's working
-  // days within the month's overlap with the assignment range (documented method).
+  // Total-hours assignment: distribute proportionally by working-day overlap.
   const rangeStart = assignment.startDate;
   const rangeEnd = assignment.endDate || rangeStart;
   const monthStart = toISODate(new Date(year, month, 1));
@@ -280,11 +265,51 @@ export function getAssignmentHoursInMonth(assignment, employee, year, month) {
   const overlapEnd = rangeEnd < monthEnd ? rangeEnd : monthEnd;
   if (!overlapStart || !overlapEnd || overlapStart > overlapEnd) return 0;
 
-  const monthWorkingDays = getWorkingDaysBetween(employee, monthStart, monthEnd);
+  // Denominator = total working days across the FULL assignment range.
+  const totalAssignmentWorkingDays = getWorkingDaysBetween(employee, rangeStart, rangeEnd);
+  if (!totalAssignmentWorkingDays) return 0;
+
   const overlapWorkingDays = getWorkingDaysBetween(employee, overlapStart, overlapEnd);
-  if (!monthWorkingDays || !overlapWorkingDays) return 0;
+  if (!overlapWorkingDays) return 0;
+
   const total = Number(assignment.totalPlannedHours) || 0;
-  return Number(((total * overlapWorkingDays) / monthWorkingDays).toFixed(2));
+  if (total <= 0) return 0;
+
+  // Final overlapping month check: absorb rounding residuals so the sum of
+  // all monthly allocations equals totalPlannedHours exactly without exceeding it.
+  const isFinalMonth = rangeEnd <= monthEnd;
+  if (isFinalMonth) {
+    let allocatedPrior = 0;
+    const startDt = parseISODate(rangeStart);
+    let curYear = startDt.getFullYear();
+    let curMonth = startDt.getMonth();
+
+    while (curYear < year || (curYear === year && curMonth < month)) {
+      const curMonthStart = toISODate(new Date(curYear, curMonth, 1));
+      const curMonthEnd = toISODate(new Date(curYear, curMonth + 1, 0));
+      const oStart = rangeStart > curMonthStart ? rangeStart : curMonthStart;
+      const oEnd = rangeEnd < curMonthEnd ? rangeEnd : curMonthEnd;
+
+      if (oStart <= oEnd) {
+        const oDays = getWorkingDaysBetween(employee, oStart, oEnd);
+        if (oDays > 0) {
+          const mHours = Number(((total * oDays) / totalAssignmentWorkingDays).toFixed(2));
+          allocatedPrior += mHours;
+        }
+      }
+
+      curMonth += 1;
+      if (curMonth > 11) {
+        curMonth = 0;
+        curYear += 1;
+      }
+    }
+
+    const remaining = Number((total - allocatedPrior).toFixed(2));
+    return Math.max(0, remaining);
+  }
+
+  return Number(((total * overlapWorkingDays) / totalAssignmentWorkingDays).toFixed(2));
 }
 
 // ── Workload status thresholds (exact) ───────────────────────────────────
