@@ -209,6 +209,14 @@ body {
 }
 
 .header-clock-btn {
+  /* ล็อกขนาดปุ่มคงที่ทุกสถานะ (เปิด/ปิด เวลาเดิน ปุ่ม active) เพราะข้อความวันที่กว้างไม่เท่ากันแต่ละวัน */
+  width: 250px;
+  height: 34px;
+  min-width: 250px;
+  min-height: 34px;
+  flex-shrink: 0;
+  justify-content: center;
+  white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -254,19 +262,38 @@ body {
   transition: transform 0.2s ease;
 }
 
+/* ไอคอนนาฬิกาและหัวลูกศรต้องไม่ถูกบีบ เพื่อให้อยู่ตำแหน่งเดิมเสมอ */
+.clock-icon,
+.clock-chevron {
+  flex-shrink: 0;
+}
+
 .header-clock-btn:hover .clock-icon {
   transform: scale(1.1);
+}
+
+.clock-date {
+  /* คอลัมน์วันที่กว้างคงที่และจัดกึ่งกลาง เพื่อให้ตัวคั่น เวลา และไอคอนไม่ขยับเมื่อข้อความวันที่เปลี่ยนความยาว */
+  width: 78px;
+  flex: 0 0 78px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .clock-divider {
   color: var(--line-strong);
   margin: 0 2px;
+  flex-shrink: 0;
 }
 
+/* ฟอนต์ Prompt ไม่มี tabular figures จริง (วัดจากเบราว์เซอร์: กว้างเปลี่ยนตามตัวเลข)
+   จึงล็อกช่องเวลากว้างคงที่ 64px และจัดกึ่งกลาง เพื่อไม่ให้ทั้งแถวขยับทุกวินาที */
 .clock-time {
+  width: 64px;
+  flex: 0 0 64px;
+  text-align: center;
   font-weight: 600;
   color: var(--blue);
-  font-variant-numeric: tabular-nums;
 }
 
 /* ── ปฏิทินแบบเต็ม (Calendar Dropdown) พร้อมแอนิเมชันนุ่มนวล ─────────────────── */
@@ -2104,6 +2131,12 @@ body {
   .header-clock-btn .clock-date,
   .header-clock-btn .clock-divider {
     display: none;
+  }
+
+  /* บนจอเล็กซ่อนวันที่แล้ว จึงล็อกความกว้างใหม่ที่เล็กลงแต่ยังคงที่เท่าเดิมทุกสถานะ */
+  .header-clock-btn {
+    width: 170px;
+    min-width: 170px;
   }
 
   .calendar-dropdown-menu {
