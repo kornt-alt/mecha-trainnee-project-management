@@ -57,6 +57,7 @@ export default function Header() {
             type="button"
             className={`header-clock-btn ${isCalendarOpen ? 'active' : ''}`}
             onClick={() => setIsCalendarOpen((prev) => !prev)}
+            onMouseDown={(e) => e.stopPropagation()}
             aria-expanded={isCalendarOpen}
             aria-haspopup="dialog"
             title="คลิกเพื่อเปิดดูปฏิทินแบบเต็มและรายการกำหนดส่ง"
