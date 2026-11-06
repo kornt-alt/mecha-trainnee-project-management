@@ -19,6 +19,7 @@ import {
 import { api, useLoad } from '../utils/api';
 import { PROJECT_STATUSES, statusLabel } from '../utils/config';
 import { useMockData } from '../context/MockDataContext';
+import ProjectsTrackingTable from './ProjectsTrackingTable';
 import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
@@ -380,6 +381,9 @@ export default function Projects() {
               </Table>
             </Card>
           )}
+
+          {/* ── ตารางติดตามโปรเจกต์ 8 คอลัมน์ (โหมด mock — อ่านจาก Context กลาง) ── */}
+          {!loading && !noProjectsAtAll && <ProjectsTrackingTable />}
         </>
       )}
 
