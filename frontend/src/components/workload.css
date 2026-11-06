@@ -181,9 +181,11 @@
 .workload-forecast-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .workload-forecast-controls select { min-width:150px; }
 .workload-forecast-nav { display:flex; align-items:center; gap:8px; }
-.workload-forecast-nav-btn { border:1px solid #cdd9ea; background:#fff; color:#214c91; font-size:.72rem; font-weight:700; padding:4px 12px; border-radius:6px; }
+.workload-forecast-nav-btn { border:1px solid #cdd9ea; background:#fff; color:#214c91; font-size:.72rem; font-weight:700; padding:4px 12px; border-radius:6px; line-height:1.4; }
 .workload-forecast-nav-btn:hover { background:#eef3ff; }
-.workload-forecast-window { font-size:.72rem; font-weight:700; color:#31538d; white-space:nowrap; min-width:150px; text-align:center; }
+.workload-forecast-month-picker { width:135px; height:28px; font-size:.76rem; font-weight:600; color:#1c3f79; border:1px solid #cdd9ea; border-radius:6px; padding:2px 8px; background:#fff; }
+.workload-forecast-month-picker:focus { border-color:#4e70df; box-shadow:0 0 0 2px rgba(78,112,223,.15); outline:none; }
+.workload-forecast-window { font-size:.72rem; font-weight:700; color:#31538d; white-space:nowrap; min-width:140px; text-align:center; }
 .workload-forecast-table { min-width:1080px; font-size:.75rem; border-collapse:separate; border-spacing:0; }
 .workload-forecast-table thead th { position:sticky; top:0; z-index:2; background:#f5f8fc; color:#6e7e94; font-size:.65rem; font-weight:750; letter-spacing:.03em; padding:11px 9px; border-bottom:1px solid #e4eaf2; white-space:nowrap; }
 .workload-forecast-table thead th small { display:block; font-size:.62rem; font-weight:500; letter-spacing:0; }
