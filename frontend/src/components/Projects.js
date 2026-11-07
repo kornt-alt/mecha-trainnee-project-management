@@ -19,6 +19,7 @@ import {
 import { api, useLoad } from '../utils/api';
 import { PROJECT_STATUSES, statusLabel } from '../utils/config';
 import { useMockData } from '../context/MockDataContext';
+import { MOCK_EMPLOYEES } from '../data/mockData';
 import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
@@ -45,6 +46,50 @@ const hasDeadline = (p) => !['done', 'cancelled'].includes(p.status);
 const isOverdue = (p) => {
   const n = daysUntil(p.dueDate);
   return n !== null && n < 0 && hasDeadline(p);
+};
+
+// ค้นหาพนักงานเจ้าของโครงการจาก managerId
+const ownerOf = (p) => (p.managerId ? MOCK_EMPLOYEES.find((e) => e.id === p.managerId) : null);
+
+// อักษรย่อจากชื่อ-นามสกุลพนักงาน (2 ตัวอักษรพิมพ์ใหญ่)
+const initialsOf = (name) => {
+  const parts = String(name || '').trim().split(/\s+/);
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return String(name || '?').slice(0, 2).toUpperCase();
+};
+
+// ลำดับความสำคัญของโครงการ (Priority):
+// รวมจากงานที่ยังไม่เสร็จ (Active Tasks) ในโปรเจกต์ โดยคัดกรองเฉพาะงานที่ไม่ใช่ 'completed' (และไม่ใช่ 'cancelled' หากมี)
+// เลือกระดับความสำคัญสูงสุด: urgent (3) > high (2) > normal (1) > low (0)
+// หากโปรเจกต์ไม่มี Active Tasks เลย ให้แสดงเป็น '—' (ไม่แต่งเติม mock data)
+const PRIORITY_RANK = { urgent: 3, high: 2, normal: 1, low: 0 };
+const PRIORITY_CONFIG = {
+  urgent: { label: 'ด่วนมาก', variant: 'urgent' },
+  high: { label: 'สูง', variant: 'high' },
+  normal: { label: 'ปกติ', variant: 'normal' },
+  low: { label: 'ต่ำ', variant: 'low' },
+};
+
+const resolveProjectPriority = (projectId, allTasks) => {
+  const activeTasks = (allTasks || []).filter(
+    (t) => String(t.projectId) === String(projectId) && t.status !== 'completed' && t.status !== 'cancelled'
+  );
+  if (activeTasks.length === 0) return null;
+
+  let highestPriority = null;
+  let highestRank = -1;
+
+  for (const t of activeTasks) {
+    const rank = PRIORITY_RANK[t.priority] !== undefined ? PRIORITY_RANK[t.priority] : -1;
+    if (rank > highestRank) {
+      highestRank = rank;
+      highestPriority = t.priority;
+    }
+  }
+
+  return highestPriority ? PRIORITY_CONFIG[highestPriority] || null : null;
 };
 
 // เรียงลำดับตามความเร่งด่วนของกำหนดส่ง: เลยกำหนด → ภายใน 7 วัน → อนาคต → ไม่มีกำหนดส่ง
@@ -279,99 +324,157 @@ export default function Projects() {
               </Card.Body>
             </Card>
           ) : (
-            <Card className="border-0 shadow-sm project-table-card">
-              <Table hover responsive className="projects-table align-middle mb-0">
+            <Card className="border-0 shadow-sm tracking-table-card">
+              <Table hover responsive className="tracking-table align-middle mb-0">
                 <thead>
                   <tr>
-                    <th>ชื่อโปรเจกต์</th>
                     <th>ผู้รับผิดชอบ</th>
-                    <th>กำหนดส่ง</th>
-                    <th style={{ minWidth: 170 }}>ความคืบหน้า</th>
+                    <th>ชื่อโปรเจกต์</th>
+                    <th>หมวดหมู่</th>
+                    <th>ลำดับความสำคัญ</th>
                     <th>สถานะ</th>
-                    <th className="text-center" style={{ width: 56 }} aria-label="การกระทำ" />
+                    <th style={{ minWidth: 170 }}>ความคืบหน้า (Milestone)</th>
+                    <th>เริ่มต้น</th>
+                    <th>กำหนดส่ง</th>
                   </tr>
                 </thead>
                 <tbody>
                   {sortedProjects.map((p) => {
-                    const ctx = dueContext(p);
+                    const owner = ownerOf(p);
+                    // ความคืบหน้า: คำนวณจากงานจริงในระบบ (มี fallback หากไม่มีงาน)
+                    const totalSteps = p.totalTasks ?? 0;
+                    const completedSteps = p.completedTasks ?? 0;
+                    const progressPercent = p.progress ?? 0;
+
+                    // กำหนดสถานะและลำดับความสำคัญ
+                    const overdue = isOverdue(p);
+                    const priority = resolveProjectPriority(p.id, tasks);
+
                     return (
                       <tr key={p.id}>
-                        <td>
-                          <div className="project-name">{p.name}</div>
-                          {p.description && (
-                            <div className="project-desc small">{p.description}</div>
-                          )}
-                        </td>
-                        <td className="project-owner text-nowrap">{p.owner || '-'}</td>
+                        {/* 1. ผู้รับผิดชอบ (Avatar อักษรย่อ + อีเมล) */}
                         <td className="text-nowrap">
-                          <div className={`project-date ${isOverdue(p) ? 'text-overdue' : ''}`}>
-                            {ymd(p.dueDate)}
-                          </div>
-                          {ctx && (
-                            <div className={`small ${isOverdue(p) ? 'text-overdue' : 'project-date-muted'}`}>{ctx}</div>
-                          )}
-                        </td>
-                        <td>
-                          {p.totalTasks !== undefined && p.totalTasks > 0 ? (
-                            <div className="project-progress-line d-flex align-items-center gap-2">
-                              <ProgressBar
-                                now={p.progress ?? 0}
-                                style={{ height: 5 }}
-                                className="project-progress-bar flex-fill"
-                                aria-label={`ความคืบหน้า ${p.progress ?? 0}%`}
-                              />
-                              <span className="project-progress-label small text-nowrap">{p.progress ?? 0}%</span>
-                              <span className="project-task-count small text-nowrap">
-                                {p.completedTasks ?? 0}/{p.totalTasks}
-                                {p.unfinishedTasks > 0 && (
-                                  <span className="project-pending"> · ค้าง {p.unfinishedTasks}</span>
-                                )}
+                          {owner ? (
+                            <div className="tracking-owner d-flex align-items-center gap-2">
+                              <span className="tracking-avatar flex-shrink-0" title={owner.name}>
+                                {initialsOf(owner.name)}
+                              </span>
+                              <span className="text-truncate tracking-owner-email" title={owner.email}>
+                                {owner.email || owner.name}
                               </span>
                             </div>
                           ) : (
-                            <span className="project-date-muted small">-</span>
+                            <div className="tracking-owner d-flex align-items-center gap-2">
+                              <span className="tracking-avatar tracking-avatar-default flex-shrink-0" title={p.owner || '-'}>
+                                {initialsOf(p.owner || '-')}
+                              </span>
+                              <span className="text-truncate text-muted">{p.owner || '-'}</span>
+                            </div>
                           )}
                         </td>
+
+                        {/* 2. ชื่อโปรเจกต์ (พร้อม Action Menu Trigger กะทัดรัด ⋮ ภายในเซลล์) */}
                         <td>
-                          <Badge bg="" className={`status-badge status-${p.status}`}>
+                          <div className="d-flex align-items-center justify-content-between gap-2">
+                            <div className="min-w-0">
+                              <span className="tracking-project-name text-truncate d-block">{p.name}</span>
+                              {p.description && (
+                                <span className="tracking-project-desc small text-muted text-truncate d-block">
+                                  {p.description}
+                                </span>
+                              )}
+                            </div>
+                            <Dropdown align="end" className="d-inline-flex flex-shrink-0 project-row-dropdown">
+                              <Dropdown.Toggle
+                                variant=""
+                                size="sm"
+                                className="project-row-menu tracking-action-btn"
+                                aria-label={`การกระทำของ ${p.name}`}
+                              >
+                                <MoreVertical size={15} />
+                              </Dropdown.Toggle>
+                              <Dropdown.Menu fixed>
+                                <Dropdown.Header>เปลี่ยนสถานะเป็น</Dropdown.Header>
+                                {PROJECT_STATUSES.map((s) => (
+                                  <Dropdown.Item
+                                    key={s.key}
+                                    disabled={s.key === p.status}
+                                    onClick={() => s.key !== p.status && changeStatus(p, s.key)}
+                                  >
+                                    {s.key === p.status && <Check size={14} className="me-2" />}
+                                    {statusLabel(s.key)}
+                                  </Dropdown.Item>
+                                ))}
+                                <Dropdown.Divider />
+                                <Dropdown.Item onClick={() => setEditing(p)}>
+                                  <Pencil size={14} className="me-2" />
+                                  แก้ไข
+                                </Dropdown.Item>
+                                <Dropdown.Item onClick={() => setDeleting(p)}>
+                                  <Trash2 size={14} className="me-2 text-danger" />
+                                  <span className="text-danger">ลบ</span>
+                                </Dropdown.Item>
+                              </Dropdown.Menu>
+                            </Dropdown>
+                          </div>
+                        </td>
+
+                        {/* 3. หมวดหมู่ (Pastel Badge) */}
+                        <td>
+                          {p.category ? (
+                            <Badge bg="" className="tracking-pill tracking-pill-category text-nowrap">
+                              {p.category}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted small">—</span>
+                          )}
+                        </td>
+
+                        {/* 4. ลำดับความสำคัญ (Pastel Badge หรือ —) */}
+                        <td>
+                          {priority ? (
+                            <Badge bg="" className={`tracking-pill tracking-pill-priority variant-${priority.variant} text-nowrap`}>
+                              {priority.label}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted small px-1">—</span>
+                          )}
+                        </td>
+
+                        {/* 5. สถานะ (Pastel Badge) */}
+                        <td>
+                          <Badge bg="" className={`tracking-pill tracking-pill-status status-${p.status} ${overdue ? 'is-delayed' : ''} text-nowrap`}>
                             {statusLabel(p.status)}
                           </Badge>
                         </td>
-                        <td className="text-center text-nowrap">
-                          <Dropdown align="end" className="d-inline-flex project-row-dropdown">
-                            <Dropdown.Toggle
-                              variant=""
-                              size="sm"
-                              className="project-row-menu"
-                              aria-label={`การกระทำของ ${p.name}`}
-                            >
-                              <MoreVertical size={16} />
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu fixed>
-                              <Dropdown.Header>เปลี่ยนสถานะเป็น</Dropdown.Header>
-                              {PROJECT_STATUSES.map((s) => (
-                                <Dropdown.Item
-                                  key={s.key}
-                                  disabled={s.key === p.status}
-                                  onClick={() => s.key !== p.status && changeStatus(p, s.key)}
-                                >
-                                  {s.key === p.status && <Check size={14} className="me-2" />}
-                                  {statusLabel(s.key)}
-                                </Dropdown.Item>
-                              ))}
-                              <Dropdown.Divider />
-                              <Dropdown.Item onClick={() => setEditing(p)}>
-                                <Pencil size={14} className="me-2" />
-                                แก้ไข
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                onClick={() => setDeleting(p)}
-                              >
-                                <Trash2 size={14} className="me-2" />
-                                ลบ
-                              </Dropdown.Item>
-                            </Dropdown.Menu>
-                          </Dropdown>
+
+                        {/* 6. ความคืบหน้า (Milestone: Progress bar + XX% · X/X steps) */}
+                        <td>
+                          <div className="tracking-progress d-flex align-items-center gap-2">
+                            <ProgressBar
+                              now={progressPercent}
+                              style={{ height: 6 }}
+                              className="tracking-progress-bar flex-fill"
+                              variant={progressPercent === 100 ? 'success' : 'primary'}
+                              aria-label={`ความคืบหน้า ${progressPercent}%`}
+                            />
+                            <span className="small text-nowrap tracking-progress-label">
+                              {progressPercent}% · {completedSteps}/{totalSteps} steps
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* 7. เริ่มต้น (yyyy/mm/dd) */}
+                        <td className="text-nowrap tracking-date">
+                          {ymd(p.startDate)}
+                        </td>
+
+                        {/* 8. กำหนดส่ง (yyyy/mm/dd เน้นแดงเมื่อเลยกำหนด พร้อมบริบทใน tooltip) */}
+                        <td
+                          className={`text-nowrap tracking-date ${overdue ? 'text-overdue' : ''}`}
+                          title={dueContext(p) || undefined}
+                        >
+                          {ymd(p.dueDate)}
                         </td>
                       </tr>
                     );
