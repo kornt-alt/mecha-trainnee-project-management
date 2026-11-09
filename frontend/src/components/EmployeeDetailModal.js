@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Badge, Modal, Row, Col, Table } from 'react-bootstrap';
 import { MOCK_PROJECTS, MOCK_TASKS } from '../data/mockData';
-import { getAssignmentStatusLabel } from '../data/workloadMatrixData';
+import { getEmployeeLeaveDays } from '../data/workloadMockData';
+
 
 
 // Utility formatters (Thai style for consistency with Workload chart)
@@ -149,7 +150,12 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
     return sortDirection === 'asc' ? compare : -compare;
   });
 
-  const handleSort = (key) => {
+  const leaveEntries = (() => {
+          if (!range) return [];
+          const all = getEmployeeLeaveDays(employee.id) || [];
+          return all.filter(l => l.date >= range.start && l.date <= range.end);
+        })();
+        const handleSort = (key) => {
     if (sortKey === key) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
@@ -181,6 +187,10 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
             </span>
           </div>
           <div className="workload-modal-meta text-muted small mt-1">
+            {employee.email && (<>
+              <span><strong>Email:</strong> {employee.email}</span>
+              <span className="mx-2">|</span>
+            </>)}
             <span><strong>ID:</strong> {employee.id || '—'}</span>
             <span className="mx-2">|</span>
             <span><strong>Section:</strong> {section}</span>
@@ -244,18 +254,18 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
                 <th role="button" tabIndex={0} className="workload-modal-sort-th" onClick={() => handleSort('project')} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') handleSort('project'); }}>
                   Project {renderSortIcon('project')}
                 </th>
-                <th>Status</th>
-                <th>Period</th>
-                <th className="text-end">Hours (this month)</th>
+                <th>Priority</th>
+                <th className="text-end">Workload (hrs)</th>
+                <th className="text-end">% of Capacity</th>
               </tr>
             </thead>
             <tbody>
               {sortedRows.map(row => (
                 <tr key={row.id}>
-                  <td>{row.name}</td>
+                  <td>{row.name}<br /><small className="text-muted">{row.dueDate || '—'}</small></td>
                   <td><Badge bg={row.priorityVariant}>{row.priorityLabel}</Badge></td>
-                  <td className="text-nowrap">{row.dueDate || '—'}</td>
                   <td className="text-end text-nowrap">{fmtHours(row.workload)}</td>
+                  <td className="text-end text-nowrap">{fmtPercent(row.percentOfCapacity)}</td>
                 </tr>
               ))}
               {sortedRows.length === 0 && (

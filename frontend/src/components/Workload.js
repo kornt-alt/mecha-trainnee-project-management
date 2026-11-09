@@ -243,7 +243,7 @@ export default function Workload() {
       </Row>
 
       <Row className="g-3 mb-3">
-        <Col xl={8}>
+        <Col xl={12}>
           <Card className="workload-panel h-100">
             <Card.Header>
               <div>
@@ -276,29 +276,7 @@ export default function Workload() {
             </Card.Body>
           </Card>
         </Col>
-        <Col xl={4}>
-          <Card className="workload-panel h-100">
-            <Card.Header>
-              <div><h2>Schedule Overview</h2><p>รูปแบบตารางทำงานในช่วงที่เลือก</p></div>
-            </Card.Header>
-            <Card.Body>
-              <div className="workload-schedule-pattern"><span>{period === 'weekly' ? 'รูปแบบวันหยุดสัปดาห์นี้' : 'รูปแบบวันหยุด'}</span><strong>{weekPattern === 'weekend' ? 'หยุดเสาร์–อาทิตย์' : weekPattern === 'sunday-only' ? 'หยุดวันอาทิตย์' : 'สลับตามรูปแบบของแต่ละสัปดาห์'}</strong></div>
-              <div className="workload-schedule-stat"><span className="schedule-dot standard"/> Standard 08:00–17:00 <strong>{shiftSummary.standard} วันคน</strong></div>
-              <div className="workload-schedule-stat"><span className="schedule-dot short"/> Short 08:00–15:00 <strong>{shiftSummary.short} วันคน</strong></div>
-              <div className="workload-schedule-stat"><span className="schedule-dot off"/> วันหยุด <strong>{shiftSummary.off} วันคน</strong></div>
-              <div className="workload-schedule-note"><strong>เวลาทำงานสุทธิ</strong><br/>Standard: 7 ชม. 40 นาที / วัน<br/>Short: 5 ชม. 40 นาที / วัน<br/><small>หักเวลาพักรวม 80 นาทีแล้ว</small></div>
-              <div className="workload-daily-summary-title">Daily Team Load</div>
-              <div className="workload-daily-bars">
-                {dailySummary.map((day) => (
-                  <div className="workload-daily-item" key={day.key} title={`${day.label} · ${day.planned.toFixed(1)} / ${day.capacity.toFixed(1)} ชม.`}>
-                    <div className="workload-daily-bar-track"><span style={{ height: `${Math.min(day.percent, 120) / 120 * 100}%` }} className={day.percent > 100 ? 'is-over' : ''} /></div>
-                    <small>{period === 'yearly' ? day.label : DAY_LABELS[parseISODate(day.start).getDay()]}</small>
-                  </div>
-                ))}
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
+
       </Row>
 
       <WorkloadMatrix

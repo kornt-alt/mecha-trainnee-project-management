@@ -52,38 +52,31 @@ export const MOCK_DEPARTMENTS = [
 // ── 4. พนักงาน (Employees) ───────────────────────────────────────────────
 // 32 คน เชื่อมโยงกับ departmentId และมีฟิลด์ department เดิมเพื่อความเข้ากันได้
 export const MOCK_EMPLOYEES = [
-  { id: 'emp-001', name: 'Kittipat Samran', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Trainee Engineer', email: 'kittipat.s@mecha.local' },
+  // IT department (7 employees: 5 regular, 2 trainees)
+  { id: 'emp-001', name: 'Kittipat Samran', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Trainee', email: 'kittipat.s@mecha.local' },
   { id: 'emp-002', name: 'Napat Chaiyaphon', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Software Developer', email: 'napat.c@mecha.local' },
   { id: 'emp-003', name: 'Sarin Numnonda', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Frontend Developer', email: 'sarin.n@mecha.local' },
-  { id: 'emp-004', name: 'Ployfa Waratchaya', departmentId: 'dept-5', department: 'Documentation & Training', position: 'Documentation Officer', email: 'ployfa.w@mecha.local' },
-  { id: 'emp-005', name: 'Thanakorn Wiset', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Engineer', email: 'thanakorn.w@mecha.local' },
-  { id: 'emp-006', name: 'Kanyarat Srisuk', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QA Engineer', email: 'kanyarat.s@mecha.local' },
-  { id: 'emp-007', name: 'Wichai Prasertkul', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Control Engineer', email: 'wichai.p@mecha.local' },
   { id: 'emp-008', name: 'Supachai Meesuk', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Supervisor', email: 'supachai.m@mecha.local' },
   { id: 'emp-009', name: 'Korn Tawonphon', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Senior Developer', email: 'korn.t@mecha.local' },
-  { id: 'emp-010', name: 'Arisa Thongkham', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QA Tester', email: 'arisa.t@mecha.local' },
-  { id: 'emp-011', name: 'Jirayu Phuangmalai', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Technician', email: 'jirayu.p@mecha.local' },
-  { id: 'emp-012', name: 'Chanida Rerkpaisan', departmentId: 'dept-5', department: 'Documentation & Training', position: 'Training Coordinator', email: 'chanida.r@mecha.local' },
-  { id: 'emp-013', name: 'Bodin Kittikorn', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Electrical Engineer', email: 'bodin.k@mecha.local' },
-  { id: 'emp-014', name: 'Malee Somsri', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QC Inspector', email: 'malee.s@mecha.local' },
-  { id: 'emp-015', name: 'Nattapong Vejjakiva', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Backend Developer', email: 'nattapong.v@mecha.local' },
-  { id: 'emp-016', name: 'Sirikwan Laotham', departmentId: 'dept-5', department: 'Documentation & Training', position: 'Technical Writer', email: 'sirikwan.l@mecha.local' },
-  { id: 'emp-017', name: 'Prapat Suriyawong', departmentId: 'dept-3', department: 'Mechanical', position: 'CAD Designer', email: 'prapat.s@mecha.local' },
-  { id: 'emp-018', name: 'Oranee Tantivejkul', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QA Lead', email: 'oranee.t@mecha.local' },
-  { id: 'emp-019', name: 'Rattanakorn Phusit', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Panel Technician', email: 'rattanakorn.p@mecha.local' },
+  { id: 'emp-015', name: 'Nattapong Vejjakiva', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Trainee', email: 'nattapong.v@mecha.local' },
   { id: 'emp-020', name: 'Thitikan Bunserm', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Full-stack Developer', email: 'thitikan.b@mecha.local' },
+
+  // AI department (7 regular employees)
+  { id: 'emp-005', name: 'Thanakorn Wiset', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Engineer', email: 'thanakorn.w@mecha.local' },
+  { id: 'emp-011', name: 'Jirayu Phuangmalai', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Technician', email: 'jirayu.p@mecha.local' },
+  { id: 'emp-017', name: 'Prapat Suriyawong', departmentId: 'dept-3', department: 'Mechanical', position: 'CAD Designer', email: 'prapat.s@mecha.local' },
   { id: 'emp-021', name: 'Ekkachai Rompho', departmentId: 'dept-3', department: 'Mechanical', position: 'Maintenance Engineer', email: 'ekkachai.r@mecha.local' },
-  { id: 'emp-022', name: 'Warunya Kittisak', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QA Engineer', email: 'warunya.k@mecha.local' },
-  { id: 'emp-023', name: 'Suthatrong Maneerat', departmentId: 'dept-5', department: 'Documentation & Training', position: 'Document Controller', email: 'suthatrong.m@mecha.local' },
-  { id: 'emp-024', name: 'Phumin Jareonsuk', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Instrument Technician', email: 'phumin.j@mecha.local' },
-  { id: 'emp-025', name: 'Lalita Pongsakorn', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'UI/UX Designer', email: 'lalita.p@mecha.local' },
   { id: 'emp-026', name: 'Goragod Wannasiri', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Engineer', email: 'goragod.w@mecha.local' },
-  { id: 'emp-027', name: 'Napassorn Teerakul', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QC Inspector', email: 'napassorn.t@mecha.local' },
-  { id: 'emp-028', name: 'Veerapat Chokchai', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Automation Engineer', email: 'veerapat.c@mecha.local' },
-  { id: 'emp-029', name: 'Rinrada Sawatdi', departmentId: 'dept-5', department: 'Documentation & Training', position: 'Training Officer', email: 'rinrada.s@mecha.local' },
-  { id: 'emp-030', name: 'Chatchai Wetwitoo', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'DevOps Engineer', email: 'chatchai.w@mecha.local' },
-  { id: 'emp-031', name: 'Benyapa Ruangrit', departmentId: 'dept-4', department: 'Quality Assurance', position: 'QA Tester', email: 'benyapa.r@mecha.local' },
   { id: 'emp-032', name: 'Sarawut Phutthinat', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Technician', email: 'sarawut.p@mecha.local' },
+  { id: 'emp-033', name: 'New AI Engineer', departmentId: 'dept-3', department: 'Mechanical', position: 'Software Engineer', email: 'newai@mecha.local' },
+
+  // Electrical department (6 employees: 3 regular, 3 trainees)
+  { id: 'emp-007', name: 'Wichai Prasertkul', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Control Engineer', email: 'wichai.p@mecha.local' },
+  { id: 'emp-013', name: 'Bodin Kittikorn', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Electrical Engineer', email: 'bodin.k@mecha.local' },
+  { id: 'emp-028', name: 'Veerapat Chokchai', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Automation Engineer', email: 'veerapat.c@mecha.local' },
+  { id: 'emp-019', name: 'Rattanakorn Phusit', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Trainee', email: 'rattanakorn.p@mecha.local' },
+  { id: 'emp-024', name: 'Phumin Jareonsuk', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Trainee', email: 'phumin.j@mecha.local' },
+  { id: 'emp-034', name: 'New Electrical Trainee', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Trainee', email: 'newelectra@mecha.local' },
 ];
 
 // ── 5. ข้อมูลโปรเจกต์ดิบ (Raw Projects) ──────────────────────────────────
