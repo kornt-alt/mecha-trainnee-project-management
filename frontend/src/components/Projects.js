@@ -20,6 +20,7 @@ import { api, useLoad } from '../utils/api';
 import { PROJECT_CATEGORIES, PROJECT_STATUSES, statusLabel } from '../utils/config';
 import { useMockData } from '../context/MockDataContext';
 import { MOCK_EMPLOYEES } from '../data/mockData';
+import ProjectsTrackingTable from './ProjectsTrackingTable';
 import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', category: '', managerId: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };

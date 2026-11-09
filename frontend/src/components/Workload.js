@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
-import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '../data/mockData';
+import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
 import {
   MOCK_PLANNED_WORK_ENTRIES,
