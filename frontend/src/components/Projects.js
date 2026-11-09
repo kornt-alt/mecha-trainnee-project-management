@@ -97,6 +97,7 @@ export default function Projects() {
   const { data, error, loading, reload } = useLoad(`/projects${filter ? `?status=${filter}` : ''}`);
   const [editing, setEditing] = useState(null); // null = ปิด Modal · {} ไม่มี id = เพิ่มใหม่
   const [deleting, setDeleting] = useState(null); // โปรเจกต์ที่รอยืนยันการลบ
+  const [deleteError, setDeleteError] = useState(''); // Policy B / ลบไม่สำเร็จ — แสดงใน modal เอง (คง popup เปิดไว้ให้ผู้ใช้เห็นบริบท)
   const [actionError, setActionError] = useState('');
 
   // Mock Mode ใช้ชุดข้อมูลกลางจาก MockDataContext (แชร์ข้ามหน้า กับ Tasks) — ไม่มี local copy อีกต่อไป
@@ -148,28 +149,31 @@ export default function Projects() {
   const confirmDelete = async () => {
     const p = deleting;
     if (!p) return;
-    setDeleting(null);
     setActionError('');
+    setDeleteError('');
     if (!isApiConnected) {
       // Policy B (ผ่านการอนุมัติ): มีงาน (Tasks) ผูกกับโปรเจกต์นี้อยู่ → ห้ามลบ ให้จัดการงานก่อน
       // (เช็คเฉพาะ Mock Mode เพราะ tasks ใน Context คือ mock; ฝั่ง API ต้องตรวจที่ backend — deferred)
       // (id เทียบแบบ String เพราะ project.id และ task.projectId ผ่านฟอร์ม input เป็น string ได้)
       const hasRelatedTasks = tasks.some((t) => String(t.projectId) === String(p.id));
       if (hasRelatedTasks) {
-        setActionError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงาน (Tasks) ที่ผูกกับโปรเจกต์นี้อยู่ — กรุณาจัดการงานที่เกี่ยวข้องก่อนลบโปรเจกต์');
+        // ลบถูกบล็อค — คง popup เปิดไว้และแสดงเหตุผลใน popup (ข้อความ/พฤติกรรม Policy B ไม่เปลี่ยน)
+        setDeleteError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงาน (Tasks) ที่ผูกกับโปรเจกต์นี้อยู่ — กรุณาจัดการงานที่เกี่ยวข้องก่อนลบโปรเจกต์');
         return;
       }
-      // โหมดตัวอย่าง: ลบจาก shared mock state โดยตรง (ไม่ยิง API) — immutable update
+      // โหมดตัวอย่าง: ลบจาก shared mock state โดยตรง (ไม่ยิง API) — immutable update; ลบสำเร็จจึงปิด popup
       setProjects((prev) => prev.filter((item) => item.id !== p.id));
+      setDeleting(null);
       return;
     }
     try {
       await api.del(`/projects/${p.id}`);
+      setDeleting(null);
       reload();
     } catch (err) {
       // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่
-      // (modal ปิดแล้ว แต่ข้อมูลเดิมยังอยู่ครบจาก API — ผู้ใช้ลองใหม่ได้)
-      setActionError(err?.message || 'ลบโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      // (คง popup เปิดไว้ผ่าน deleteError เพื่อให้ลองใหม่ในบริบทเดิม)
+      setDeleteError(err?.message || 'ลบโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
     }
   };
 
@@ -412,23 +416,39 @@ export default function Projects() {
         />
       )}
 
-      {/* ── Modal ยืนยันการลบ ─────────────────────────────────────── */}
-      <Modal show={deleting !== null} onHide={() => setDeleting(null)} centered backdrop="static">
+      {/* ── Modal ยืนยันการลบ — ใช้ mecha-confirm-modal (Phase A) · destructive = ขอบบนแดง ── */}
+      <Modal
+        show={deleting !== null}
+        onHide={() => { setDeleting(null); setDeleteError(''); }}
+        centered
+        backdrop="static"
+        className="mecha-confirm-modal is-destructive"
+      >
         <Modal.Header closeButton>
-          <Modal.Title className="fs-6 fw-semibold">ยืนยันการลบโปรเจกต์</Modal.Title>
+          <div className="w-100">
+            <Modal.Title className="fs-6 fw-bold d-flex align-items-center gap-2 text-dark">
+              <Trash2 size={16} /> ยืนยันการลบโปรเจกต์
+            </Modal.Title>
+            <div className="text-muted" style={{ fontSize: '.78rem', marginTop: '2px' }}>
+              การกระทำนี้ไม่สามารถย้อนกลับได้
+            </div>
+          </div>
         </Modal.Header>
         <Modal.Body>
           {deleting && (
             <>
-              <p className="mb-1">
+              <p className="mb-2">
                 คุณต้องการลบโปรเจกต์ <strong>“{deleting.name}”</strong> ใช่หรือไม่?
               </p>
-              <p className="text-muted small mb-0">การกระทำนี้ไม่สามารถย้อนกลับได้</p>
+              <p className="text-muted small mb-0">
+                โปรเจกต์ที่เกี่ยวข้องกับงาน (Tasks) จะไม่สามารถลบได้ — การลบจะไม่ลบงานที่ผูกอยู่ (ไม่มี cascading delete)
+              </p>
+              {deleteError && <Alert variant="danger" className="mt-3 mb-0 small">{deleteError}</Alert>}
             </>
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={() => setDeleting(null)}>ยกเลิก</Button>
+          <Button variant="outline-secondary" onClick={() => { setDeleting(null); setDeleteError(''); }}>ยกเลิก</Button>
           <Button variant="danger" onClick={confirmDelete}>ลบโปรเจกต์</Button>
         </Modal.Footer>
       </Modal>

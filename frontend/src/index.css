@@ -2509,3 +2509,47 @@ body {
   color: var(--blue);
   font-weight: 700;
 }
+
+/* ── ระบบป็อปอัปตรวจสอบรายละเอียด (detail modal) — แชร์ทุกหน้าจอ ── *หัวรายละเอียด (หัวข้อ+บรอบโดย)*
+   ยังไม่ผูกเข้า JSX ในขั้น Phase A · ใช้ token จาก styles/tokens.css เท่านั้น · ห้าม dark mode */*.mecha-detail-modal .modal-content {
+  border: 0;
+  border-top: 3px solid var(--blue);
+  border-radius: 0.75rem;
+  box-shadow: 0 1.25rem 3rem rgba(var(--blue-rgb), 0.18);
+}
+.mecha-detail-modal .modal-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--blue-tint);
+}
+.mecha-detail-modal .modal-title {
+  color: var(--ink);
+  font-weight: 650;
+  font-size: 1.05rem;
+}
+.mecha-detail-modal .modal-body {
+  max-height: min(64vh, 600px);
+  overflow-y: auto;
+}
+.mecha-detail-modal .modal-footer {
+  border-top: 1px solid var(--blue-tint);
+  gap: 0.5rem;
+}
+.mecha-detail-modal .modal-footer .btn {
+  min-width: 6rem;
+}
+
+/* ── ป็อปอัปยืนยัน (confirm modal) ── ผูม สี Destructive ขึ้นกับ .is-destructive เท่านั้น (ไม่ hardcode สีใน element ก่อできจาก toolcard)
+   ปกติ = ขอบระเงินน้ำเงินเหมือนระบบป็อปอัปอื่น · .confirm-type-destructive = ขอบแดง */
+.mecha-confirm-modal .modal-content {
+  border: 0;
+  border-top: 3px solid var(--blue);
+  border-radius: 0.75rem;
+  box-shadow: 0 1.25rem 3rem rgba(var(--blue-rgb), 0.15);
+}
+.mecha-confirm-modal.is-destructive .modal-content {
+  border-top-color: var(--red);
+  box-shadow: 0 1.25rem 3rem rgba(var(--red-rgb), 0.15);
+}
+.mecha-confirm-modal .modal-header { border-bottom: 1px solid var(--line); }
+.mecha-confirm-modal .modal-footer { border-top: 1px solid var(--line); gap: 0.5rem; }
+.mecha-confirm-modal .modal-footer .btn { min-width: 6rem; }

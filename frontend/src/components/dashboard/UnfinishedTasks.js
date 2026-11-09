@@ -773,7 +773,7 @@ export default function UnfinishedTasks({ tasks = [] }) {
         <Modal
           show
           centered
-          dialogClassName="modal-dialog-scrollable"
+          className="mecha-detail-modal"
           onHide={() => setSelectedTask(null)}
         >
           <Modal.Header closeButton className="border-bottom">
@@ -849,8 +849,18 @@ export default function UnfinishedTasks({ tasks = [] }) {
               {renderDueDate(getDueDateInfo(selectedTask, today))}
             </div>
 
-            {/* แถบความคืบหน้า */}
-            {renderProgress(selectedTask.progress)}
+            {/* แถบความคืบหน้า — รูปแบบเดียวกับ detail ฝั่ง Tasks (Phase C) · renderProgress ของตารางคงเดิม */}
+            <div className="mb-2">
+              <div className="d-flex justify-content-between mb-1">
+                <span className="small text-muted">ความคืบหน้า</span>
+                <span className="small fw-semibold">{normalizeProgress(selectedTask.progress)}%</span>
+              </div>
+              <ProgressBar
+                now={normalizeProgress(selectedTask.progress)}
+                variant={getProgressVariant(normalizeProgress(selectedTask.progress))}
+                className="task-progress-bar"
+              />
+            </div>
 
             {/* รายละเอียดและคำอธิบายงาน */}
             <div className="mb-2 mt-3">
@@ -862,12 +872,12 @@ export default function UnfinishedTasks({ tasks = [] }) {
           </Modal.Body>
           <Modal.Footer className="border-top">
             {/* ปุ่มปิดมอดัล */}
-            <Button variant="outline-secondary" size="sm" onClick={() => setSelectedTask(null)}>
+            <Button variant="outline-secondary" onClick={() => setSelectedTask(null)}>
               ปิดหน้าต่าง
             </Button>
             {/* ปุ่มไปยังหน้าตารางงาน (/tasks) */}
             {/* /tasks คือหน้ารวมงาน (List + Kanban) — ชื่อปุ่มอธิบายปลายทางจริง ไม่อ้าง "โปรเจกต์" */}
-            <Button as={Link} to="/tasks" variant="primary" size="sm" onClick={() => setSelectedTask(null)}>
+            <Button as={Link} to="/tasks" variant="primary" onClick={() => setSelectedTask(null)}>
               ไปยังหน้าตารางงาน
             </Button>
           </Modal.Footer>
