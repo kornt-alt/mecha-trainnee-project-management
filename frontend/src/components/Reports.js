@@ -1,14 +1,14 @@
 // frontend/src/components/Reports.js — หน้ารายงานสรุปผลการดำเนินงาน (Reports & Analytics)
-// คำนวณสถิติและตัวชี้วัดทั้งหมดจาก MOCK Data กลาง (Single Source of Truth)
+// คำนวณสถิติและตัวชี้วัดจาก MockDataContext (Projects + Tasks) — รายงานตามข้อมูลล่าสุด
+// Employees/Departments/WorkEntries เป็น dataset ของรายงานเอง (สถุน) ไม่เกี่ยวกับการแก้โปรเจกต์/งาน
 import React, { useMemo } from 'react';
 import { Card, Row, Col, ProgressBar, Table, Badge } from 'react-bootstrap';
 import {
-  MOCK_PROJECTS,
-  MOCK_TASKS,
   MOCK_EMPLOYEES,
   MOCK_DEPARTMENTS,
   MOCK_WORK_ENTRIES,
 } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import {
   ChartPie,
   Folder,
@@ -16,6 +16,9 @@ import {
 } from './common/Icons';
 
 export default function Reports() {
+  // Projects + Tasks จาก Context — สถิติรายงานตามข้อมูลล่าสุดจากหน้าโปรเจกต์/งาน (mock-only phase)
+  const { projects: projectsList, tasks: tasksList } = useMockData();
+
   // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
   const today = useMemo(() => {
     const d = new Date();
@@ -23,21 +26,21 @@ export default function Reports() {
   }, []);
 
   // 1. สรุปข้อมูลโปรเจกต์
-  const totalProjects = MOCK_PROJECTS.length;
-  const completedProjects = MOCK_PROJECTS.filter((p) => p.status === 'done' || p.status === 'completed').length;
+  const totalProjects = projectsList.length;
+  const completedProjects = projectsList.filter((p) => p.status === 'done' || p.status === 'completed').length;
   const projectCompletionRate = totalProjects > 0 ? Math.round((completedProjects / totalProjects) * 100) : 0;
 
   // 2. สรุปข้อมูลงาน
-  const totalTasks = MOCK_TASKS.length;
-  const completedTasks = MOCK_TASKS.filter((t) => t.status === 'completed').length;
+  const totalTasks = tasksList.length;
+  const completedTasks = tasksList.filter((t) => t.status === 'completed').length;
   const unfinishedTasks = totalTasks - completedTasks;
-  const overdueTasks = MOCK_TASKS.filter((t) => t.status !== 'completed' && t.dueDate && t.dueDate < today).length;
+  const overdueTasks = tasksList.filter((t) => t.status !== 'completed' && t.dueDate && t.dueDate < today).length;
   const taskCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
   // 3. สรุปงานแยกตามประเภท (Categories)
   const categoryStats = useMemo(() => {
     const counts = {};
-    MOCK_TASKS.forEach((t) => {
+    tasksList.forEach((t) => {
       const cat = t.category || 'ทั่วไป';
       counts[cat] = (counts[cat] || 0) + 1;
     });
@@ -46,7 +49,7 @@ export default function Reports() {
       count,
       pct: totalTasks > 0 ? Math.round((count / totalTasks) * 100) : 0,
     }));
-  }, [totalTasks]);
+  }, [tasksList, totalTasks]);
 
   // 4. สรุปชั่วโมงทำงานแยกตามแผนก (Hours by Department)
   const departmentStats = useMemo(() => {
@@ -62,7 +65,7 @@ export default function Reports() {
 
     return MOCK_DEPARTMENTS.map((dept) => {
       const hours = hoursByDept[dept.id] || 0;
-      const deptProjects = MOCK_PROJECTS.filter((p) => p.departmentId === dept.id).length;
+      const deptProjects = projectsList.filter((p) => p.departmentId === dept.id).length;
       return {
         ...dept,
         hours,
@@ -70,10 +73,10 @@ export default function Reports() {
         pct: totalHours > 0 ? Math.round((hours / totalHours) * 100) : 0,
       };
     }).sort((a, b) => b.hours - a.hours);
-  }, []);
+  }, [projectsList]);
 
   // 5. สถิติของ Trainee (emp-001 Kittipat Samran)
-  const traineeTasks = MOCK_TASKS.filter((t) => t.assigneeId === 'emp-001');
+  const traineeTasks = tasksList.filter((t) => t.assigneeId === 'emp-001');
   const traineeCompleted = traineeTasks.filter((t) => t.status === 'completed').length;
   const traineeHours = MOCK_WORK_ENTRIES
     .filter((w) => w.employeeId === 'emp-001')

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
-import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS, MOCK_TASKS } from '../data/mockData';
+import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import {
   MOCK_PLANNED_WORK_ENTRIES,
   getWeekSchedulePattern,
@@ -40,7 +41,12 @@ const PRIORITY_META = {
 };
 
 export default function Workload() {
-  const [period, setPeriod] = useState('weekly');
+  const { projects: mockProjects } = useMockData();
+  
+
+  
+
+    const [period, setPeriod] = useState('weekly');
   const [referenceDate, setReferenceDate] = useState(() => toISODate(new Date()));
   const [department, setDepartment] = useState('all');
   const [position, setPosition] = useState('all');
@@ -128,7 +134,7 @@ export default function Workload() {
   }, [matrixBuckets, data?.employees, data?.entries]);
 
   const projects = useMemo(() => {
-    if (!Array.isArray(MOCK_PROJECTS)) return [];
+    if (!Array.isArray(mockProjects)) return [];
     const entriesList = Array.isArray(data?.entries) ? data.entries : [];
     return MOCK_PROJECTS.filter((project) => entriesList.some((entry) => entry.projectId === project.id));
   }, [data?.entries]);
