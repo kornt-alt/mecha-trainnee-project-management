@@ -21,3 +21,24 @@ export const PROJECT_STATUSES = [
 ];
 
 export const statusLabel = (key) => PROJECT_STATUSES.find((s) => s.key === key)?.label ?? key;
+
+// หมวดหมู่มาตรฐานของโปรเจกต์ (Project Categories)
+// อ้างอิง 6 หมวดหมู่หลักที่มีอยู่จริงในระบบ (Single Source of Truth ร่วมกับ PROJECT_CATEGORY_COLORS)
+export const PROJECT_CATEGORIES = [
+  'ระบบซอฟต์แวร์',
+  'คุณภาพและทดสอบ',
+  'เอกสารและการฝึกอบรม',
+  'ระบบอัตโนมัติ',
+  'ระบบองค์กร',
+  'ซ่อมบำรุง',
+];
+
+// หมวดหมู่งานมาตรฐาน (Task Categories)
+// อ้างอิงจากหมวดหมู่งานจริงใน RAW_TASKS (Single Source of Truth ร่วมกันทั้งระบบ)
+export const TASK_CATEGORIES = [
+  'Documentation',
+  'Testing',
+  'Backend',
+  'Design',
+  'Frontend',
+];

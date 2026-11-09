@@ -17,6 +17,7 @@ import {
   MOCK_EMPLOYEES,
 } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
+import { TASK_CATEGORIES } from '../utils/config';
 import {
   CalendarDays,
   ChevronLeft,
@@ -43,7 +44,7 @@ const today = () => {
 };
 
 export default function Tasks() {
-  const { tasks: taskList, setTasks: setTaskList, projects } = useMockData();
+  const { tasks: taskList, projects, updateTasksAndSyncProjects } = useMockData();
   const MOCK_PROJECTS = projects;
   const [currentView, setCurrentView] = useState('list'); // 'list' หรือ 'kanban'
   const [projectFilter, setProjectFilter] = useState('');
@@ -82,9 +83,10 @@ export default function Tasks() {
     return list;
   }, [taskList, projectFilter, statusFilter, priorityFilter, searchTerm]);
 
-  // ฟังก์ชันย้ายสถานะของงาน (สำหรับ Kanban Board)
+  // ฟังก์ชันย้ายสถานะของงาน (สำหรับ Kanban Board) — อัปเดต task และ sync metrics โปรเจกต์ต้นสังกัดพร้อมกัน
   const moveTaskStatus = (taskId, newStatus) => {
-    setTaskList((prev) =>
+    const affected = taskList.find((t) => t.id === taskId);
+    updateTasksAndSyncProjects((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
         let newProgress = t.progress;
@@ -111,7 +113,7 @@ export default function Tasks() {
           progress: newProgress,
         };
       })
-    );
+    , affected ? [affected.projectId] : []);
   };
 
   // ฟังก์ชันหาคอลัมน์ก่อนหน้า/ถัดไป
@@ -587,7 +589,8 @@ export default function Tasks() {
         <NewTaskModal
           onClose={() => setIsAdding(false)}
           onAdd={(newTask) => {
-            setTaskList((prev) => [newTask, ...prev]);
+            // เก็บ task ใหม่พร้อมคำนวณ metrics โปรเจกต์ต้นสังกัดใหม่จากชุด task ล่าสุด
+            updateTasksAndSyncProjects((prev) => [newTask, ...prev], [newTask.projectId]);
             setIsAdding(false);
           }}
         />
@@ -596,69 +599,168 @@ export default function Tasks() {
   );
 }
 
-function NewTaskModal({ onClose, onAdd }) {
+function NewTaskModal({ initial, onClose, onAdd }) {
   const { projects } = useMockData();
   const MOCK_PROJECTS = projects;
   const [form, setForm] = useState({
-    projectId: MOCK_PROJECTS[0]?.id || 1,
-    assigneeId: MOCK_EMPLOYEES[0]?.id || 'emp-001',
-    category: 'Frontend',
-    startDate: today(),
-    dueDate: today(),
-    priority: 'normal',
-    description: '',
+    title: initial?.title ?? '',
+    projectId: initial?.projectId ?? '',
+    assigneeId: initial?.assigneeId ?? '',
+    category: initial?.category ?? '',
+    startDate: initial?.startDate ?? today(),
+    dueDate: initial?.dueDate ?? today(),
+    priority: initial?.priority ?? 'normal',
+    description: initial?.description ?? '',
   });
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const set = (k) => (e) => setForm((prev) => ({ ...prev, [k]: e.target.value }));
+  // รายการหมวดหมู่งาน: ใช้ชุดมาตรฐาน TASK_CATEGORIES (Documentation, Testing, Backend, Design, Frontend)
+  // หากมีหมวดหมู่งานเดิมแบบ Legacy ที่ไม่อยู่ใน 5 หมวดหมู่นี้ ให้คงไว้ในตัวเลือกเสมอ
+  const categoryOptions = (() => {
+    const list = [...TASK_CATEGORIES];
+    if (form.category && !list.includes(form.category)) {
+      list.push(form.category);
+    }
+    return list;
+  })();
+
+  const set = (k) => (e) => {
+    const val = e.target.value;
+    setForm((prev) => ({ ...prev, [k]: val }));
+    // เคลียร์ error ของฟิลด์เมื่อผู้ใช้แก้ไขข้อมูล
+    if (fieldErrors[k]) {
+      setFieldErrors((prev) => ({ ...prev, [k]: '' }));
+    }
+    if ((k === 'startDate' || k === 'dueDate') && fieldErrors.dateRange) {
+      setFieldErrors((prev) => ({ ...prev, dateRange: '' }));
+    }
+  };
 
   const submit = (e) => {
     e.preventDefault();
+
+    // Client-side Validation
+    const trimmedTitle = form.title.trim();
+    const errors = {};
+
+    if (!trimmedTitle) {
+      errors.title = 'กรุณาระบุชื่องาน';
+    }
+
+    if (String(form.projectId ?? '') === '') {
+      errors.projectId = 'กรุณาเลือกโปรเจกต์ต้นสังกัด';
+    }
+
+    if (!form.category) {
+      errors.category = 'กรุณาเลือกประเภทงาน';
+    }
+
+    if (!form.assigneeId) {
+      errors.assigneeId = 'กรุณาเลือกผู้รับผิดชอบ';
+    }
+
+    if (form.startDate && form.dueDate && form.startDate > form.dueDate) {
+      errors.dateRange = 'วันที่เริ่มต้นต้องไม่มากกว่ากำหนดส่ง';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      return;
+    }
+
+    setFieldErrors({});
+
     const proj = MOCK_PROJECTS.find((p) => String(p.id) === String(form.projectId));
     const newTask = {
       ...form,
-      id: `task-${Date.now()}`,
+      title: trimmedTitle,
+      id: initial?.id || `task-${Date.now()}`,
       projectId: Number(form.projectId),
       projectName: proj ? proj.name : '',
-      status: 'not_started',
-      statusLabel: 'รอเริ่มทำ',
-      progress: 0,
-      estimatedHours: 16,
-      supervisor: 'Supachai M.',
+      status: initial?.status || 'not_started',
+      statusLabel: initial?.statusLabel || 'รอเริ่มทำ',
+      progress: initial?.progress ?? 0,
+      estimatedHours: initial?.estimatedHours ?? 16,
+      supervisor: initial?.supervisor || 'Supachai M.',
     };
     onAdd(newTask);
   };
 
   return (
-    <Modal show onHide={onClose} backdrop="static">
+    <Modal show onHide={onClose} backdrop="static" size="lg" centered dialogClassName="mecha-form-modal">
       <Form onSubmit={submit}>
         <Modal.Header closeButton>
-          <Modal.Title className="h5 fw-bold text-ink">เพิ่มงานใหม่</Modal.Title>
+          <Modal.Title className="h5 fw-bold text-ink">
+            {initial?.id ? 'แก้ไขงาน' : 'เพิ่มงานใหม่'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
+          <div className="mecha-form-section">ข้อมูลงาน</div>
           <Form.Group className="mb-3">
-            <Form.Label>ชื่องาน *</Form.Label>
-            <Form.Control required autoFocus value={form.title} onChange={set('title')} />
+            <Form.Label className="mecha-form-required">ชื่องาน</Form.Label>
+            <Form.Control
+              autoFocus
+              value={form.title}
+              onChange={set('title')}
+              isInvalid={!!fieldErrors.title}
+            />
+            {fieldErrors.title && (
+              <Form.Control.Feedback type="invalid">
+                {fieldErrors.title}
+              </Form.Control.Feedback>
+            )}
           </Form.Group>
 
           <Form.Group className="mb-3">
-            <Form.Label>โปรเจกต์ต้นสังกัด *</Form.Label>
-            <Form.Select value={form.projectId} onChange={set('projectId')}>
+            <Form.Label className="mecha-form-required">โปรเจกต์ต้นสังกัด</Form.Label>
+            <Form.Select value={form.projectId} onChange={set('projectId')} isInvalid={!!fieldErrors.projectId} aria-label="เลือกโปรเจกต์ต้นสังกัด">
+              <option value="">กรุณาเลือกโปรเจกต์</option>
               {MOCK_PROJECTS.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}
             </Form.Select>
+            {fieldErrors.projectId && (
+              <Form.Control.Feedback type="invalid">{fieldErrors.projectId}</Form.Control.Feedback>
+            )}
           </Form.Group>
 
+          <div className="mecha-form-section">การจัดการ</div>
           <Row className="g-2 mb-3">
             <Col xs={6}>
+              <Form.Label>หมวดหมู่งาน</Form.Label>
+              <Form.Select
+                value={form.category}
+                onChange={set('category')}
+                isInvalid={!!fieldErrors.category}
+                aria-label="เลือกหมวดหมู่งาน"
+              >
+                <option value="">กรุณาเลือกประเภทงาน</option>
+                {categoryOptions.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </Form.Select>
+              {fieldErrors.category && (
+                <Form.Control.Feedback type="invalid">{fieldErrors.category}</Form.Control.Feedback>
+              )}
+            </Col>
+            <Col xs={6}>
               <Form.Label>ผู้รับผิดชอบ</Form.Label>
-              <Form.Select value={form.assigneeId} onChange={set('assigneeId')}>
+              <Form.Select value={form.assigneeId} onChange={set('assigneeId')} isInvalid={!!fieldErrors.assigneeId} aria-label="เลือกผู้รับผิดชอบ">
+                <option value="">กรุณาเลือกผู้รับผิดชอบ</option>
                 {MOCK_EMPLOYEES.map((emp) => (
                   <option key={emp.id} value={emp.id}>{emp.name}</option>
                 ))}
               </Form.Select>
+              {fieldErrors.assigneeId && (
+                <Form.Control.Feedback type="invalid">{fieldErrors.assigneeId}</Form.Control.Feedback>
+              )}
             </Col>
-            <Col xs={6}>
+          </Row>
+
+          <Row className="g-2 mb-3">
+            <Col xs={12}>
               <Form.Label>ระดับความสำคัญ</Form.Label>
               <Form.Select value={form.priority} onChange={set('priority')}>
                 <option value="urgent">ด่วนมาก</option>
@@ -669,25 +771,44 @@ function NewTaskModal({ onClose, onAdd }) {
             </Col>
           </Row>
 
-          <Row className="g-2 mb-3">
+          <div className="mecha-form-section">กำหนดเวลา</div>
+          <Row className="g-2 mb-1">
             <Col xs={6}>
               <Form.Label>วันที่เริ่ม</Form.Label>
-              <Form.Control type="date" value={form.startDate} onChange={set('startDate')} />
+              <Form.Control
+                type="date"
+                value={form.startDate}
+                onChange={set('startDate')}
+                isInvalid={!!fieldErrors.dateRange}
+              />
             </Col>
             <Col xs={6}>
               <Form.Label>กำหนดส่ง</Form.Label>
-              <Form.Control type="date" value={form.dueDate} onChange={set('dueDate')} />
+              <Form.Control
+                type="date"
+                value={form.dueDate}
+                onChange={set('dueDate')}
+                isInvalid={!!fieldErrors.dateRange}
+              />
             </Col>
           </Row>
+          {fieldErrors.dateRange && (
+            <div className="text-danger small mb-3">
+              {fieldErrors.dateRange}
+            </div>
+          )}
 
-          <Form.Group>
+          <div className="mecha-form-section">รายละเอียดงาน</div>
+          <Form.Group className="mt-3">
             <Form.Label>รายละเอียดงาน</Form.Label>
             <Form.Control as="textarea" rows={3} value={form.description} onChange={set('description')} />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="outline-secondary" size="sm" onClick={onClose}>ยกเลิก</Button>
-          <Button type="submit" variant="primary" size="sm">เพิ่มงาน</Button>
+          <Button variant="outline-secondary" onClick={onClose}>ยกเลิก</Button>
+          <Button type="submit" variant="primary">
+            {initial?.id ? 'บันทึก' : 'เพิ่มงาน'}
+          </Button>
         </Modal.Footer>
       </Form>
     </Modal>

@@ -2433,3 +2433,46 @@ body {
 *::-webkit-scrollbar-corner {
   background: transparent;
 }
+
+/* ── ป็อปอัปฟอร์ม (เพิ่ม/แก้ไขโปรเจกต์ · เพิ่ม/แก้ไขงาน) — ระบบ Modern Professional ──
+   ใช้ design token จาก styles/tokens.css เท่านั้น · ห้ามแนะนำ dark mode */
+.mecha-form-modal .modal-content {
+  border: 0;
+  border-top: 3px solid var(--blue);
+  border-radius: 0.75rem;
+  box-shadow: 0 1.25rem 3rem rgba(var(--blue-rgb), 0.18);
+}
+.mecha-form-modal .modal-header {
+  border-bottom: 1px solid var(--blue-tint);
+}
+.mecha-form-modal .modal-body {
+  max-height: min(62vh, 560px);
+  overflow-y: auto;
+}
+.mecha-form-modal .modal-footer {
+  border-top: 1px solid var(--blue-tint);
+  gap: 0.5rem;
+}
+.mecha-form-modal .modal-footer .btn {
+  min-width: 6rem;
+}
+/* ป้ายชื่อหมวดของฟอร์ม — ภาษาไทยตามธรรมชาติ ไม่ใช้ตัวพิมพ์ใหญ่ภาษาอังกฤษ */
+.mecha-form-section {
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--blue-tint);
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  margin: 0 0 0.875rem;
+}
+.mecha-form-section:first-child {
+  margin-top: 0;
+}
+/* เครื่องหมาย * ของฟิลด์บังคับกรอก — ใช้สีธีม ไม่ใช้ข้อความ "*" ใน label */
+.mecha-form-required::after {
+  content: " *";
+  color: var(--blue);
+  font-weight: 700;
+}

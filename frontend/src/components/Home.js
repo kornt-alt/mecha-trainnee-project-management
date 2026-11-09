@@ -2,7 +2,8 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useLoad } from '../utils/api';
-import { CURRENT_USER, MOCK_TASKS, MOCK_PROJECTS_FALLBACK } from '../data/mockData';
+import { CURRENT_USER } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import { MOCK_PROJECT_COST_ITEMS } from '../data/mockProjectCosts';
 import UnfinishedTasks from './dashboard/UnfinishedTasks';
 import SummaryCards from './dashboard/SummaryCards';
@@ -15,19 +16,19 @@ import ProjectCategoryTreemap from './dashboard/ProjectCategoryTreemap';
 import { Info, CircleAlert, CircleCheck } from './common/Icons';
 
 export default function Home() {
-  // 1. เรียก API ตรวจสอบสถานะ backend/DB และรายการโปรเจกต์จริง
+  // Projects + Tasks จาก MockDataContext — dashboard จะอัปเดตตามการแก้ไขในหน้าอื่นทันที (mock-only phase)
+  // API integration ยังเป็น phase ถัดไป ตอนนี้ context คือแหล่งข้อมูลจริงของ Dashboard
+  const { projects, tasks } = useMockData();
+
+  // 1. เรียก API ตรวจสอบสถานะ backend/DB (เก็บไว้ทำ alert สถานะการเชื่อมต่อ — ไม่ใช้เป็นแหล่งข้อมูลจนกว่าจะเข้า Phase API Integration)
   const { data: healthData, error: healthError, loading: healthLoading } = useLoad('/health');
-  const { data: projectsData, error: projectsError, loading: projectsLoading } = useLoad('/projects');
+  const { error: projectsError, loading: projectsLoading } = useLoad('/projects');
 
   // ตรวจสอบว่าระบบเชื่อมต่อ backend ได้หรือไม่
   const isBackendConnected = !healthError && healthData && healthData.status === 'ok';
   const isDbReady = isBackendConnected && healthData.db === 'up';
 
-  // รายการงาน (Tasks) จำลองสำหรับ Mecha Trainee Dashboard
-  const tasks = MOCK_TASKS;
-
-  // รายการโปรเจกต์: ใช้ข้อมูลจาก API ถ้ามี ไม่เช่นนั้นใช้ชุดตัวอย่าง (ไม่ duplicate แหล่งข้อมูล)
-  const projects = Array.isArray(projectsData) && projectsData.length > 0 ? projectsData : MOCK_PROJECTS_FALLBACK;
+  // รายการงาน (Tasks) จำลองสำหรับ Mecha Trainee Dashboard — อ้าง context ตรง ๆ ไม่ copy ลง state
 
   // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
   const d = new Date();
