@@ -82,8 +82,8 @@
 .workload-advisory-person strong { font-size:.76rem; color:#344966; }
 .workload-advisory-person small { grid-column:1 / -1; color:#8995a5; font-size:.68rem; }
 .workload-detail-modal .modal-content { border:0; border-radius:13px; overflow:hidden; }
-.workload-detail-modal .modal-header { background:#f8faff; border-bottom:1px solid #e7edf5; }
-.workload-detail-modal .modal-title { color:#1e3557; font-size:1.05rem; font-weight:750; }
+.workload-detail-modal .modal-header { background:var(--paper); border-bottom:1px solid var(--line); }
+.workload-detail-modal .modal-title { color:var(--ink); font-size:1.05rem; font-weight:750; }
 .workload-detail-stat { display:flex; flex-direction:column; gap:4px; padding:12px; background:#f4f7fc; border-radius:8px; }
 .workload-detail-stat small { color:#7a899e; font-size:.68rem; }.workload-detail-stat strong { color:#244b8c; font-size:1rem; }
 .workload-detail-schedule { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; }
@@ -92,8 +92,8 @@
 .workload-project-total { display:flex; justify-content:space-between; gap:12px; padding:8px 0; border-bottom:1px solid #edf1f6; font-size:.76rem; }.workload-project-total span { color:#5f7088; }.workload-project-total strong { color:#214c91; white-space:nowrap; }
 
 /* ── Employee Workload Detail Modal (Project-Based Workload View) ───────── */
-.workload-detail-modal-header { background:#f8faff; padding:16px 20px; }
-.workload-modal-meta { display:flex; flex-wrap:wrap; align-items:center; font-size:.76rem; color:#64748b; }
+.workload-detail-modal-header { background:var(--paper); padding:16px 20px; }
+.workload-modal-meta { display:flex; flex-wrap:wrap; align-items:center; font-size:.76rem; color:var(--muted); }
 .workload-modal-kpi-card {
   display:flex;
   flex-direction:column;

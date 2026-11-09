@@ -504,7 +504,7 @@ export default function Tasks() {
 
       {/* ── Modal แสดงรายละเอียดงาน (Task Detail Modal) ─────────── */}
       {selectedTask && (
-        <Modal show onHide={() => setSelectedTask(null)} centered>
+        <Modal show onHide={() => setSelectedTask(null)} centered className="mecha-detail-modal">
           <Modal.Header closeButton>
             <Modal.Title className="h5 fw-bold text-ink">รายละเอียดงาน</Modal.Title>
           </Modal.Header>
@@ -577,7 +577,7 @@ export default function Tasks() {
             </div>
           </Modal.Body>
           <Modal.Footer>
-            <Button variant="outline-secondary" size="sm" onClick={() => setSelectedTask(null)}>
+            <Button variant="outline-secondary" onClick={() => setSelectedTask(null)}>
               ปิดหน้าต่าง
             </Button>
           </Modal.Footer>
