@@ -132,6 +132,19 @@
   border:1px solid #edf1f6;
   border-radius:8px;
 }
+.workload-modal-table tbody td {
+  padding:12px 16px; /* increased padding */
+}
+
+.workload-modal-table td {
+  word-break: break-word; /* prevent overflow for long Thai names */
+}
+
+.workload-modal-table td small {
+  margin-top:4px;
+  display: block;
+}
+
 .workload-modal-table thead th {
   position:sticky;
   top:0;
@@ -141,7 +154,7 @@
   font-size:.74rem;
   font-weight:750;
   letter-spacing:.02em;
-  padding:10px 12px;
+  padding:12px 16px; /* increased horizontal (16px) and vertical (12px) padding */
   border-bottom:1px solid #e4eaf2;
   white-space:nowrap;
 }
