@@ -2547,24 +2547,50 @@ export const MOCK_TASKS = RAW_TASKS.map((t) => {
 });
 
 // ── 7. โปรเจกต์ที่คำนวณสถิติจาก Tasks (Projects with Calculated Metrics) ──
-// คำนวณ totalTasks, completedTasks, unfinishedTasks, progress จาก Tasks โดยตรง
-export const MOCK_PROJECTS = RAW_PROJECTS.map((p) => {
-  const relatedTasks = MOCK_TASKS.filter((t) => t.projectId === p.id);
+// สูตร metrics อยู่ที่เดียว (calculateProjectMetrics) เพื่อให้ MockDataContext sync ตอน task เปลี่ยน
+// ได้ผลสูตรเดียวกับ dataset เริ่มต้น — กันนิยามซ้ำขัดแย้งกัน
+export function calculateProjectMetrics(project, relatedTasks) {
   const totalTasks = relatedTasks.length;
   const completedTasks = relatedTasks.filter((t) => t.status === 'completed').length;
   const unfinishedTasks = totalTasks - completedTasks;
+  // progress = ค่าเฉลี่ย progress ของ task ทั้งหมด (โปรเจกต์ done แต่ไม่มี task ให้ถือ 100% ตามของเดิม)
   const progress = totalTasks > 0
     ? Math.round(relatedTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / totalTasks)
-    : (p.status === 'done' ? 100 : 0);
+    : (project.status === 'done' ? 100 : 0);
 
   return {
-    ...p,
+    ...project,
     totalTasks,
     completedTasks,
     unfinishedTasks,
     progress,
   };
-});
+}
+
+// คำนวณ metrics ใหม่เฉพาะโปรเจกต์ที่ระบุ จากชุด tasks ล่าสุด (immutable) —
+// โปรเจกต์ที่ไม่เกี่ยวข้องเก็บ object เดิมไว้ ไม่ render ใหม่โดยไม่จำเป็น
+export function syncProjectsWithTasks(prevProjects, nextTasks, projectIds) {
+  const ids = new Set(projectIds.map(Number).filter((n) => Number.isFinite(n)));
+  return prevProjects.map((p) => (
+    ids.has(Number(p.id))
+      ? calculateProjectMetrics(p, nextTasks.filter((t) => Number(t.projectId) === Number(p.id)))
+      : p
+  ));
+}
+
+// Core รวมอัปเดต task + metrics โปรเจกต์ให้เหลื่อมกันเสมอ (pure) —
+// Provider แค่วาง setState ผลลัพธ์; คำนวณจาก collection ตรง ๆ ไม่ increment นับเอง
+export function applyTaskSync(prev, mutateTasks, projectIds) {
+  const nextTasks = mutateTasks(prev.tasks);
+  const nextProjects = Array.isArray(projectIds) && projectIds.length > 0
+    ? syncProjectsWithTasks(prev.projects, nextTasks, projectIds)
+    : prev.projects;
+  return { tasks: nextTasks, projects: nextProjects };
+}
+
+export const MOCK_PROJECTS = RAW_PROJECTS.map((p) =>
+  calculateProjectMetrics(p, MOCK_TASKS.filter((t) => t.projectId === p.id))
+);
 
 // Alias เพื่อความเข้ากันได้ 100% กับโค้ดเดิมที่เรียก MOCK_PROJECTS_FALLBACK
 export const MOCK_PROJECTS_FALLBACK = MOCK_PROJECTS;

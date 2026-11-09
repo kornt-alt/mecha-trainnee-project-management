@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
-import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS, MOCK_TASKS } from '../data/mockData';
+import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import {
   MOCK_PLANNED_WORK_ENTRIES,
   getWeekSchedulePattern,
@@ -38,11 +39,21 @@ const PRIORITY_META = {
   low: { label: 'Low', bg: 'secondary' },
 };
 
+  
+
+
+
+
 function EmployeeWorkloadDetailModal({ show, onHide, employee, range, period }) {
+  const { projects: mockProjects, tasks: mockTasks } = useMockData();
+  
+
+  
   const [sortKey, setSortKey] = useState('workload');
   const [sortDirection, setSortDirection] = useState('desc');
 
   if (!employee) return null;
+
 
   const totalWorkload = Number(employee.plannedHours || 0);
   const actualCapacity = Number(employee.capacityHours || 0);
@@ -72,7 +83,7 @@ function EmployeeWorkloadDetailModal({ show, onHide, employee, range, period }) 
     const hasProject = entry.projectId != null;
     const pId = hasProject ? entry.projectId : 'unassigned';
     if (!projectMap.has(pId)) {
-      const project = hasProject ? (MOCK_PROJECTS || []).find((p) => p.id === entry.projectId) : null;
+      const project = hasProject ? (mockProjects || []).find((p) => p.id === entry.projectId) : null;
       projectMap.set(pId, {
         id: pId,
         name: project ? project.name : (hasProject ? `Project #${entry.projectId}` : 'Unassigned Tasks'),
@@ -88,7 +99,7 @@ function EmployeeWorkloadDetailModal({ show, onHide, employee, range, period }) 
 
   const projectRows = Array.from(projectMap.values()).map((p) => {
     const tasks = Array.from(p.taskIds)
-      .map((id) => (MOCK_TASKS || []).find((t) => t.id === id))
+      .map((id) => (mockTasks || []).find((t) => t.id === id))
       .filter(Boolean);
     const priorities = [...new Set(tasks.map((t) => t.priority).filter(Boolean))];
 
@@ -323,7 +334,12 @@ function EmployeeWorkloadDetailModal({ show, onHide, employee, range, period }) 
 }
 
 export default function Workload() {
-  const [period, setPeriod] = useState('weekly');
+  const { projects: mockProjects } = useMockData();
+  
+
+  
+
+    const [period, setPeriod] = useState('weekly');
   const [referenceDate, setReferenceDate] = useState(() => toISODate(new Date()));
   const [department, setDepartment] = useState('all');
   const [position, setPosition] = useState('all');
@@ -411,10 +427,10 @@ export default function Workload() {
   }, [matrixBuckets, data.employees, data.entries]);
 
   const projects = useMemo(() => {
-    if (!Array.isArray(MOCK_PROJECTS)) return [];
+    if (!Array.isArray(mockProjects)) return [];
     const entriesList = Array.isArray(data?.entries) ? data.entries : [];
-    return MOCK_PROJECTS.filter((project) => entriesList.some((entry) => entry.projectId === project.id));
-  }, [data.entries]);
+    return mockProjects.filter((project) => entriesList.some((entry) => entry.projectId === project.id));
+  }, [data.entries, mockProjects]);
 
   const selectedDetails = selectedEmployee
     ? (data.employees || []).find((employee) => employee.id === selectedEmployee.id) || selectedEmployee
