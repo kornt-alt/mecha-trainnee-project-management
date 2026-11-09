@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Badge, Card, Col, Modal, Row, Table } from 'react-bootstrap';
+import { Badge, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
 import { MOCK_PROJECTS } from '../data/mockData';
 import {
   MOCK_PROJECT_ASSIGNMENTS,
@@ -9,6 +9,7 @@ import {
   getAssignmentStatusLabel,
   WORKLOAD_STATUS_META,
 } from '../data/workloadMatrixData';
+import { filterEmployees } from '../data/workloadMockData';
 
 const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} hrs`;
@@ -53,13 +54,10 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
 
   const months = useMemo(() => buildMatrixMonths(windowStart.year, windowStart.month), [windowStart]);
 
-  const filteredEmployees = useMemo(() => employees.filter((employee) => {
-    const matchesDepartment = department === 'all' || employee.departmentId === department;
-    const matchesPosition = position === 'all' || employee.position === position;
-    const searchTarget = `${employee.name || ''} ${employee.id || ''} ${employee.position || ''} ${employee.department || ''} ${employee.email || ''} ${employee.nickname || ''}`.toLowerCase();
-    const matchesSearch = searchTarget.includes(search.toLowerCase());
-    return matchesDepartment && matchesPosition && matchesSearch;
-  }), [employees, department, position, search]);
+  const filteredEmployees = useMemo(
+    () => filterEmployees(employees, { department, position, search }),
+    [employees, department, position, search],
+  );
 
   const rows = useMemo(
     () => filteredEmployees.map((employee) => computeEmployeeMatrixRow(employee, months, MOCK_PROJECT_ASSIGNMENTS, projectFilter)),
@@ -73,11 +71,25 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
     [rows, statusFilter],
   );
 
+  // Previous / Next moves the 6-month forecast window by exactly one month.
   const navigate = (direction) => {
     setWindowStart((current) => {
-      const total = current.year * 12 + current.month + direction * 6;
+      const total = current.year * 12 + current.month + direction;
       return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
     });
+  };
+
+  const startMonthValue = `${windowStart.year}-${String(windowStart.month + 1).padStart(2, '0')}`;
+
+  const handleStartMonthChange = (event) => {
+    const val = event.target.value;
+    if (!val) return;
+    const [yearStr, monthStr] = val.split('-');
+    const year = parseInt(yearStr, 10);
+    const month = parseInt(monthStr, 10) - 1;
+    if (!isNaN(year) && !isNaN(month) && month >= 0 && month <= 11) {
+      setWindowStart({ year, month });
+    }
   };
 
   const projectById = useMemo(() => new Map(MOCK_PROJECTS.map((project) => [project.id, project])), []);
@@ -99,9 +111,34 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
             <option value="na">N/A</option>
           </select>
           <div className="workload-forecast-nav">
-            <button type="button" className="workload-forecast-nav-btn" onClick={() => navigate(-1)} aria-label="ย้อนหลัง 6 เดือน">‹ Prev</button>
+            <button
+              type="button"
+              className="workload-forecast-nav-btn"
+              onClick={() => navigate(-1)}
+              aria-label="ย้อนหลัง 1 เดือน"
+              title="ย้อนหลัง 1 เดือน"
+            >
+              ‹ Prev
+            </button>
+            <Form.Control
+              type="month"
+              size="sm"
+              className="workload-forecast-month-picker"
+              aria-label="เลือกเดือนเริ่มต้น Forecast"
+              title="เลือกเดือนเริ่มต้น Forecast (แสดงต่อเนื่อง 6 เดือน)"
+              value={startMonthValue}
+              onChange={handleStartMonthChange}
+            />
             <span className="workload-forecast-window">{windowLabel}</span>
-            <button type="button" className="workload-forecast-nav-btn" onClick={() => navigate(1)} aria-label="ถัดไป 6 เดือน">Next ›</button>
+            <button
+              type="button"
+              className="workload-forecast-nav-btn"
+              onClick={() => navigate(1)}
+              aria-label="ถัดไป 1 เดือน"
+              title="ถัดไป 1 เดือน"
+            >
+              Next ›
+            </button>
           </div>
         </div>
       </Card.Header>

@@ -9,6 +9,7 @@ import {
   toISODate,
   getWorkloadPeriodRange as getRange,
   computeEmployeeWorkloadData,
+  filterEmployees,
 } from '../data/workloadMockData';
 import './workload.css';
 import WorkloadMatrix from './WorkloadMatrix';
@@ -26,7 +27,9 @@ const fmtDate = (value) => {
   const date = parseISODate(value);
   return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543}`;
 };
-const getStatus = (percent) => percent > 100 ? 'danger' : percent >= 80 ? 'warning' : percent >= 50 ? 'primary' : 'success';
+// Utilization thresholds — aligned with Workload Matrix and EmployeeWorkloadDetailModal.
+// Available: < 90% | Near Capacity: 90–99% | Overcapacity: ≥ 100%
+const getStatus = (percent) => percent >= 100 ? 'danger' : percent >= 90 ? 'warning' : 'success';
 
 const PRIORITY_ORDER = { urgent: 4, high: 3, normal: 2, low: 1 };
 const PRIORITY_META = {
@@ -345,15 +348,33 @@ export default function Workload() {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const range = useMemo(() => getRange(period, referenceDate), [period, referenceDate]);
 
-  const visibleEmployees = useMemo(() => {
-    if (!Array.isArray(MOCK_EMPLOYEES)) return [];
-    return MOCK_EMPLOYEES.filter((employee) => {
-      const matchesDepartment = department === 'all' || employee.departmentId === department;
-      const matchesPosition = position === 'all' || employee.position === position;
-      const matchesSearch = `${employee.name} ${employee.position} ${employee.department}`.toLowerCase().includes(search.toLowerCase());
-      return matchesDepartment && matchesPosition && matchesSearch;
-    });
-  }, [department, position, search]);
+  const handleDepartmentChange = (event) => {
+    const nextDept = event.target.value;
+    setDepartment(nextDept);
+    // If a specific position is selected, check if it belongs to the newly selected section.
+    // If not, reset position to 'all' to avoid stale/invalid combinations.
+    if (position !== 'all') {
+      const validPositions = (nextDept === 'all'
+        ? MOCK_EMPLOYEES
+        : MOCK_EMPLOYEES.filter((emp) => emp.departmentId === nextDept)
+      ).map((emp) => emp.position);
+      if (!validPositions.includes(position)) {
+        setPosition('all');
+      }
+    }
+  };
+
+  const availablePositions = useMemo(() => {
+    const pool = department === 'all'
+      ? MOCK_EMPLOYEES
+      : MOCK_EMPLOYEES.filter((emp) => emp.departmentId === department);
+    return [...new Set(pool.map((emp) => emp.position))].sort((a, b) => a.localeCompare(b, 'th'));
+  }, [department]);
+
+  const visibleEmployees = useMemo(
+    () => filterEmployees(MOCK_EMPLOYEES, { department, position, search }),
+    [department, position, search],
+  );
 
   const data = useMemo(() => {
     return computeEmployeeWorkloadData(visibleEmployees, MOCK_PLANNED_WORK_ENTRIES, range, projectFilter);
@@ -458,13 +479,13 @@ export default function Workload() {
           <div className="workload-toolbar-bottom">
             <span>ช่วงข้อมูล: <strong>{fmtDate(range.start)} – {fmtDate(range.end)}</strong></span>
             <div className="d-flex flex-wrap gap-2">
-              <Form.Select size="sm" value={department} onChange={(event) => setDepartment(event.target.value)} aria-label="กรองแผนก">
-                <option value="all">ทุกแผนก</option>
+              <Form.Select size="sm" value={department} onChange={handleDepartmentChange} aria-label="กรอง Section (แผนก)">
+                <option value="all">ทุก Section (แผนก)</option>
                 {MOCK_DEPARTMENTS.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
               </Form.Select>
-              <Form.Select size="sm" value={position} onChange={(event) => setPosition(event.target.value)} aria-label="กรองตำแหน่ง">
-                <option value="all">ทุกตำแหน่ง / Sub-section</option>
-                {[...new Set(MOCK_EMPLOYEES.map((employee) => employee.position))].sort((a, b) => a.localeCompare(b, 'th')).map((item) => <option key={item} value={item}>{item}</option>)}
+              <Form.Select size="sm" value={position} onChange={(event) => setPosition(event.target.value)} aria-label="กรอง Sub-section (ตำแหน่ง)">
+                <option value="all">ทุก Sub-section (ตำแหน่ง)</option>
+                {availablePositions.map((item) => <option key={item} value={item}>{item}</option>)}
               </Form.Select>
               <Form.Select size="sm" value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} aria-label="กรองโปรเจกต์">
                 <option value="all">ทุกโปรเจกต์</option>

@@ -28,3 +28,13 @@
 | --- | --- |
 | `/PROJECT-MANAGEMENT` | `backend/.env` (`APP_BASE`) · `frontend/src/utils/config.js` · `homepage` ใน `frontend/package.json` · config Apache |
 | สถานะโปรเจกต์ | `backend/db/schema.sql` · `backend/services/projects.js` · `frontend/src/utils/config.js` · สีใน `frontend/src/index.css` |
+
+## Reuse First (บังคับ)
+- อ่าน coding-rules.md และ Source Code ที่เกี่ยวข้องก่อนแก้ไขทุกครั้ง
+- ค้นหา Component, Hook, Context, Utility, CSS และ Data Flow ที่มีอยู่ก่อนสร้างใหม่
+- ใช้ Reuse → Extend → Refactor → Create New ตามลำดับ
+- ห้ามสร้าง Logic หรือ State ซ้ำ
+- แก้เฉพาะส่วนที่จำเป็น และรักษาพฤติกรรมเดิม
+- ตรวจสอบ Git Status/Diff ก่อนและหลังแก้ไข
+- รัน Build, ESLint, Tests ที่เกี่ยวข้อง และ `git diff --check`
+- ห้าม Commit/Push/Switch/Stash/Reset โดยไม่ได้รับอนุญาต

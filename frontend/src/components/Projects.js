@@ -381,6 +381,9 @@ export default function Projects() {
               </Table>
             </Card>
           )}
+
+          {/* ── ตารางติดตามโปรเจกต์ 8 คอลัมน์ (โหมด mock — อ่านจาก Context กลาง) ── */}
+          {!loading && !noProjectsAtAll && <ProjectsTrackingTable />}
         </>
       )}
 

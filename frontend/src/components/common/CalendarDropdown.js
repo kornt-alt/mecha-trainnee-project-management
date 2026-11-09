@@ -1,5 +1,6 @@
 // frontend/src/components/common/CalendarDropdown.js — ปฏิทินแบบเต็ม (Full Calendar) แบบ Dropdown พร้อมแอนิเมชันที่นุ่มนวล
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Modal, Button } from 'react-bootstrap';
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,7 +8,7 @@ import {
   CircleAlert,
   CircleCheck,
 } from './Icons';
-import { MOCK_TASKS } from '../../data/mockData';
+import { useMockData } from '../../context/MockDataContext';
 
 const THAI_MONTHS_FULL = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
@@ -26,9 +27,15 @@ export default function CalendarDropdown({
   isOpen,
   onClose,
   currentTime = new Date(),
-  tasks = MOCK_TASKS,
 }) {
+  const { tasks } = useMockData();
   const containerRef = useRef(null);
+  const [selectedTask, setSelectedTask] = useState(null);
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedTask(null);
+    }
+  }, [isOpen]);
 
   // วันและเดือนที่กำลังเปิดดูในปฏิทิน
   const [viewDate, setViewDate] = useState(() => new Date(currentTime));
@@ -49,6 +56,7 @@ export default function CalendarDropdown({
     if (!isOpen) return;
 
     const handleClickOutside = (event) => {
+      if (selectedTask) return;
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         onClose();
       }
@@ -69,7 +77,7 @@ export default function CalendarDropdown({
       document.removeEventListener('touchstart', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, selectedTask]);
 
   const viewYear = viewDate.getFullYear();
   const viewMonth = viewDate.getMonth();
@@ -382,7 +390,7 @@ export default function CalendarDropdown({
                 <span>งานที่มีกำหนดส่งในวันนี้ ({selectedDayTasks.length} รายการ):</span>
               </div>
               {selectedDayTasks.map((task) => (
-                <div key={task.id} className="calendar-task-item d-flex justify-content-between align-items-center">
+                <div key={task.id} className="calendar-task-item d-flex justify-content-between align-items-center" onClick={() => setSelectedTask(task)} style={{cursor:'pointer'}}>
                   <div className="d-flex flex-column text-truncate me-2">
                     <span className="calendar-task-title text-truncate">{task.title}</span>
                     <span className="calendar-task-project text-muted small text-truncate">
@@ -405,6 +413,35 @@ export default function CalendarDropdown({
           )}
         </div>
       </div>
+
+      {selectedTask && (
+        <Modal show onHide={() => setSelectedTask(null)} centered>
+          <Modal.Header closeButton>
+            <Modal.Title className="h5 fw-bold text-ink">รายละเอียดงาน</Modal.Title>
+          </Modal.Header>
+          <Modal.Body className="p-4">
+            <div className="mb-3">
+              <span className="small text-muted d-block mb-1">ชื่องาน</span>
+              <h5 className="fw-semibold text-ink">{selectedTask.title}</h5>
+            </div>
+            <div className="mb-3">
+              <span className="small text-muted d-block mb-1">โปรเจกต์ต้นสังกัด</span>
+              <div className="fw-medium text-ink">{selectedTask.projectName}</div>
+            </div>
+            <div className="mb-2">
+              <span className="small text-muted d-block mb-1">กำหนดส่ง</span>
+              <span className="small text-ink">{selectedTask.dueDate}</span>
+            </div>
+            <div className="mb-2">
+              <span className="small text-muted d-block mb-1">สถานะ</span>
+              <span className="small text-ink">{selectedTask.statusLabel || selectedTask.status}</span>
+            </div>
+          </Modal.Body>
+          <Modal.Footer>
+            <Button variant="outline-secondary" size="sm" onClick={() => setSelectedTask(null)}>ปิดหน้าต่าง</Button>
+          </Modal.Footer>
+        </Modal>
+      )}
     </div>
   );
 }
