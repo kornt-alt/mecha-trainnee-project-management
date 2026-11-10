@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
 import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
@@ -40,6 +40,57 @@ const PRIORITY_META = {
   low: { label: 'Low', bg: 'secondary' },
 };
 
+
+function EmployeeWorkloadBar({ percent, index }) {
+  const targetWidth = Math.max(0, Math.min(percent, 130) / 130 * 100);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setWidth(targetWidth);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [targetWidth]);
+
+  return (
+    <span className="workload-employee-track">
+      <span
+        className={`workload-employee-fill ${percent > 100 ? 'is-over' : ''}`}
+        style={{
+          width: `${width}%`,
+          '--bar-delay': `${index * 60}ms`,
+        }}
+      />
+      <span className="workload-cap-marker" style={{ left: `${100 / 130 * 100}%` }} />
+    </span>
+  );
+}
+
+function TeamWorkloadBar({ utilization, isOver, index }) {
+  const targetWidth = utilization !== null ? Math.max(0, Math.min(utilization, 130) / 130 * 100) : 0;
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setWidth(targetWidth);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [targetWidth]);
+
+  return (
+    <div className="workload-team-track">
+      <span
+        className={`workload-team-fill ${isOver ? 'is-over' : ''}`}
+        style={{
+          width: `${width}%`,
+          '--bar-delay': `${index * 80}ms`,
+        }}
+      />
+      <span className="workload-cap-marker" style={{ left: `${100 / 130 * 100}%` }} />
+    </div>
+  );
+}
+
 export default function Workload() {
   const { projects: mockProjects } = useMockData();
   
@@ -53,6 +104,7 @@ export default function Workload() {
   const [projectFilter, setProjectFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [selectedEmployee, setSelectedEmployee] = useState(null);
+  const [activeView, setActiveView] = useState('employees'); // 'employees' | 'teams'
   const range = useMemo(() => getRange(period, referenceDate), [period, referenceDate]);
 
   const handleDepartmentChange = (event) => {
@@ -143,6 +195,30 @@ export default function Workload() {
     ? (data.employees || []).find((emp) => emp.id === selectedEmployee.id) || selectedEmployee
     : null;
   const weekPattern = period === 'weekly' ? getWeekSchedulePattern(referenceDate) : null;
+
+  const teamSummary = useMemo(() => {
+    const TEAMS = [
+      { id: 'dept-1', name: 'IT' },
+      { id: 'dept-3', name: 'AI' },
+      { id: 'dept-2', name: 'Electrical' },
+    ];
+    const employeesList = Array.isArray(data?.employees) ? data.employees : [];
+    return TEAMS.map((team) => {
+      const teamEmployees = employeesList.filter((emp) => emp.departmentId === team.id);
+      const plannedHours = teamEmployees.reduce((sum, emp) => sum + Number(emp.plannedHours || 0), 0);
+      const capacityHours = teamEmployees.reduce((sum, emp) => sum + Number(emp.capacityHours || 0), 0);
+      const utilization = capacityHours > 0 ? (plannedHours / capacityHours) * 100 : null;
+      const isOver = utilization !== null && utilization >= 100;
+      return {
+        ...team,
+        count: teamEmployees.length,
+        plannedHours,
+        capacityHours,
+        utilization,
+        isOver,
+      };
+    });
+  }, [data?.employees]);
 
   const shiftSummary = useMemo(() => {
     const employeesList = Array.isArray(data?.employees) ? data.employees : [];
@@ -253,31 +329,98 @@ export default function Workload() {
           <Card className="workload-panel h-100">
             <Card.Header>
               <div>
-                <h2>Team Workload vs. Maximum Capacity</h2>
-                <p>คลิกแถวพนักงานเพื่อดูรายละเอียด Planned Hours แยกตามโปรเจกต์</p>
+                <h2>{activeView === 'teams' ? 'Team Workload Summary' : 'Team Workload vs. Maximum Capacity'}</h2>
+                <p>
+                  {activeView === 'teams'
+                    ? 'สรุป Planned Hours, Available Capacity และ Utilization แยกตาม 3 ทีมหลัก'
+                    : 'คลิกแถวพนักงานเพื่อดูรายละเอียด Planned Hours แยกตามโปรเจกต์'}
+                </p>
               </div>
-              <div className="workload-chart-legend">
-                <span><i className="normal"/> Normal Load</span>
-                <span><i className="over"/> Overcapacity</span>
-                <span><i className="cap"/> Capacity</span>
+              <div className="d-flex align-items-center gap-3">
+                <div className="workload-chart-legend">
+                  <span><i className="normal"/> Normal Load</span>
+                  <span><i className="over"/> Overcapacity</span>
+                  <span><i className="cap"/> Capacity</span>
+                </div>
+                <div className="workload-view-switcher" role="tablist" aria-label="มุมมองภาระงาน">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeView === 'employees'}
+                    className={`workload-view-segment ${activeView === 'employees' ? 'active' : ''}`}
+                    onClick={() => setActiveView('employees')}
+                  >
+                    Employees
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeView === 'teams'}
+                    className={`workload-view-segment ${activeView === 'teams' ? 'active' : ''}`}
+                    onClick={() => setActiveView('teams')}
+                  >
+                    Teams
+                  </button>
+                </div>
               </div>
             </Card.Header>
             <Card.Body>
-              <div className="workload-employee-chart">
-                {data.employees.map((employee) => {
-                  const width = Math.max(0, Math.min(employee.percent, 130) / 130 * 100);
-                  return (
-                    <button type="button" key={employee.id} className="workload-employee-row" onClick={() => setSelectedEmployee(employee)} title={`ดูรายละเอียด ${employee.name}`}>
-                      <span className="workload-employee-name"><strong>{employee.name}</strong><small>{employee.position}</small></span>
-                      <span className="workload-employee-track">
-                        <span className={`workload-employee-fill ${employee.percent > 100 ? 'is-over' : ''}`} style={{ width: `${width}%` }} />
-                        <span className="workload-cap-marker" style={{ left: `${100 / 130 * 100}%` }} />
-                      </span>
-                      <span className="workload-employee-number"><strong>{employee.plannedHours.toFixed(1)}</strong> <small>/ {employee.capacityHours.toFixed(1)} ชม. · {employee.percent.toFixed(0)}%</small></span>
-                    </button>
-                  );
-                })}
-                {!data.employees.length && <div className="text-center text-muted py-5">ไม่พบข้อมูลพนักงานตามตัวกรอง</div>}
+              <div className="workload-view-container">
+                {activeView === 'employees' ? (
+                  <div key="employees-view" className="workload-view-content">
+                    <div className="workload-employee-chart">
+                      {data.employees.map((employee, index) => {
+                        
+                        return (
+                          <button type="button" key={employee.id} className="workload-employee-row" onClick={() => setSelectedEmployee(employee)} title={`ดูรายละเอียด ${employee.name}`}>
+                            <span className="workload-employee-name"><strong>{employee.name}</strong><small>{employee.position}</small></span>
+                            <EmployeeWorkloadBar percent={employee.percent} index={index} />
+                            <span className="workload-employee-number"><strong>{employee.plannedHours.toFixed(1)}</strong> <small>/ {employee.capacityHours.toFixed(1)} ชม. · {employee.percent.toFixed(0)}%</small></span>
+                          </button>
+                        );
+                      })}
+                      {!data.employees.length && <div className="text-center text-muted py-5">ไม่พบข้อมูลพนักงานตามตัวกรอง</div>}
+                    </div>
+                  </div>
+                ) : (
+                  <div key="teams-view" className="workload-view-content">
+                    <div className="workload-team-cards-grid">
+                      {teamSummary.map((team, index) => {
+                        
+                        return (
+                          <div key={team.id} className="workload-team-card">
+                            <div>
+                              <div className="workload-team-card-header">
+                                <h3 className="workload-team-card-name">{team.name}</h3>
+                                <span className="workload-team-card-emp">{team.count} คน</span>
+                              </div>
+                              <div className="workload-team-metrics">
+                                <div className="workload-team-metric-item">
+                                  <small>Planned Hours</small>
+                                  <strong>{team.plannedHours.toFixed(1)} ชม.</strong>
+                                </div>
+                                <div className="workload-team-metric-item">
+                                  <small>Available Capacity</small>
+                                  <strong>{team.capacityHours.toFixed(1)} ชม.</strong>
+                                </div>
+                              </div>
+                              <div className="workload-team-utilization">
+                                <span className="workload-team-utilization-label">Utilization</span>
+                                <span className={`workload-team-utilization-val ${team.utilization === null ? 'is-na' : team.isOver ? 'is-over' : 'is-normal'}`}>
+                                  {team.utilization !== null ? `${team.utilization.toFixed(1)}%` : 'N/A'}
+                                </span>
+                              </div>
+                              <TeamWorkloadBar utilization={team.utilization} isOver={team.isOver} index={index} />
+                            </div>
+                            <div className={`workload-team-alert-pill ${team.utilization === null ? 'is-na' : team.isOver ? 'is-over' : 'is-normal'}`}>
+                              {team.utilization === null ? 'ไม่มี Capacity ในช่วงนี้' : team.isOver ? '⚠️ เกิน Capacity (Overload)' : '✓ ภาระงานปกติ (Normal Load)'}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </Card.Body>
           </Card>

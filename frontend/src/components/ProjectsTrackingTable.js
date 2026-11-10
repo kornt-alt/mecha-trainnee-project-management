@@ -20,8 +20,18 @@ const isDelayed = (p) => {
   return !['done', 'cancelled'].includes(p.status) && p.dueDate && p.dueDate < t;
 };
 
-// ผู้รับผิดชอบเป็นรายบุคคลจาก managerId (owner เดิมเป็นข้อความรวม "A / B" ไม่มีอีเมล)
-const ownerOf = (p) => MOCK_EMPLOYEES.find((e) => e.id === p.managerId) || null;
+// ผู้รับผิดชอบ: ตรวจสอบจาก managerId ก่อน หากไม่พบตรวจสอบชื่อจาก owner เดิม (รองรับกรณีข้อมูล legacy / unmatched)
+const ownerOf = (p) => {
+  if (p.managerId) {
+    const found = MOCK_EMPLOYEES.find((e) => e.id === p.managerId);
+    if (found) return found;
+  }
+  if (p.owner) {
+    const exact = MOCK_EMPLOYEES.find((e) => e.name === p.owner);
+    if (exact) return exact;
+  }
+  return null;
+};
 
 // อักษรย่อจากชื่อ-นามสกุล (2 ตัว)
 const initials = (name) => {
@@ -30,18 +40,52 @@ const initials = (name) => {
   return String(name || '?').slice(0, 2).toUpperCase();
 };
 
-// ลำดับความสำคัญรายโปรเจกต์ = อนุพันธ์จากงานทั้งหมดในโปรเจกต์ (เอาลำดับสูงสุด) — แมป normal → Medium ตามข้อกำหนด ไม่แก้ข้อมูล mock
-const RANK = { urgent: 3, high: 2, normal: 1, low: 0 };
+// ลำดับความสำคัญรายโปรเจกต์ = อนุพันธ์จากงานทั้งหมดในโปรเจกต์ (เอาลำดับสูงสุด)
+const RANK = { urgent: 3, high: 2, normal: 1, medium: 1, low: 0 };
 const PRIORITY_BADGES = {
   urgent: { label: 'ด่วนมาก', variant: 'urgent' },
   high: { label: 'สูง', variant: 'high' },
   normal: { label: 'ปกติ (Medium)', variant: 'medium' },
+  medium: { label: 'ปกติ (Medium)', variant: 'medium' },
   low: { label: 'ต่ำ', variant: 'low' },
 };
-const priorityOf = (relatedTasks) => {
-  if (relatedTasks.length === 0) return { label: '-', variant: 'low' };
-  const top = relatedTasks.reduce((a, b) => ((RANK[a.priority] === undefined ? -1 : RANK[a.priority]) >= (RANK[b.priority] === undefined ? -1 : RANK[b.priority]) ? a.priority : b.priority));
-  return PRIORITY_BADGES[top] || { label: String(top), variant: 'low' };
+
+// ฟังก์ชัน normalize ระดับความสำคัญ: รองรับทั้ง string, object ที่มี label/value/name/key
+const normalizePriorityKey = (val) => {
+  if (!val) return 'low';
+  if (typeof val === 'string') {
+    const k = val.toLowerCase().trim();
+    if (k === 'ด่วนมาก' || k === 'urgent') return 'urgent';
+    if (k === 'สูง' || k === 'high') return 'high';
+    if (k === 'ปกติ' || k === 'ปานกลาง' || k === 'medium' || k === 'normal') return 'normal';
+    if (k === 'ต่ำ' || k === 'low') return 'low';
+    return RANK[k] !== undefined ? k : 'low';
+  }
+  if (typeof val === 'object') {
+    return normalizePriorityKey(val.key || val.value || val.variant || val.label || val.name || '');
+  }
+  return 'low';
+};
+
+const priorityOf = (relatedTasks, project) => {
+  // หากไม่มีงานที่ผูก ให้ fallback ตรวจสอบ priority ของ project (ถ้ามี)
+  if (!relatedTasks || relatedTasks.length === 0) {
+    if (project && project.priority) {
+      const norm = normalizePriorityKey(project.priority);
+      return PRIORITY_BADGES[norm] || { label: 'ต่ำ', variant: 'low' };
+    }
+    return { label: '-', variant: 'low' };
+  }
+
+  // หา priority สูงสุดในงานทั้งหมดที่เกี่ยวข้อง (ป้องกันกรณี reduce คืน task object)
+  const topTask = relatedTasks.reduce((highest, current) => {
+    const rCurrent = RANK[normalizePriorityKey(current.priority)] ?? 0;
+    const rHighest = RANK[normalizePriorityKey(highest.priority)] ?? 0;
+    return rCurrent >= rHighest ? current : highest;
+  });
+
+  const topKey = normalizePriorityKey(topTask.priority);
+  return PRIORITY_BADGES[topKey] || { label: 'ต่ำ', variant: 'low' };
 };
 
 export default function ProjectsTrackingTable() {
@@ -82,15 +126,20 @@ export default function ProjectsTrackingTable() {
             const related = tasks.filter((t) => String(t.projectId) === String(p.id));
             const stats = statsFrom(related, p.status);
             const delayed = isDelayed(p);
-            const priority = priorityOf(related);
+            const priority = priorityOf(related, p);
             return (
               <tr key={p.id}>
-                {/* ── 1. ผู้รับผิดชอบ: อวตารอักษรย่อ + อีเมล ── */}
+                {/* ── 1. ผู้รับผิดชอบ: อวตารอักษรย่อ + อีเมล (หรือ fallback ชื่อ/owner เดิม) ── */}
                 <td className="text-nowrap">
                   {owner ? (
                     <div className="tracking-owner d-flex align-items-center gap-2">
                       <span className="tracking-avatar flex-shrink-0">{initials(owner.name)}</span>
-                      <span className="text-truncate">{owner.email}</span>
+                      <span className="text-truncate">{owner.email || owner.name}</span>
+                    </div>
+                  ) : p.owner ? (
+                    <div className="tracking-owner d-flex align-items-center gap-2">
+                      <span className="tracking-avatar flex-shrink-0">{initials(p.owner)}</span>
+                      <span className="text-truncate text-muted">{p.owner}</span>
                     </div>
                   ) : (
                     <span className="text-muted">-</span>
