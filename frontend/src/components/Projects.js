@@ -6,22 +6,19 @@ import {
   Badge,
   Button,
   Card,
-  Col,
-  Dropdown,
-  Form,
-  InputGroup,
   Modal,
-  ProgressBar,
-  Row,
   Spinner,
-  Table,
+  Row,
+  Col,
+  InputGroup,
+  Form,
 } from 'react-bootstrap';
 import { api, useLoad } from '../utils/api';
 import { PROJECT_CATEGORIES, PROJECT_STATUSES, statusLabel } from '../utils/config';
 import { useMockData } from '../context/MockDataContext';
 import { MOCK_EMPLOYEES } from '../data/mockData';
 import ProjectsTrackingTable from './ProjectsTrackingTable';
-import { Check, Folder, MoreVertical, Pencil, Plus, Search, Trash2, X } from './common/Icons';
+import { Folder, Plus, Search, Trash2, X } from './common/Icons';
 
 const EMPTY = { name: '', category: '', managerId: '', owner: '', status: 'planning', startDate: '', dueDate: '', description: '' };
 
@@ -29,24 +26,6 @@ const EMPTY = { name: '', category: '', managerId: '', owner: '', status: 'plann
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-};
-
-// แสดงวันที่เป็น yyyy/mm/dd · null = '-'
-const ymd = (v) => (v ? v.replace(/-/g, '/') : '-');
-
-// จำนวนวันถึงกำหนดส่ง (ลบ = เลยกำหนด) · null = ไม่มีกำหนดส่ง
-const daysUntil = (dueDate) => {
-  if (!dueDate) return null;
-  const d = new Date(dueDate);
-  const t = new Date(today());
-  return Math.round((d - t) / 86400000);
-};
-
-// เฉพาะโปรเจกต์ที่ยังไม่เสร็จ/ยกเลิก = เลยกำหนดได้
-const hasDeadline = (p) => !['done', 'cancelled'].includes(p.status);
-const isOverdue = (p) => {
-  const n = daysUntil(p.dueDate);
-  return n !== null && n < 0 && hasDeadline(p);
 };
 
 // เรียงลำดับตามความเร่งด่วนของกำหนดส่ง: เลยกำหนด → ภายใน 7 วัน → อนาคต → ไม่มีกำหนดส่ง
@@ -79,17 +58,6 @@ const sortProjectsByUrgency = (projects) => {
       || a.i - b.i // stable: ลำดับเดิมเมื่อเท่ากัน
     )
     .map((x) => x.p);
-};
-
-// ข้อความบริบทกำหนดส่ง: เหลือ 5 วัน · เลยกำหนด 3 วัน · ครบกำหนดวันนี้ — คืน null เมื่อไม่มีอะไรแสดง
-const dueContext = (p) => {
-  const n = daysUntil(p.dueDate);
-  if (n === null) return null;
-  if (!hasDeadline(p)) return null; // done/cancelled — แสดงแค่วันที่พอ
-  if (n < 0) return `เลยกำหนด ${Math.abs(n)} วัน`;
-  if (n === 0) return 'ครบกำหนดวันนี้';
-  if (n <= 30) return `เหลือ ${n} วัน`;
-  return null;
 };
 
 export default function Projects() {
@@ -127,24 +95,6 @@ export default function Projects() {
   const clearFilters = () => {
     setSearch('');
     setFilter('');
-  };
-
-  const changeStatus = async (p, status) => {
-    setActionError('');
-    if (!isApiConnected) {
-      // โหมดตัวอย่าง: อัปเดตใน shared mock state โดยตรง (ไม่ยิง API) — immutable update
-      setProjects((prev) =>
-        prev.map((item) => (item.id === p.id ? { ...item, status } : item))
-      );
-      return;
-    }
-    try {
-      await api.patch(`/projects/${p.id}`, { status });
-      reload();
-    } catch (err) {
-      // API ล้มเหลว: แสดงข้อความจริง — ไม่แตะ mock state ที่แชร์อยู่ให้เบี้ยวกับข้อมูลจริงที่แสดงอยู่
-      setActionError(err?.message || 'เปลี่ยนสถานะโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
-    }
   };
 
   const confirmDelete = async () => {
@@ -270,122 +220,7 @@ export default function Projects() {
 
           {actionError && <Alert variant="danger" dismissible onClose={() => setActionError('')}>{actionError}</Alert>}
 
-          {sortedProjects.length === 0 && !loading ? (
-            // ── Empty state: ไม่มีโปรเจกต์ที่ตรงกับการค้นหา/ตัวกรอง ─────
-            <Card className="border-0 shadow-sm">
-              <Card.Body className="text-center py-5">
-                <div className="project-empty-icon mb-3">
-                  <Search size={40} className="text-muted" />
-                </div>
-                <div className="fw-medium mb-1">ไม่พบโปรเจกต์ที่ตรงกับเงื่อนไข</div>
-                <p className="text-muted small mb-3">ลองเปลี่ยนคำค้นหาหรือปรับตัวกรองสถานะ</p>
-                <Button variant="outline-primary" onClick={clearFilters}>
-                  ล้างตัวกรอง
-                </Button>
-              </Card.Body>
-            </Card>
-          ) : (
-            <Card className="border-0 shadow-sm project-table-card">
-              <Table hover responsive className="projects-table align-middle mb-0">
-                <thead>
-                  <tr>
-                    <th>ชื่อโปรเจกต์</th>
-                    <th>ผู้รับผิดชอบ</th>
-                    <th>กำหนดส่ง</th>
-                    <th style={{ minWidth: 170 }}>ความคืบหน้า</th>
-                    <th>สถานะ</th>
-                    <th className="text-center" style={{ width: 56 }} aria-label="การกระทำ" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sortedProjects.map((p) => {
-                    const ctx = dueContext(p);
-                    return (
-                      <tr key={p.id}>
-                        <td>
-                          <div className="project-name">{p.name}</div>
-                          {p.description && (
-                            <div className="project-desc small">{p.description}</div>
-                          )}
-                        </td>
-                        <td className="project-owner text-nowrap">{p.owner || '-'}</td>
-                        <td className="text-nowrap">
-                          <div className={`project-date ${isOverdue(p) ? 'text-overdue' : ''}`}>
-                            {ymd(p.dueDate)}
-                          </div>
-                          {ctx && (
-                            <div className={`small ${isOverdue(p) ? 'text-overdue' : 'project-date-muted'}`}>{ctx}</div>
-                          )}
-                        </td>
-                        <td>
-                          {p.totalTasks !== undefined && p.totalTasks > 0 ? (
-                            <div className="project-progress-line d-flex align-items-center gap-2">
-                              <ProgressBar
-                                now={p.progress ?? 0}
-                                style={{ height: 5 }}
-                                className="project-progress-bar flex-fill"
-                                aria-label={`ความคืบหน้า ${p.progress ?? 0}%`}
-                              />
-                              <span className="project-progress-label small text-nowrap">{p.progress ?? 0}%</span>
-                              <span className="project-task-count small text-nowrap">
-                                {p.completedTasks ?? 0}/{p.totalTasks}
-                                {p.unfinishedTasks > 0 && (
-                                  <span className="project-pending"> · ค้าง {p.unfinishedTasks}</span>
-                                )}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="project-date-muted small">-</span>
-                          )}
-                        </td>
-                        <td>
-                          <Badge bg="" className={`status-badge status-${p.status}`}>
-                            {statusLabel(p.status)}
-                          </Badge>
-                        </td>
-                        <td className="text-center text-nowrap">
-                          <Dropdown align="end" className="d-inline-flex project-row-dropdown">
-                            <Dropdown.Toggle
-                              variant=""
-                              size="sm"
-                              className="project-row-menu"
-                              aria-label={`การกระทำของ ${p.name}`}
-                            >
-                              <MoreVertical size={16} />
-                            </Dropdown.Toggle>
-                            <Dropdown.Menu fixed>
-                              <Dropdown.Header>เปลี่ยนสถานะเป็น</Dropdown.Header>
-                              {PROJECT_STATUSES.map((s) => (
-                                <Dropdown.Item
-                                  key={s.key}
-                                  disabled={s.key === p.status}
-                                  onClick={() => s.key !== p.status && changeStatus(p, s.key)}
-                                >
-                                  {s.key === p.status && <Check size={14} className="me-2" />}
-                                  {statusLabel(s.key)}
-                                </Dropdown.Item>
-                              ))}
-                              <Dropdown.Divider />
-                              <Dropdown.Item onClick={() => setEditing(p)}>
-                                <Pencil size={14} className="me-2" />
-                                แก้ไข
-                              </Dropdown.Item>
-                              <Dropdown.Item
-                                onClick={() => setDeleting(p)}
-                              >
-                                <Trash2 size={14} className="me-2" />
-                                ลบ
-                              </Dropdown.Item>
-                            </Dropdown.Menu>
-                          </Dropdown>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </Table>
-            </Card>
-          )}
+
 
           {/* ── ตารางติดตามโปรเจกต์ 8 คอลัมน์ (โหมด mock — อ่านจาก Context กลาง) ── */}
           {!loading && !noProjectsAtAll && <ProjectsTrackingTable />}

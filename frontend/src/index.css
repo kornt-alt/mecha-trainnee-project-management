@@ -2553,3 +2553,209 @@ body {
 .mecha-confirm-modal .modal-header { border-bottom: 1px solid var(--line); }
 .mecha-confirm-modal .modal-footer { border-top: 1px solid var(--line); gap: 0.5rem; }
 .mecha-confirm-modal .modal-footer .btn { min-width: 6rem; }
+
+/* ── ตารางติดตามโปรเจกต์ (Project Tracking) — clean minimal light theme ──
+ * พื้นหน้า = --paper (สว่างสะอาด) · ผิวตาราง = ขาว · เส้นแบ่งบางจาง · badge pastel อ่านง่าย
+ * ใช้ตัวแปรจาก tokens.css เท่านั้น — ไม่ใส่สีตรง (กติกาของ repo)
+ */
+.tracking-table-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 1.25rem;
+}
+
+.tracking-table {
+  --bs-table-bg: var(--surface);
+  --bs-table-hover-bg: rgba(var(--blue-rgb), 0.05);
+  --bs-table-hover-color: var(--ink);
+}
+
+.tracking-table thead th {
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tracking-table tbody td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+  color: var(--ink);
+  font-size: 0.85rem;
+}
+
+.tracking-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.tracking-table tbody td.text-overdue {
+  color: var(--red);
+  font-weight: 500;
+}
+
+/* ชื่อโปรเจกต์ / วันที่ — ลำดับสายตา: ชื่อเด่นกว่าข้อความรอง */
+.tracking-project-name {
+  font-weight: 500;
+}
+
+.tracking-date {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ผู้รับผิดชอบ: อวตารวงกลมอักษรย่อ (ต่อยอดโทน user-avatar เดิม) */
+.tracking-owner {
+  max-width: 200px;
+}
+
+.tracking-avatar {
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--blue-tint);
+  border: 1px solid rgba(var(--blue-rgb), 0.25);
+}
+
+/* แถบความคืบหน้า — track เดียวกับ projects-table/donut chart */
+.tracking-progress-bar {
+  min-width: 90px;
+  background-color: var(--chart-track);
+  border-radius: 999px;
+}
+
+.tracking-progress-bar .progress-bar {
+  border-radius: 999px;
+}
+
+.tracking-progress-label {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+/* ── Pastel badges ของตาราง tracking (compact pill) ── */
+.tracking-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border: 1px solid transparent;
+  line-height: 1.2;
+}
+
+/* หมวดหมู่: ฟ้าอ่อนโทนเดียวกันทุกหมวด เพื่อไม่แย่งสายตากับสถานะ */
+.tracking-pill-category {
+  background: var(--blue-tint);
+  color: var(--blue);
+  border-color: rgba(var(--blue-rgb), 0.18);
+}
+
+/* ลำดับความสำคัญ: แดง=ด่วนมาก · ส้ม=สูง · ฟ้า=ปกติ (Medium) · เทา=ต่ำ (ตาม semantic mapping) */
+.tracking-pill-priority.variant-urgent {
+  background: var(--red-tint);
+  color: var(--red);
+  border-color: rgba(var(--red-rgb), 0.18);
+}
+
+.tracking-pill-priority.variant-high {
+  background: var(--task-urgent-today-tint);
+  color: var(--task-urgent-today);
+  border-color: rgba(234, 88, 12, 0.18);
+}
+
+.tracking-pill-priority.variant-medium {
+  background: var(--blue-tint);
+  color: var(--blue);
+  border-color: rgba(var(--blue-rgb), 0.18);
+}
+
+.tracking-pill-priority.variant-low {
+  background: var(--task-urgent-normal);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+/* สถานะ:
+ * In Progress: ฟ้า
+ * Planning: เทาอ่อน / neutral
+ * Done: เขียว
+ * On Hold: เหลือง/ส้ม amber
+ * Cancelled: เทา
+ */
+.tracking-pill-status.status-done {
+  background: var(--green-tint);
+  color: var(--green);
+  border-color: rgba(var(--green-rgb), 0.18);
+}
+
+.tracking-pill-status.status-in_progress {
+  background: var(--blue-tint);
+  color: var(--blue);
+  border-color: rgba(var(--blue-rgb), 0.18);
+}
+
+.tracking-pill-status.status-planning {
+  background: #F1F5F9;
+  color: #64748B;
+  border-color: #E2E8F0;
+}
+
+.tracking-pill-status.status-on_hold {
+  background: var(--amber-tint);
+  color: var(--amber);
+  border-color: rgba(217, 119, 6, 0.18);
+}
+
+.tracking-pill-status.status-cancelled {
+  background: #F3F4F6;
+  color: #6B7280;
+  border-color: #E5E7EB;
+  text-decoration: none;
+}
+
+.tracking-pill-status {
+  background: var(--paper);
+  color: var(--muted);
+  border-color: var(--line);
+}
+
+.tracking-pill-status.is-delayed {
+  background: var(--red-tint);
+  color: var(--red);
+  border-color: rgba(var(--red-rgb), 0.18);
+}
+
+/* scrollbar บางเมื่อ 8 คอลัมน์เลื่อนนอนบนจอเล็ก — หน้ากระดาษไม่ล้นออกนอกการ์ด */
+.tracking-table-card .table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.tracking-table-card .table-responsive::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 999px;
+}
+
+@media (max-width: 575.98px) {
+  .tracking-table tbody td {
+    padding: 0.55rem 0.75rem;
+  }
+}

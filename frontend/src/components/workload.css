@@ -37,8 +37,17 @@
 .workload-employee-name strong { color:#263c5c; font-size:.77rem; font-weight:650; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .workload-employee-name small { color:#8a96a8; font-size:.66rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .workload-employee-track { position:relative; display:block; height:12px; background:#edf2fa; border-radius:10px; overflow:visible; }
-.workload-employee-fill { position:absolute; inset:0 auto 0 0; display:block; max-width:100%; background:#536fe0; border-radius:10px; }
-.workload-employee-fill.is-over { background:#f05b50; }
+.workload-employee-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  max-width: 100%;
+  background: #4e70df;
+  border-radius: 10px;
+  transition: width 1200ms cubic-bezier(0.22, 1, 0.36, 1) var(--bar-delay, 0ms), background-color 300ms ease;
+  will-change: width;
+}
+.workload-employee-fill.is-over { background:#ef5555; }
 .workload-cap-marker { position:absolute; z-index:2; top:-3px; bottom:-3px; width:2px; background:#e14c4c; box-shadow:0 0 0 1px #fff; }
 .workload-employee-number { display:flex; align-items:baseline; justify-content:flex-end; gap:4px; white-space:nowrap; }
 .workload-employee-number strong { color:#1c3f79; font-size:.76rem; }
@@ -237,3 +246,230 @@
 .workload-forecast-legend i.is-na { background:#aab2bd; }
 .workload-forecast-legend-note { margin-left:auto; color:#8593a8; }
 .workload-detail-capacity-note { font-size:.7rem; color:#75849a; background:#f5f8fc; border-radius:6px; padding:8px 10px; }
+
+/* ── Segmented Control & Crossfade Transition for Workload View ───────── */
+.workload-view-switcher {
+  display: inline-flex;
+  background: #edf2fa;
+  padding: 3px;
+  border-radius: 8px;
+  gap: 2px;
+}
+.workload-view-segment {
+  border: 0;
+  background: transparent;
+  color: #5d6f89;
+  border-radius: 6px;
+  padding: 4px 11px;
+  font-size: 0.76rem;
+  font-weight: 650;
+  cursor: pointer;
+  transition: all 350ms cubic-bezier(0.22, 1, 0.36, 1);
+  white-space: nowrap;
+  line-height: 1.35;
+}
+.workload-view-segment:hover:not(.active) {
+  color: #1e3f76;
+}
+.workload-view-segment.active {
+  color: #ffffff;
+  background: #4e70df;
+  box-shadow: 0 1px 3px rgba(78, 112, 223, 0.35);
+}
+
+/* Content Container & Animations */
+.workload-view-container {
+  width: 100%;
+}
+.workload-view-content {
+  animation: workloadFadeInUp 550ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes workloadFadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workload-view-segment {
+    transition: none;
+  }
+  .workload-view-content {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+  .workload-team-card {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .workload-employee-fill,
+  .workload-team-fill {
+    transition: none !important;
+  }
+}
+
+/* ── Team Summary Cards (Teams View) ────────────────────────────────── */
+.workload-team-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: stretch;
+}
+.workload-team-card {
+  background: #ffffff;
+  border: 1px solid #dce4ef;
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(24, 48, 83, 0.04);
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  animation: workloadCardStagger 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.workload-team-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+.workload-team-card:nth-child(2) {
+  animation-delay: 80ms;
+}
+.workload-team-card:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+@keyframes workloadCardStagger {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.workload-team-card:hover {
+  box-shadow: 0 3px 10px rgba(24, 48, 83, 0.08);
+}
+.workload-team-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.workload-team-card-name {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #172d4d;
+  margin: 0;
+}
+.workload-team-card-emp {
+  font-size: 0.74rem;
+  color: #64748b;
+  font-weight: 600;
+}
+.workload-team-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+}
+.workload-team-metric-item small {
+  display: block;
+  font-size: 0.68rem;
+  color: #7a8799;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+.workload-team-metric-item strong {
+  display: block;
+  font-size: 0.92rem;
+  color: #1e3557;
+  font-weight: 750;
+}
+.workload-team-utilization {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.workload-team-utilization-label {
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #556882;
+}
+.workload-team-utilization-val {
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+.workload-team-utilization-val.is-over {
+  color: #ef5555;
+}
+.workload-team-utilization-val.is-normal {
+  color: #4e70df;
+}
+.workload-team-utilization-val.is-na {
+  color: #8290a3;
+}
+.workload-team-track {
+  position: relative;
+  display: block;
+  height: 12px;
+  background: #edf2fa;
+  border-radius: 10px;
+  overflow: visible;
+  margin-bottom: 10px;
+}
+.workload-team-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  display: block;
+  max-width: 100%;
+  background: #4e70df;
+  border-radius: 10px;
+  transition: width 1200ms cubic-bezier(0.22, 1, 0.36, 1) var(--bar-delay, 0ms), background-color 300ms ease;
+  will-change: width;
+}
+.workload-team-fill.is-over {
+  background: #ef5555;
+}
+.workload-team-alert-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-top: 4px;
+  align-self: flex-start;
+}
+.workload-team-alert-pill.is-over {
+  background: #fdeaea;
+  color: #ef5555;
+  border: 1px solid #f9cdcd;
+}
+.workload-team-alert-pill.is-normal {
+  background: #eef4fe;
+  color: #4e70df;
+  border: 1px solid #d4e2fc;
+}
+.workload-team-alert-pill.is-na {
+  background: #f1f3f6;
+  color: #718096;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 991.98px) {
+  .workload-team-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
