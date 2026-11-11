@@ -90,7 +90,7 @@ test('โปรเจกต์ใหม่มีค่าเริ่มต้�
   ).toHaveCount(0);
 
   // ระดับความสำคัญเริ่มต้นเป็น Normal
-  const prioritySelect = dialog.locator('select').nth(2);
+  const prioritySelect = dialog.locator('select').nth(1);
 
   await expect(prioritySelect).toHaveValue('normal');
 

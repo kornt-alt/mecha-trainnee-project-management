@@ -2759,3 +2759,231 @@ body {
     padding: 0.55rem 0.75rem;
   }
 }
+
+/* ── Modern Enterprise Project Modal (Redesign) ────────────────────────── */
+.project-modal-dialog {
+  max-width: 880px;
+  width: 92%;
+  margin: 1.75rem auto;
+}
+
+@media (max-width: 767.98px) {
+  .project-modal-dialog {
+    width: 96%;
+    margin: 0.75rem auto;
+  }
+}
+
+.project-modal-content {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(11, 31, 58, 0.1), 0 4px 12px rgba(11, 31, 58, 0.05);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.project-modal-header {
+  border-bottom: 1px solid var(--line);
+  padding: 1.25rem 1.75rem;
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.project-modal-title {
+  font-size: 1.2rem;
+  font-weight: 650;
+  color: var(--ink);
+  letter-spacing: -0.2px;
+}
+
+.project-modal-subtitle {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.project-modal-body {
+  padding: 1.5rem 1.75rem;
+  max-height: calc(85vh - 140px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: var(--surface);
+}
+
+.project-modal-footer {
+  border-top: 1px solid var(--line);
+  padding: 1rem 1.75rem;
+  background: var(--surface);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.project-modal-footer .btn {
+  min-width: 6.5rem;
+  font-weight: 500;
+  border-radius: var(--radius);
+  padding: 0.5rem 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+/* ── Section Dividers & Headings ── */
+.project-form-section {
+  padding-bottom: 1.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.project-form-section:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+  margin-bottom: 0;
+}
+
+.project-section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 1.15rem;
+}
+
+.project-section-num {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--blue);
+  letter-spacing: 0.5px;
+}
+
+.project-section-title {
+  font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--ink);
+  letter-spacing: -0.1px;
+}
+
+/* ── Field Labels & Form Controls ── */
+.project-field-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+}
+
+.project-req-star {
+  color: var(--red);
+  font-weight: 600;
+  margin-left: 0.25rem;
+}
+
+.project-form-control {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  color: var(--ink);
+  background-color: var(--surface);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.project-form-control:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(var(--blue-rgb), 0.12);
+}
+
+/* ── Project Team List ── */
+.project-team-container {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.project-team-scroll {
+  max-height: 230px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.35rem;
+}
+
+.project-team-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.12s ease;
+  user-select: none;
+}
+
+.project-team-item:hover {
+  background-color: var(--blue-tint);
+}
+
+.project-team-item.is-owner {
+  background-color: #F8FAFC;
+}
+
+.project-team-info {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.project-member-name {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.project-member-dept {
+  font-size: 0.8rem;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.project-owner-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--blue-tint);
+  color: var(--blue);
+  border: 1px solid rgba(var(--blue-rgb), 0.15);
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+}
+
+.project-team-footer {
+  border-top: 1px solid var(--line);
+  background: var(--paper);
+  padding: 0.5rem 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+}
+
+.project-member-count-badge {
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 1px 8px;
+}
+

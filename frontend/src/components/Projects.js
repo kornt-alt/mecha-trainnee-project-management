@@ -530,269 +530,343 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
       show
       onHide={onClose}
       backdrop="static"
-      size="lg"
       centered
-      dialogClassName="mecha-form-modal"
+      dialogClassName="project-modal-dialog"
+      contentClassName="project-modal-content"
     >
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {initial.id ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์'}
-          </Modal.Title>
+      <Form onSubmit={submit} className="d-flex flex-column" style={{ maxHeight: '90vh' }}>
+        <Modal.Header closeButton className="project-modal-header">
+          <div>
+            <Modal.Title className="project-modal-title">
+              {initial.id ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์'}
+            </Modal.Title>
+            <div className="project-modal-subtitle">
+              {initial.id
+                ? 'แก้ไขรายละเอียดโปรเจกต์และข้อมูลสมาชิกทีม'
+                : 'Create a new project and organize your team.'}
+            </div>
+          </div>
         </Modal.Header>
 
-        <Modal.Body>
-          {error && <Alert variant="danger">{error}</Alert>}
+        <Modal.Body className="project-modal-body">
+          {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
-          {/* ข้อมูลหลัก */}
-          <div className="mecha-form-section">ข้อมูลหลัก</div>
+          {/* 01 — ข้อมูลทั่วไป (Basic Information) */}
+          <div className="project-form-section">
+            <div className="project-section-heading">
+              <span className="project-section-num">01</span>
+              <span className="project-section-title">ข้อมูลทั่วไป (Basic Information)</span>
+            </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="mecha-form-required">
-              ชื่อโปรเจกต์
-            </Form.Label>
-            <Form.Control
-              value={form.name}
-              onChange={set('name')}
-              maxLength={200}
-              isInvalid={!!fieldErrors.name}
-              autoFocus
-            />
-            <Form.Control.Feedback type="invalid">
-              {fieldErrors.name}
-            </Form.Control.Feedback>
-          </Form.Group>
+            {/* Project Name occupies full width */}
+            <Form.Group className="mb-3">
+              <Form.Label className="project-field-label">
+                ชื่อโปรเจกต์
+                <span className="project-req-star">*</span>
+              </Form.Label>
+              <Form.Control
+                value={form.name}
+                onChange={set('name')}
+                maxLength={200}
+                placeholder="ระบุชื่อโปรเจกต์..."
+                className="project-form-control"
+                isInvalid={!!fieldErrors.name}
+                autoFocus
+              />
+              <Form.Control.Feedback type="invalid">
+                {fieldErrors.name}
+              </Form.Control.Feedback>
+            </Form.Group>
 
-          <Form.Group className="mb-3">
-            <Form.Label>หมวดหมู่โปรเจกต์</Form.Label>
-            <Form.Select
-              value={form.category}
-              onChange={set('category')}
-              aria-label="เลือกหมวดหมู่โปรเจกต์"
-            >
-              <option value="">เลือกหมวดหมู่</option>
-              {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+            {/* Category and Priority side by side in two columns */}
+            <Row className="g-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="project-field-label">หมวดหมู่โปรเจกต์</Form.Label>
+                  <Form.Select
+                    value={form.category}
+                    onChange={set('category')}
+                    aria-label="เลือกหมวดหมู่โปรเจกต์"
+                    className="project-form-control"
+                  >
+                    <option value="">เลือกหมวดหมู่</option>
+                    {categoryOptions.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
 
-          {/* ผู้รับผิดชอบและทีม */}
-          <div className="mecha-form-section">
-            ผู้รับผิดชอบและทีม
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="project-field-label">ระดับความสำคัญ</Form.Label>
+                  <Form.Select
+                    value={form.priority}
+                    onChange={set('priority')}
+                    isInvalid={!!fieldErrors.priority}
+                    className="project-form-control"
+                  >
+                    <option value="urgent">เร่งด่วนมาก (Urgent)</option>
+                    <option value="high">สูง (High)</option>
+                    <option value="normal">ปกติ (Normal)</option>
+                    <option value="low">ต่ำ (Low)</option>
+                  </Form.Select>
+                  <Form.Control.Feedback type="invalid">
+                    {fieldErrors.priority}
+                  </Form.Control.Feedback>
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {/* สถานะโปรเจกต์: แสดงเฉพาะเมื่อแก้ไขโปรเจกต์เดิม */}
+            {initial.id && (
+              <Row className="mt-3">
+                <Col md={6}>
+                  <Form.Group>
+                    <Form.Label className="project-field-label">สถานะ</Form.Label>
+                    <Form.Select
+                      value={form.status}
+                      onChange={set('status')}
+                      className="project-form-control"
+                    >
+                      {PROJECT_STATUSES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          {s.label}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
           </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label className="mecha-form-required">
-              Project Owner
-            </Form.Label>
-            <Form.Select
-              value={isLegacyOwner ? legacyOptionValue : form.managerId}
-              onChange={handleOwnerChange}
-              isInvalid={!!fieldErrors.managerId}
-              aria-label="เลือก Project Owner"
-            >
-              <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
-
-              {isLegacyOwner && (
-                <option value={legacyOptionValue}>
-                  {legacyOptionLabel}
-                </option>
-              )}
-
-              {MOCK_EMPLOYEES.map((emp) => (
-                <option key={emp.id} value={String(emp.id)}>
-                  {emp.name} ({emp.position})
-                </option>
-              ))}
-            </Form.Select>
-            <Form.Control.Feedback type="invalid">
-              {fieldErrors.managerId}
-            </Form.Control.Feedback>
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label>Project Team</Form.Label>
-
-            <Form.Control
-              type="search"
-              placeholder="ค้นหาชื่อพนักงานหรือแผนก..."
-              value={teamFilter}
-              onChange={(e) => setTeamFilter(e.target.value)}
-              className="mb-2"
-            />
-
-            <div
-              className="border rounded p-3"
-              style={{ maxHeight: '220px', overflowY: 'auto' }}
-            >
-              {filteredEmployees.length === 0 ? (
-                <div className="text-muted small">
-                  ไม่พบพนักงานที่ค้นหา
-                </div>
-              ) : (
-                filteredEmployees.map((emp) => {
-                  const id = String(emp.id);
-                  const isOwner = id === form.managerId;
-
-                  return (
-                    <Form.Check
-                      key={id}
-                      type="checkbox"
-                      className="mb-2"
-                      id={`project-team-${id}`}
-                      label={
-                        <span>
-                          {emp.name}
-                          <span className="text-muted small ms-2">
-                            {emp.department || emp.position}
-                          </span>
-                          {isOwner && (
-                            <Badge bg="light" text="dark" className="ms-2">
-                              Owner
-                            </Badge>
-                          )}
-                        </span>
-                      }
-                      checked={form.teamMemberIds.includes(id)}
-                      disabled={isOwner}
-                      onChange={() => toggleTeamMember(id)}
-                    />
-                  );
-                })
-              )}
+          {/* 02 — ผู้รับผิดชอบโปรเจกต์ (Project Ownership) */}
+          <div className="project-form-section">
+            <div className="project-section-heading">
+              <span className="project-section-num">02</span>
+              <span className="project-section-title">ผู้รับผิดชอบโปรเจกต์ (Project Ownership)</span>
             </div>
 
-            <Form.Text className="text-muted">
-              เลือกสมาชิกได้หลายคน โดย Project Owner จะเป็นสมาชิกทีมอัตโนมัติ
-              และไม่สามารถนำ Owner ปัจจุบันออกจากทีมได้
-            </Form.Text>
-
-            <div className="small mt-2">
-              สมาชิกที่เลือก: {form.teamMemberIds.length} คน
-            </div>
-          </Form.Group>
-
-          {/* สถานะไม่ให้เลือกตอนสร้างใหม่ */}
-          {initial.id && (
-            <Form.Group className="mb-3">
-              <Form.Label>สถานะ</Form.Label>
+            <Form.Group>
+              <Form.Label className="project-field-label">
+                Project Owner
+                <span className="project-req-star">*</span>
+              </Form.Label>
               <Form.Select
-                value={form.status}
-                onChange={set('status')}
+                value={isLegacyOwner ? legacyOptionValue : form.managerId}
+                onChange={handleOwnerChange}
+                isInvalid={!!fieldErrors.managerId}
+                aria-label="เลือก Project Owner"
+                className="project-form-control"
               >
-                {PROJECT_STATUSES.map((s) => (
-                  <option key={s.key} value={s.key}>
-                    {s.label}
+                <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
+
+                {isLegacyOwner && (
+                  <option value={legacyOptionValue}>
+                    {legacyOptionLabel}
+                  </option>
+                )}
+
+                {MOCK_EMPLOYEES.map((emp) => (
+                  <option key={emp.id} value={String(emp.id)}>
+                    {emp.name} ({emp.position})
                   </option>
                 ))}
               </Form.Select>
+              <Form.Control.Feedback type="invalid">
+                {fieldErrors.managerId}
+              </Form.Control.Feedback>
+              <Form.Text className="text-muted mt-1 d-block small">
+                Project Owner จะเป็นสมาชิกในทีมโปรเจกต์โดยอัตโนมัติ และไม่สามารถนำออกจากทีมได้
+              </Form.Text>
             </Form.Group>
-          )}
+          </div>
 
-          <Form.Group className="mb-3">
-            <Form.Label>ระดับความสำคัญ</Form.Label>
-            <Form.Select
-              value={form.priority}
-              onChange={set('priority')}
-              isInvalid={!!fieldErrors.priority}
-            >
-              <option value="urgent">เร่งด่วนมาก (Urgent)</option>
-              <option value="high">สูง (High)</option>
-              <option value="normal">ปกติ (Normal)</option>
-              <option value="low">ต่ำ (Low)</option>
-            </Form.Select>
-            <Form.Control.Feedback type="invalid">
-              {fieldErrors.priority}
-            </Form.Control.Feedback>
-          </Form.Group>
-
-          {/* กำหนดเวลา */}
-          <div className="mecha-form-section">กำหนดเวลา</div>
-
-          <Row className="g-3 mb-3">
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>วันที่เริ่ม</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={form.startDate}
-                  onChange={set('startDate')}
-                  isInvalid={!!fieldErrors.dateRange}
-                />
-              </Form.Group>
-            </Col>
-
-            <Col md={6}>
-              <Form.Group>
-                <Form.Label>กำหนดส่ง</Form.Label>
-                <Form.Control
-                  type="date"
-                  value={form.dueDate}
-                  onChange={set('dueDate')}
-                  isInvalid={!!fieldErrors.dateRange}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-
-          {fieldErrors.dateRange && (
-            <div className="text-danger small mb-3">
-              {fieldErrors.dateRange}
+          {/* 03 — ทีมงานโปรเจกต์ (Project Team) */}
+          <div className="project-form-section">
+            <div className="project-section-heading">
+              <span className="project-section-num">03</span>
+              <span className="project-section-title">ทีมงานโปรเจกต์ (Project Team)</span>
             </div>
-          )}
 
-          {/* Deliverables */}
-          <div className="mecha-form-section">Deliverables</div>
+            <Form.Group>
+              <Form.Label className="project-field-label">ค้นหาและเลือกสมาชิกทีม</Form.Label>
+              <Form.Control
+                type="search"
+                placeholder="ค้นหาชื่อพนักงานหรือแผนก..."
+                value={teamFilter}
+                onChange={(e) => setTeamFilter(e.target.value)}
+                className="project-form-control mb-2"
+              />
 
-          <Form.Group className="mb-3">
-            <Form.Check
-              type="checkbox"
-              label="โปรเจกต์นี้มีสิ่งที่ต้องส่งมอบ"
-              checked={form.requiresDeliverables}
-              onChange={(e) =>
-                setForm((prev) => ({
-                  ...prev,
-                  requiresDeliverables: e.target.checked,
-                }))
-              }
-            />
+              <div className="project-team-container">
+                <div className="project-team-scroll">
+                  {filteredEmployees.length === 0 ? (
+                    <div className="text-muted small text-center py-4">
+                      ไม่พบพนักงานที่ค้นหา
+                    </div>
+                  ) : (
+                    filteredEmployees.map((emp) => {
+                      const id = String(emp.id);
+                      const isOwner = id === form.managerId;
+                      const isChecked = form.teamMemberIds.includes(id);
 
-            <Form.Control
-              as="textarea"
-              rows={2}
-              className="mt-2"
-              placeholder="ระบุรายละเอียดสิ่งที่ต้องส่งมอบ (ไม่บังคับ)"
-              value={form.deliverableDescription}
-              onChange={set('deliverableDescription')}
-            />
-            <Form.Text className="text-muted">
-              สามารถเว้นว่างไว้ได้ และไม่ส่งผลต่อการสร้างโปรเจกต์
-            </Form.Text>
-          </Form.Group>
+                      return (
+                        <div
+                          key={id}
+                          className={`project-team-item ${isOwner ? 'is-owner' : ''}`}
+                          onClick={() => {
+                            if (!isOwner) toggleTeamMember(id);
+                          }}
+                          style={{ cursor: isOwner ? 'default' : 'pointer' }}
+                        >
+                          <div className="project-team-info">
+                            <Form.Check
+                              type="checkbox"
+                              id={`project-team-${id}`}
+                              checked={isChecked}
+                              disabled={isOwner}
+                              onChange={() => toggleTeamMember(id)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={`เลือก ${emp.name}`}
+                              className="mb-0"
+                            />
+                            <span className="project-member-name">{emp.name}</span>
+                            <span className="project-member-dept">
+                              {emp.department ? `· ${emp.department}` : ''} {emp.position ? `(${emp.position})` : ''}
+                            </span>
+                          </div>
 
-          {/* รายละเอียด */}
-          <div className="mecha-form-section">รายละเอียด</div>
+                          {isOwner && (
+                            <span className="project-owner-badge">
+                              Project Owner
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
 
-          <Form.Group className="mt-3">
-            <Form.Label>รายละเอียดโปรเจกต์</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={form.description}
-              onChange={set('description')}
-              maxLength={5000}
-              isInvalid={!!fieldErrors.description}
-            />
-            <Form.Control.Feedback type="invalid">
-              {fieldErrors.description}
-            </Form.Control.Feedback>
-          </Form.Group>
+                <div className="project-team-footer">
+                  <span className="text-muted">
+                    คลิกเพื่อเลือกหรือยกเลิกสมาชิก
+                  </span>
+                  <span>
+                    สมาชิกที่เลือก: <strong className="project-member-count-badge">{form.teamMemberIds.length} คน</strong>
+                  </span>
+                </div>
+              </div>
+            </Form.Group>
+          </div>
+
+          {/* 04 — สิ่งที่ต้องส่งมอบ (Deliverables) */}
+          <div className="project-form-section">
+            <div className="project-section-heading">
+              <span className="project-section-num">04</span>
+              <span className="project-section-title">สิ่งที่ต้องส่งมอบ (Deliverables)</span>
+            </div>
+
+            <Form.Group>
+              <div className="d-flex align-items-center mb-2">
+                <Form.Check
+                  type="checkbox"
+                  id="project-requires-deliverables"
+                  label="โปรเจกต์นี้มีสิ่งที่ต้องส่งมอบ"
+                  checked={form.requiresDeliverables}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      requiresDeliverables: e.target.checked,
+                    }))
+                  }
+                  className="mb-0 fw-medium"
+                />
+              </div>
+
+              <Form.Control
+                as="textarea"
+                rows={2}
+                placeholder="ระบุรายละเอียดสิ่งที่ต้องส่งมอบ (ไม่บังคับ — Deliverable Description)..."
+                value={form.deliverableDescription}
+                onChange={set('deliverableDescription')}
+                className="project-form-control mt-2"
+              />
+              <Form.Text className="text-muted mt-1 d-block small">
+                ส่วนนี้เป็นตัวเลือกเพิ่มเติม (Optional) สามารถเว้นว่างไว้ได้โดยไม่ส่งผลต่อการสร้างโปรเจกต์
+              </Form.Text>
+            </Form.Group>
+          </div>
+
+          {/* 05 — กำหนดเวลาและรายละเอียด (Schedule & Description) */}
+          <div className="project-form-section">
+            <div className="project-section-heading">
+              <span className="project-section-num">05</span>
+              <span className="project-section-title">กำหนดเวลาและรายละเอียด (Schedule & Description)</span>
+            </div>
+
+            {/* Start Date and Due Date side by side in two columns */}
+            <Row className="g-3 mb-3">
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="project-field-label">วันที่เริ่ม</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={form.startDate}
+                    onChange={set('startDate')}
+                    isInvalid={!!fieldErrors.dateRange}
+                    className="project-form-control"
+                  />
+                </Form.Group>
+              </Col>
+
+              <Col md={6}>
+                <Form.Group>
+                  <Form.Label className="project-field-label">กำหนดส่ง</Form.Label>
+                  <Form.Control
+                    type="date"
+                    value={form.dueDate}
+                    onChange={set('dueDate')}
+                    isInvalid={!!fieldErrors.dateRange}
+                    className="project-form-control"
+                  />
+                </Form.Group>
+              </Col>
+            </Row>
+
+            {fieldErrors.dateRange && (
+              <Alert variant="danger" className="py-2 px-3 small mb-3">
+                {fieldErrors.dateRange}
+              </Alert>
+            )}
+
+            {/* Project Description occupying full width */}
+            <Form.Group>
+              <Form.Label className="project-field-label">
+                รายละเอียดโปรเจกต์
+                <span className="text-muted fw-normal small ms-1">(ไม่เกิน 5,000 ตัวอักษร)</span>
+              </Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="ระบุวัตถุประสงค์ ขอบเขต หรือคำอธิบายเพิ่มเติม..."
+                value={form.description}
+                onChange={set('description')}
+                maxLength={5000}
+                isInvalid={!!fieldErrors.description}
+                className="project-form-control"
+              />
+              <Form.Control.Feedback type="invalid">
+                {fieldErrors.description}
+              </Form.Control.Feedback>
+            </Form.Group>
+          </div>
         </Modal.Body>
 
-        <Modal.Footer>
+        <Modal.Footer className="project-modal-footer">
           <Button
             variant="outline-secondary"
             onClick={onClose}
@@ -801,7 +875,7 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
             ยกเลิก
           </Button>
 
-          <Button type="submit" disabled={saving}>
+          <Button type="submit" variant="primary" disabled={saving}>
             {saving ? 'กำลังบันทึก…' : 'บันทึก'}
           </Button>
         </Modal.Footer>
