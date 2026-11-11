@@ -1,6 +1,6 @@
 // frontend/src/components/Projects.js — รายการโปรเจกต์: ค้นหา + กรองสถานะ, เพิ่ม/แก้ไข (Modal), เปลี่ยนสถานะ (ผ่านเมนูแถว), ลบ
 // รองรับทั้งข้อมูลจริงจาก API และ Mock Data กลางที่เชื่อมโยงกับ Tasks เมื่อยังไม่ต่อ backend
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Alert,
   Badge,
@@ -188,12 +188,15 @@ export default function Projects() {
                   </InputGroup>
                 </Col>
                 <Col xs={7} md={4}>
-                  <Form.Select size="sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="กรองตามสถานะ">
-                    <option value="">ทุกสถานะ</option>
-                    {PROJECT_STATUSES.map((s) => (
-                      <option key={s.key} value={s.key}>{s.label}</option>
-                    ))}
-                  </Form.Select>
+                  <Form.Group className="mb-3">
+                    <Form.Label className="mecha-form-required">สถานะ</Form.Label>
+                    <Form.Select size="sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="กรองตามสถานะ">
+                      <option value="">ทุกสถานะ</option>
+                      {PROJECT_STATUSES.map((s) => (
+                        <option key={s.key} value={s.key}>{s.label}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
                 </Col>
                 {filtersActive && (
                   <Col xs={5} md={2} className="text-end">
@@ -295,14 +298,16 @@ export default function Projects() {
 // Modal เพิ่ม / แก้ไข — initial.id มี = แก้ไข (PATCH) · ไม่มี = เพิ่มใหม่ (POST)
 // mockMode = ยังไม่ต่อ backend → บันทึกในหน่วยความจำผ่าน onSaved() โดยตรง (parent อัปเดต mock state ที่แชร์เอง)
 // ปกติ (API mode): ยิง POST/PATCH จริง — ล้มเหลวแสดง error และค้างฟอร์มไว้แก้/ลองใหม่
+
 function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
-  // ค้นหาพนักงานเริ่มต้นจาก managerId หรือจับคู่จาก owner เดิมหากมี (เฉพาะเมื่อจับคู่ได้พนักงานคนเดียวที่แน่นอน)
   const initialManagerId = (() => {
-    if (initial.managerId) return initial.managerId;
+    if (initial.managerId) return String(initial.managerId);
+
     if (initial.owner) {
       const matches = MOCK_EMPLOYEES.filter((e) => e.name === initial.owner);
-      if (matches.length === 1) return matches[0].id;
+      if (matches.length === 1) return String(matches[0].id);
     }
+
     return '';
   })();
 
@@ -311,83 +316,159 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
     category: initial.category ?? '',
     managerId: initialManagerId,
     owner: initial.owner ?? '',
-    status: initial.status ?? 'planning',
+    status: initial.id ? (initial.status ?? 'planning') : 'planning',
+    priority: initial.priority ?? 'normal',
+    teamMemberIds: Array.isArray(initial.teamMemberIds)
+      ? initial.teamMemberIds.map(String)
+      : [],
+    requiresDeliverables: initial.requiresDeliverables ?? false,
+    deliverableDescription: initial.deliverableDescription ?? '',
     startDate: initial.startDate ?? '',
     dueDate: initial.dueDate ?? '',
     description: initial.description ?? '',
   });
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [teamFilter, setTeamFilter] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
-  // รายการหมวดหมู่: ใช้ชุดมาตรฐาน 6 หมวดหมู่ แต่หากโปรเจกต์เดิมมีหมวดหมู่อื่น (Legacy Category)
-  // ให้คงค่านั้นไว้ในตัวเลือกด้วย เพื่อป้องกันไม่ให้ข้อมูลเดิมสูญหายเมื่อกดแก้ไข
   const categoryOptions = (() => {
     const list = [...PROJECT_CATEGORIES];
+
     if (form.category && !list.includes(form.category)) {
       list.push(form.category);
     }
+
     return list;
   })();
 
-  // ตรวจสอบว่าผู้รับผิดชอบเดิมเป็น Legacy/Unmatched ที่ไม่ตรงกับพนักงานคนใดใน MOCK_EMPLOYEES หรือไม่:
-  // 1. มี managerId แต่ไม่พบใน MOCK_EMPLOYEES (เช่น emp-999)
-  // 2. ไม่มี managerId แต่มีข้อความ owner เดิม (และไม่สามารถจับคู่กับพนักงานเดี่ยวได้)
-  const isMatchedEmployee = MOCK_EMPLOYEES.some((e) => e.id === form.managerId);
-  const isLegacyOwner = Boolean(form.managerId ? !isMatchedEmployee : form.owner);
+  const isMatchedEmployee = MOCK_EMPLOYEES.some(
+    (e) => String(e.id) === form.managerId
+  );
 
-  // กำหนด Value และ Label สำหรับตัวเลือก Legacy Option
+  const isLegacyOwner = Boolean(
+    form.managerId ? !isMatchedEmployee : form.owner
+  );
+
   const legacyOptionValue = form.managerId || '__legacy__';
   const legacyOptionLabel = form.owner
     ? `${form.owner} (ข้อมูลเดิม)`
     : `${form.managerId} (ข้อมูลเดิม)`;
 
   const set = (key) => (e) => {
-    const val = e.target.value;
-    setForm((f) => ({ ...f, [key]: val }));
-    // เคลียร์ error ของฟิลด์เมื่อมีการแก้ไขค่า
+    const value = e.target.value;
+
+    setForm((prev) => ({ ...prev, [key]: value }));
+
     if (fieldErrors[key]) {
       setFieldErrors((prev) => ({ ...prev, [key]: '' }));
     }
-    if ((key === 'startDate' || key === 'dueDate') && fieldErrors.dateRange) {
+
+    if (
+      (key === 'startDate' || key === 'dueDate') &&
+      fieldErrors.dateRange
+    ) {
       setFieldErrors((prev) => ({ ...prev, dateRange: '' }));
     }
   };
 
-  // จัดการการเปลี่ยนผู้รับผิดชอบโปรเจกต์:
-  // ซิงค์ managerId ให้ตรงกับ employee.id และซิงค์ owner ให้ตรงกับ employee.name
+  // เปลี่ยน Project Owner และเพิ่ม Owner คนใหม่เข้า Team
+  // ไม่ลบ Owner คนเก่าออกจาก Team
   const handleOwnerChange = (e) => {
     const selectedId = e.target.value;
+
     if (!selectedId) {
-      setForm((f) => ({ ...f, managerId: '', owner: '' }));
+      setForm((prev) => ({
+        ...prev,
+        managerId: '',
+        owner: '',
+      }));
       return;
     }
-    if (selectedId === legacyOptionValue) {
-      // ผู้ใช้เลือกคงค่าเดิมไว้ ไม่เปลี่ยนค่า
-      return;
-    }
-    const emp = MOCK_EMPLOYEES.find((empItem) => empItem.id === selectedId);
-    setForm((f) => ({
-      ...f,
+
+    if (selectedId === legacyOptionValue) return;
+
+    const employee = MOCK_EMPLOYEES.find(
+      (emp) => String(emp.id) === selectedId
+    );
+
+    if (!employee) return;
+
+    setForm((prev) => ({
+      ...prev,
       managerId: selectedId,
-      owner: emp ? emp.name : f.owner,
+      owner: employee.name,
+      teamMemberIds: prev.teamMemberIds.includes(selectedId)
+        ? prev.teamMemberIds
+        : [...prev.teamMemberIds, selectedId],
     }));
+  };
+
+  // ค้นหาพนักงานด้วยชื่อหรือแผนก
+  const filteredEmployees = MOCK_EMPLOYEES.filter((emp) => {
+    const term = teamFilter.trim().toLowerCase();
+
+    if (!term) return true;
+
+    return (
+      emp.name.toLowerCase().includes(term) ||
+      (emp.department || '').toLowerCase().includes(term)
+    );
+  });
+
+  // เพิ่ม/นำสมาชิกออกจาก Team โดยห้ามนำ Owner ปัจจุบันออก
+  const toggleTeamMember = (id) => {
+    setForm((prev) => {
+      if (id === prev.managerId) return prev;
+
+      const exists = prev.teamMemberIds.includes(id);
+
+      return {
+        ...prev,
+        teamMemberIds: exists
+          ? prev.teamMemberIds.filter((memberId) => memberId !== id)
+          : [...prev.teamMemberIds, id],
+      };
+    });
   };
 
   const submit = async (e) => {
     e.preventDefault();
     setError('');
 
-    // Client-side Validation
-    const trimmedName = form.name.trim();
     const errors = {};
+    const trimmedName = form.name.trim();
+    const trimmedDescription = form.description.trim();
 
     if (!trimmedName) {
       errors.name = 'กรุณาระบุชื่อโปรเจกต์';
     }
 
-    if (form.startDate && form.dueDate && form.startDate > form.dueDate) {
+    // โปรเจกต์ใหม่ต้องเลือก Owner
+    // โปรเจกต์เก่าที่มีข้อมูล Owner แบบ Legacy สามารถคงค่าเดิมไว้ได้
+    if (!form.managerId && !(initial.id && form.owner.trim())) {
+      errors.managerId = 'กรุณาเลือกผู้รับผิดชอบโปรเจกต์';
+    }
+
+    if (!['urgent', 'high', 'normal', 'low'].includes(form.priority)) {
+      errors.priority = 'กรุณาเลือกระดับความสำคัญที่ถูกต้อง';
+    }
+
+    if (
+      form.startDate &&
+      form.dueDate &&
+      form.startDate > form.dueDate
+    ) {
       errors.dateRange = 'วันที่เริ่มต้นต้องไม่มากกว่ากำหนดส่ง';
+    }
+
+    if (trimmedName.length > 200) {
+      errors.name = 'ชื่อโปรเจกต์ต้องไม่เกิน 200 ตัวอักษร';
+    }
+
+    if (trimmedDescription.length > 5000) {
+      errors.description = 'รายละเอียดต้องไม่เกิน 5,000 ตัวอักษร';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -395,42 +476,81 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
       return;
     }
 
-    setSaving(true);
-    setFieldErrors({});
+    // ตรวจสอบ ID สมาชิกกับพนักงานที่มีอยู่จริง และตัด ID ซ้ำ
+    const validEmployeeIds = new Set(
+      MOCK_EMPLOYEES.map((emp) => String(emp.id))
+    );
+
+    let teamMemberIds = [...new Set(
+      form.teamMemberIds
+        .map(String)
+        .filter((id) => validEmployeeIds.has(id))
+    )];
+
+    // บังคับให้ Owner อยู่ใน Team เสมอ
+    if (form.managerId && validEmployeeIds.has(form.managerId)) {
+      teamMemberIds = [...new Set([...teamMemberIds, form.managerId])];
+    }
 
     const payload = {
       ...form,
       name: trimmedName,
+      description: trimmedDescription,
+      teamMemberIds,
+      status: initial.id ? form.status : 'planning',
     };
+
+    setSaving(true);
+    setFieldErrors({});
 
     try {
       if (mockMode) {
-        // โหมดตัวอย่าง: ไม่ยิง API — onSaved จะอัปเดต mock state ที่แชร์ฝั่ง parent แล้วปิดฟอร์มตามปกติ
         onSaved({ ...payload, id: initial.id });
         return;
       }
-      if (initial.id) await api.patch(`/projects/${initial.id}`, payload);
-      else await api.post('/projects', payload);
+
+      if (initial.id) {
+        await api.patch(`/projects/${initial.id}`, payload);
+      } else {
+        await api.post('/projects', payload);
+      }
+
       onSaved({ ...payload, id: initial.id });
     } catch (err) {
-      // API mode ล้มเหลว — ห้ามทำตัวเหมือนบันทึกสำเร็จ: แสดงข้อความผิดพลาดจริง และค้างฟอร์มไว้ให้แก้/ลองใหม่
-      setError(err?.message || 'บันทึกโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง');
+      setError(
+        err?.message || 'บันทึกโปรเจกต์ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง'
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <Modal show onHide={onClose} backdrop="static" size="lg" centered dialogClassName="mecha-form-modal">
+    <Modal
+      show
+      onHide={onClose}
+      backdrop="static"
+      size="lg"
+      centered
+      dialogClassName="mecha-form-modal"
+    >
       <Form onSubmit={submit}>
         <Modal.Header closeButton>
-          <Modal.Title>{initial.id ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์'}</Modal.Title>
+          <Modal.Title>
+            {initial.id ? 'แก้ไขโปรเจกต์' : 'เพิ่มโปรเจกต์'}
+          </Modal.Title>
         </Modal.Header>
+
         <Modal.Body>
           {error && <Alert variant="danger">{error}</Alert>}
+
+          {/* ข้อมูลหลัก */}
           <div className="mecha-form-section">ข้อมูลหลัก</div>
+
           <Form.Group className="mb-3">
-            <Form.Label className="mecha-form-required">ชื่อโปรเจกต์</Form.Label>
+            <Form.Label className="mecha-form-required">
+              ชื่อโปรเจกต์
+            </Form.Label>
             <Form.Control
               value={form.name}
               onChange={set('name')}
@@ -438,85 +558,252 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
               isInvalid={!!fieldErrors.name}
               autoFocus
             />
-            {fieldErrors.name && (
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.name}
-              </Form.Control.Feedback>
-            )}
+            <Form.Control.Feedback type="invalid">
+              {fieldErrors.name}
+            </Form.Control.Feedback>
           </Form.Group>
+
           <Form.Group className="mb-3">
             <Form.Label>หมวดหมู่โปรเจกต์</Form.Label>
-            <Form.Select value={form.category} onChange={set('category')} aria-label="เลือกหมวดหมู่โปรเจกต์">
+            <Form.Select
+              value={form.category}
+              onChange={set('category')}
+              aria-label="เลือกหมวดหมู่โปรเจกต์"
+            >
               <option value="">เลือกหมวดหมู่</option>
               {categoryOptions.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
+                <option key={cat} value={cat}>
+                  {cat}
+                </option>
               ))}
             </Form.Select>
           </Form.Group>
-          <div className="mecha-form-section">ผู้รับผิดชอบและสถานะ</div>
+
+          {/* ผู้รับผิดชอบและทีม */}
+          <div className="mecha-form-section">
+            ผู้รับผิดชอบและทีม
+          </div>
+
           <Form.Group className="mb-3">
-            <Form.Label>ผู้รับผิดชอบโปรเจกต์</Form.Label>
+            <Form.Label className="mecha-form-required">
+              Project Owner
+            </Form.Label>
             <Form.Select
               value={isLegacyOwner ? legacyOptionValue : form.managerId}
               onChange={handleOwnerChange}
-              aria-label="เลือกผู้รับผิดชอบโปรเจกต์"
+              isInvalid={!!fieldErrors.managerId}
+              aria-label="เลือก Project Owner"
             >
-              <option value="">เลือกผู้รับผิดชอบ</option>
+              <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
+
               {isLegacyOwner && (
                 <option value={legacyOptionValue}>
                   {legacyOptionLabel}
                 </option>
               )}
+
               {MOCK_EMPLOYEES.map((emp) => (
-                <option key={emp.id} value={emp.id}>
+                <option key={emp.id} value={String(emp.id)}>
                   {emp.name} ({emp.position})
                 </option>
               ))}
             </Form.Select>
+            <Form.Control.Feedback type="invalid">
+              {fieldErrors.managerId}
+            </Form.Control.Feedback>
           </Form.Group>
+
           <Form.Group className="mb-3">
-            <Form.Label>สถานะ</Form.Label>
-            <Form.Select value={form.status} onChange={set('status')}>
-              {PROJECT_STATUSES.map((s) => (
-                <option key={s.key} value={s.key}>{s.label}</option>
-              ))}
-            </Form.Select>
+            <Form.Label>Project Team</Form.Label>
+
+            <Form.Control
+              type="search"
+              placeholder="ค้นหาชื่อพนักงานหรือแผนก..."
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="mb-2"
+            />
+
+            <div
+              className="border rounded p-3"
+              style={{ maxHeight: '220px', overflowY: 'auto' }}
+            >
+              {filteredEmployees.length === 0 ? (
+                <div className="text-muted small">
+                  ไม่พบพนักงานที่ค้นหา
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => {
+                  const id = String(emp.id);
+                  const isOwner = id === form.managerId;
+
+                  return (
+                    <Form.Check
+                      key={id}
+                      type="checkbox"
+                      className="mb-2"
+                      id={`project-team-${id}`}
+                      label={
+                        <span>
+                          {emp.name}
+                          <span className="text-muted small ms-2">
+                            {emp.department || emp.position}
+                          </span>
+                          {isOwner && (
+                            <Badge bg="light" text="dark" className="ms-2">
+                              Owner
+                            </Badge>
+                          )}
+                        </span>
+                      }
+                      checked={form.teamMemberIds.includes(id)}
+                      disabled={isOwner}
+                      onChange={() => toggleTeamMember(id)}
+                    />
+                  );
+                })
+              )}
+            </div>
+
+            <Form.Text className="text-muted">
+              เลือกสมาชิกได้หลายคน โดย Project Owner จะเป็นสมาชิกทีมอัตโนมัติ
+              และไม่สามารถนำ Owner ปัจจุบันออกจากทีมได้
+            </Form.Text>
+
+            <div className="small mt-2">
+              สมาชิกที่เลือก: {form.teamMemberIds.length} คน
+            </div>
           </Form.Group>
+
+          {/* สถานะไม่ให้เลือกตอนสร้างใหม่ */}
+          {initial.id && (
+            <Form.Group className="mb-3">
+              <Form.Label>สถานะ</Form.Label>
+              <Form.Select
+                value={form.status}
+                onChange={set('status')}
+              >
+                {PROJECT_STATUSES.map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label}
+                  </option>
+                ))}
+              </Form.Select>
+            </Form.Group>
+          )}
+
+          <Form.Group className="mb-3">
+            <Form.Label>ระดับความสำคัญ</Form.Label>
+            <Form.Select
+              value={form.priority}
+              onChange={set('priority')}
+              isInvalid={!!fieldErrors.priority}
+            >
+              <option value="urgent">เร่งด่วนมาก (Urgent)</option>
+              <option value="high">สูง (High)</option>
+              <option value="normal">ปกติ (Normal)</option>
+              <option value="low">ต่ำ (Low)</option>
+            </Form.Select>
+            <Form.Control.Feedback type="invalid">
+              {fieldErrors.priority}
+            </Form.Control.Feedback>
+          </Form.Group>
+
+          {/* กำหนดเวลา */}
           <div className="mecha-form-section">กำหนดเวลา</div>
-          <div className="d-flex gap-3 mb-1">
-            <Form.Group className="flex-fill">
-              <Form.Label>วันที่เริ่ม</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.startDate}
-                onChange={set('startDate')}
-                isInvalid={!!fieldErrors.dateRange}
-              />
-            </Form.Group>
-            <Form.Group className="flex-fill">
-              <Form.Label>กำหนดส่ง</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.dueDate}
-                onChange={set('dueDate')}
-                isInvalid={!!fieldErrors.dateRange}
-              />
-            </Form.Group>
-          </div>
+
+          <Row className="g-3 mb-3">
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>วันที่เริ่ม</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={form.startDate}
+                  onChange={set('startDate')}
+                  isInvalid={!!fieldErrors.dateRange}
+                />
+              </Form.Group>
+            </Col>
+
+            <Col md={6}>
+              <Form.Group>
+                <Form.Label>กำหนดส่ง</Form.Label>
+                <Form.Control
+                  type="date"
+                  value={form.dueDate}
+                  onChange={set('dueDate')}
+                  isInvalid={!!fieldErrors.dateRange}
+                />
+              </Form.Group>
+            </Col>
+          </Row>
+
           {fieldErrors.dateRange && (
             <div className="text-danger small mb-3">
               {fieldErrors.dateRange}
             </div>
           )}
+
+          {/* Deliverables */}
+          <div className="mecha-form-section">Deliverables</div>
+
+          <Form.Group className="mb-3">
+            <Form.Check
+              type="checkbox"
+              label="โปรเจกต์นี้มีสิ่งที่ต้องส่งมอบ"
+              checked={form.requiresDeliverables}
+              onChange={(e) =>
+                setForm((prev) => ({
+                  ...prev,
+                  requiresDeliverables: e.target.checked,
+                }))
+              }
+            />
+
+            <Form.Control
+              as="textarea"
+              rows={2}
+              className="mt-2"
+              placeholder="ระบุรายละเอียดสิ่งที่ต้องส่งมอบ (ไม่บังคับ)"
+              value={form.deliverableDescription}
+              onChange={set('deliverableDescription')}
+            />
+            <Form.Text className="text-muted">
+              สามารถเว้นว่างไว้ได้ และไม่ส่งผลต่อการสร้างโปรเจกต์
+            </Form.Text>
+          </Form.Group>
+
+          {/* รายละเอียด */}
           <div className="mecha-form-section">รายละเอียด</div>
+
           <Form.Group className="mt-3">
-            <Form.Label>รายละเอียด</Form.Label>
-            <Form.Control as="textarea" rows={3} value={form.description} onChange={set('description')} maxLength={5000} />
+            <Form.Label>รายละเอียดโปรเจกต์</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              value={form.description}
+              onChange={set('description')}
+              maxLength={5000}
+              isInvalid={!!fieldErrors.description}
+            />
+            <Form.Control.Feedback type="invalid">
+              {fieldErrors.description}
+            </Form.Control.Feedback>
           </Form.Group>
         </Modal.Body>
+
         <Modal.Footer>
-          <Button variant="outline-secondary" onClick={onClose} disabled={saving}>ยกเลิก</Button>
-          <Button type="submit" disabled={saving}>{saving ? 'กำลังบันทึก…' : 'บันทึก'}</Button>
+          <Button
+            variant="outline-secondary"
+            onClick={onClose}
+            disabled={saving}
+          >
+            ยกเลิก
+          </Button>
+
+          <Button type="submit" disabled={saving}>
+            {saving ? 'กำลังบันทึก…' : 'บันทึก'}
+          </Button>
         </Modal.Footer>
       </Form>
     </Modal>
