@@ -1236,64 +1236,76 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
                     </div>
                   </div>
 
-                  {/* Deliverables Toggle Card */}
+                  {/* Deliverables Toggle Card — matches Single Page Mode design */}
                   <div
-                    className="p-3 rounded-3"
-                    style={{ background: '#f8fafc', border: '1px solid #e2e8f0' }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '16px',
+                      background: '#FFF9EE',
+                      border: '1px solid #FDE8C0',
+                      borderRadius: '14px',
+                      padding: '12px 14px',
+                    }}
                   >
-                    <div className="d-flex align-items-center justify-content-between">
-                      <div className="d-flex align-items-center gap-2.5">
-                        <div
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '10px',
-                            background: '#fff',
-                            border: '1px solid #e2e8f0',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#4f46e5',
-                          }}
-                        >
-                          <CheckSquare size={18} />
-                        </div>
-                        <div>
-                          <Form.Check
-                            type="checkbox"
-                            id="stepper-deliverables-toggle"
-                            label={<span className="small fw-bold text-dark">โปรเจกต์นี้มีสิ่งที่ต้องส่งมอบ (Deliverables)</span>}
-                            checked={form.requiresDeliverables}
-                            onChange={(e) =>
-                              setForm((prev) => ({
-                                ...prev,
-                                requiresDeliverables: e.target.checked,
-                              }))
-                            }
-                            className="m-0"
-                          />
-                          <p className="m-0 text-muted" style={{ fontSize: '11px' }}>
-                            ระบุรายการชิ้นงาน ผลลัพธ์ หรือเอกสารที่ต้องส่งเมื่อเสร็จสิ้น (ไม่บังคับ)
-                          </p>
-                        </div>
-                      </div>
+                    <div className="flex-grow-1 d-flex flex-column gap-1">
+                      <span className="small fw-bold text-dark">โปรเจกต์นี้มีสิ่งที่ต้องส่งมอบ</span>
+                      <span className="text-muted" style={{ fontSize: '12px', lineHeight: 1.4 }}>
+                        ส่วนนี้เป็นตัวเลือกเพิ่มเติม (Optional) สามารถเว้นว่างไว้ได้โดยไม่ส่งผลต่อการสร้างโปรเจกต์
+                      </span>
                     </div>
-
-                    {form.requiresDeliverables && (
-                      <div className="mt-2.5 pt-2 border-top">
-                        <textarea
-                          rows={3}
-                          className="stepper-fld"
-                          placeholder="ระบุรายละเอียดสิ่งที่ต้องส่งมอบ เช่น 1. คู่มือการใช้งาน 2. ซอฟต์แวร์ V1..."
-                          value={form.deliverableDescription}
-                          onChange={set('deliverableDescription')}
-                        />
-                        <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
-                          * ส่วนนี้เป็นตัวเลือกเพิ่มเติม สามารถแก้ไขภายหลังในโปรเจกต์ได้
-                        </span>
-                      </div>
-                    )}
+                    {/* Toggle Switch */}
+                    <button
+                      type="button"
+                      id="stepper-deliverables-toggle"
+                      aria-pressed={form.requiresDeliverables}
+                      onClick={() =>
+                        setForm((prev) => ({
+                          ...prev,
+                          requiresDeliverables: !prev.requiresDeliverables,
+                        }))
+                      }
+                      style={{
+                        width: '50px',
+                        height: '28px',
+                        border: 'none',
+                        borderRadius: '99px',
+                        padding: '3px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        flexShrink: 0,
+                        justifyContent: form.requiresDeliverables ? 'flex-end' : 'flex-start',
+                        background: form.requiresDeliverables ? '#2F5BD0' : '#CBD5E1',
+                        cursor: 'pointer',
+                        transition: 'background 0.15s ease',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '22px',
+                          height: '22px',
+                          borderRadius: '99px',
+                          background: '#ffffff',
+                          boxShadow: '0 1px 3px rgba(15,23,42,0.3)',
+                        }}
+                      />
+                    </button>
                   </div>
+
+                  {form.requiresDeliverables && (
+                    <div className="mt-2 pt-2 border-top">
+                      <textarea
+                        rows={3}
+                        className="stepper-fld"
+                        placeholder="ระบุรายละเอียดสิ่งที่ต้องส่งมอบ เช่น 1. คู่มือการใช้งาน 2. ซอฟต์แวร์ V1..."
+                        value={form.deliverableDescription}
+                        onChange={set('deliverableDescription')}
+                      />
+                      <span className="text-muted d-block mt-1" style={{ fontSize: '11px' }}>
+                        * ส่วนนี้เป็นตัวเลือกเพิ่มเติม สามารถแก้ไขภายหลังในโปรเจกต์ได้
+                      </span>
+                    </div>
+                  )}
 
                   {/* Schedule Date Range Selector */}
                   <div>

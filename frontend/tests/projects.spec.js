@@ -175,9 +175,9 @@ test('Stepper Mode: Deliverables เป็น Optional ตรวจสอบว�
   // Step 3: กำหนดเวลาและสิ่งที่ต้องส่งมอบ
   await expect(dialog.locator('.stepper-step-circle.active')).toHaveText('03');
 
-  // สิ่งที่ต้องส่งมอบ (Deliverables) ไม่ถูกติ๊กตามค่าเริ่มต้น (Optional)
-  const deliverablesCheckbox = dialog.locator('#stepper-deliverables-toggle');
-  await expect(deliverablesCheckbox).not.toBeChecked();
+  // สิ่งที่ต้องส่งมอบ (Deliverables) ค่าเริ่มต้นปิดอยู่ (Optional)
+  const deliverablesToggle = dialog.locator('#stepper-deliverables-toggle');
+  await expect(deliverablesToggle).toHaveAttribute('aria-pressed', 'false');
 
   // ตรวจสอบ Date Validation: วันที่เริ่ม > กำหนดส่ง
   const startDateInput = dialog.locator('input[type="date"]').first();
@@ -313,6 +313,6 @@ test('สลับมุมมองระหว่าง Stepper และ Sing
 
   // ไปยัง Step 3: ตรวจสอบว่า Deliverables ที่เปิดไว้ใน Single Page ยังคงเปิดอยู่พร้อมข้อความ
   await dialog.getByRole('button', { name: /STEP 3/ }).click();
-  await expect(dialog.locator('#stepper-deliverables-toggle')).toBeChecked();
+  await expect(dialog.locator('#stepper-deliverables-toggle')).toHaveAttribute('aria-pressed', 'true');
   await expect(dialog.locator('textarea[placeholder*="คู่มือการใช้งาน"]')).toHaveValue(deliverableText);
 });
