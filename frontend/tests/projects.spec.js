@@ -316,3 +316,130 @@ test('สลับมุมมองระหว่าง Stepper และ Sing
   await expect(dialog.locator('#stepper-deliverables-toggle')).toHaveAttribute('aria-pressed', 'true');
   await expect(dialog.locator('textarea[placeholder*="คู่มือการใช้งาน"]')).toHaveValue(deliverableText);
 });
+
+test('Dual-View: สลับระหว่างมุมมอง Table และ Card ค้นหา กรอง และเรียกใช้ Action ได้อย่างถูกต้อง', async ({ page }) => {
+  // ตรวจสอบค่าเริ่มต้นเป็น Table View
+  const tableToggle = page.getByRole('button', { name: /มุมมองตาราง/ });
+  const cardToggle = page.getByRole('button', { name: /มุมมองการ์ด/ });
+  await expect(tableToggle).toHaveClass(/active/);
+  await expect(cardToggle).not.toHaveClass(/active/);
+
+  // ตารางเริ่มต้นแสดงผล
+  const trackingTable = page.locator('.tracking-table');
+  await expect(trackingTable).toBeVisible();
+
+  // สลับไปยัง Card View
+  await cardToggle.click();
+  await expect(cardToggle).toHaveClass(/active/);
+  await expect(tableToggle).not.toHaveClass(/active/);
+  await expect(trackingTable).not.toBeVisible();
+
+  // ตรวจสอบว่าการ์ดโปรเจกต์แสดงขึ้นมา
+  const cards = page.locator('.project-card-item');
+  const initialCardCount = await cards.count();
+  expect(initialCardCount).toBeGreaterThan(0);
+
+  // ทดสอบค้นหาใน Card View
+  const searchInput = page.getByRole('searchbox', { name: 'ค้นหาโปรเจกต์' });
+  await searchInput.fill('ระบบควบคุมหุ่นยนต์ ARMS');
+  await expect(cards).toHaveCount(1);
+  await expect(cards.first().locator('.project-card-title')).toContainText('ระบบควบคุมหุ่นยนต์ ARMS');
+
+  // สลับกลับมายัง Table View — ตรวจสอบว่าเงื่อนไขค้นหายังคงอยู่
+  await tableToggle.click();
+  await expect(trackingTable).toBeVisible();
+  await expect(page.locator('.tracking-project-name')).toContainText('ระบบควบคุมหุ่นยนต์ ARMS');
+  await expect(searchInput).toHaveValue('ระบบควบคุมหุ่นยนต์ ARMS');
+
+  // Status filtering stays applied in both views.
+  await searchInput.fill('');
+  const statusFilter = page.getByRole('combobox', { name: 'กรองตามสถานะ' });
+  await statusFilter.selectOption('planning');
+  await expect(page.locator('.tracking-table .tracking-pill-status.status-planning').first()).toBeVisible();
+
+  await cardToggle.click();
+  const planningCards = page.locator('.project-card-item');
+  await expect(planningCards.first()).toBeVisible();
+  await expect(planningCards.first().locator('.tracking-pill-status.status-planning')).toBeVisible();
+
+  // ล้างตัวกรอง
+  await page.getByRole('button', { name: /ล้างตัวกรอง/ }).click();
+  await expect(searchInput).toHaveValue('');
+
+  // ทดสอบเปิด Modal แก้ไขผ่านปุ่ม icon-only ที่มี accessible name.
+  const card = page.locator('.project-card-item').first();
+  const editBtn = card.getByRole('button', { name: /^แก้ไข / });
+  await editBtn.click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText('แก้ไขโปรเจกต์')).toBeVisible();
+
+  // ปิด modal
+  await dialog.getByRole('button', { name: 'Close' }).first().click();
+  await expect(dialog).not.toBeVisible();
+
+  // Delete action opens the existing confirmation flow.
+  const deleteBtn = card.getByRole('button', { name: /^ลบ / });
+  await deleteBtn.click();
+  const deleteDialog = page.getByRole('dialog');
+  await expect(deleteDialog).toBeVisible();
+  await expect(deleteDialog.getByText('ยืนยันการลบโปรเจกต์')).toBeVisible();
+  await expect(deleteDialog.getByText(/คุณต้องการลบโปรเจกต์/)).toBeVisible();
+  await deleteDialog.getByRole('button', { name: 'ยกเลิก' }).click();
+  await expect(deleteDialog).not.toBeVisible();
+});
+
+test('Card View: แสดงข้อมูล Priority, Status, และ Milestone Progress สอดคล้องกับ Table View', async ({ page }) => {
+  // สลับไปยัง Card View
+  const cardToggle = page.getByRole('button', { name: /มุมมองการ์ด/ });
+  await cardToggle.click();
+
+  const cards = page.locator('.project-card-item');
+  await expect(cards.first()).toBeVisible();
+
+  // ตรวจสอบว่าทุกการ์ดมีป้าย Priority และ Status ที่ตรงตามมาตรฐานของระบบ
+  const firstCard = cards.first();
+  await expect(firstCard.locator('.project-card-category')).toBeVisible();
+  await expect(firstCard.locator('.tracking-pill-priority')).toBeVisible();
+  await expect(firstCard.locator('.tracking-pill-status')).toBeVisible();
+  await expect(firstCard.locator('.project-card-owner-sec')).toContainText('ผู้รับผิดชอบ');
+  await expect(firstCard.locator('.project-card-owner-name')).not.toContainText('@');
+  await expect(firstCard.locator('.project-card-team-sec')).toContainText(/ทีมงาน · \d+ คน/);
+  await expect(firstCard.locator('.project-card-team-avatars .project-card-avatar').first()).toBeVisible();
+
+  // ตรวจสอบส่วน Milestone Progress
+  await expect(firstCard.locator('.project-card-progress-sec')).toBeVisible();
+
+  // ค้นหาโปรเจกต์ 'ระบบจัดการและติดตามงาน Trainee'
+  const searchInput = page.getByRole('searchbox', { name: 'ค้นหาโปรเจกต์' });
+  await searchInput.fill('ระบบจัดการและติดตามงาน Trainee');
+  await expect(cards).toHaveCount(1);
+
+  // ตรวจสอบข้อความและเปอร์เซ็นต์ Milestone
+  const traineeCard = cards.first();
+  await expect(traineeCard.locator('.project-card-title')).toContainText('ระบบจัดการและติดตามงาน Trainee');
+  await expect(traineeCard.locator('.project-card-category')).toContainText('ระบบซอฟต์แวร์');
+  await expect(traineeCard.locator('.project-card-owner-name')).toHaveText('Supachai Meesuk');
+  await expect(traineeCard.locator('.project-card-team-sec')).toContainText('1 คน');
+  await expect(traineeCard.locator('.tracking-progress-label')).toContainText(/\d+% · \d+\/\d+ งาน/);
+  await expect(traineeCard.locator('.tracking-progress-bar')).toBeVisible();
+
+  const footer = traineeCard.locator('.project-card-footer');
+  await expect(footer.locator('.project-card-date-info')).toBeVisible();
+  await expect(footer.locator('.project-card-action-btns')).toBeVisible();
+  await expect(footer.getByRole('button', { name: 'แก้ไข ระบบจัดการและติดตามงาน Trainee' })).toBeVisible();
+  await expect(footer.getByRole('button', { name: 'ลบ ระบบจัดการและติดตามงาน Trainee' })).toBeVisible();
+  await expect(footer.locator('.project-card-date-text')).toContainText('วัน');
+
+  // ตรวจสอบโปรเจกต์ที่เสร็จแล้ว (done) จะแสดง 100%
+  await searchInput.fill('เว็บไซต');
+  const count = await cards.count();
+  if (count > 0) {
+    const doneCards = page.locator('.project-card-item:has(.status-done)');
+    if (await doneCards.count() > 0) {
+      await expect(doneCards.first().locator('.tracking-progress-label')).toContainText('100%');
+      await expect(doneCards.first().locator('.progress-bar.bg-success')).toBeVisible();
+    }
+  }
+});

@@ -18,6 +18,7 @@ import { PROJECT_CATEGORIES, PROJECT_STATUSES, statusLabel } from '../utils/conf
 import { useMockData } from '../context/MockDataContext';
 import { MOCK_EMPLOYEES } from '../data/mockData';
 import ProjectsTrackingTable from './ProjectsTrackingTable';
+import ProjectCard from './ProjectCard';
 import {
   Folder,
   Plus,
@@ -33,6 +34,7 @@ import {
   Calendar,
   Sliders,
   LayoutGrid,
+  List,
   CheckSquare,
   FileText,
   Clock,
@@ -84,6 +86,7 @@ const sortProjectsByUrgency = (projects) => {
 export default function Projects() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'card'
   const { data, error, loading, reload } = useLoad(`/projects${filter ? `?status=${filter}` : ''}`);
   const [editing, setEditing] = useState(null); // null = ปิด Modal · {} ไม่มี id = เพิ่มใหม่
   const [deleting, setDeleting] = useState(null); // โปรเจกต์ที่รอยืนยันการลบ
@@ -189,11 +192,11 @@ export default function Projects() {
         </Card>
       ) : (
         <>
-          {/* ── แถบค้นหาและตัวกรอง ─────────────────────────────────── */}
+          {/* ── แถบค้นหาและตัวกรอง + สลับมุมมอง ───────────────────── */}
           <Card className="border-0 shadow-sm mb-3 projects-toolbar">
             <Card.Body className="p-3">
               <Row className="g-2 align-items-center">
-                <Col xs={12} md={6}>
+                <Col xs={12} md={5}>
                   <InputGroup size="sm">
                     <InputGroup.Text className="bg-white border-end-0">
                       <Search size={14} className="text-muted" />
@@ -208,25 +211,47 @@ export default function Projects() {
                     />
                   </InputGroup>
                 </Col>
-                <Col xs={7} md={4}>
-                  <Form.Group className="mb-3">
-                    <Form.Label className="mecha-form-required">สถานะ</Form.Label>
-                    <Form.Select size="sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="กรองตามสถานะ">
-                      <option value="">ทุกสถานะ</option>
-                      {PROJECT_STATUSES.map((s) => (
-                        <option key={s.key} value={s.key}>{s.label}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
+                <Col xs={7} md={3}>
+                  <Form.Select size="sm" value={filter} onChange={(e) => setFilter(e.target.value)} aria-label="กรองตามสถานะ">
+                    <option value="">ทุกสถานะ</option>
+                    {PROJECT_STATUSES.map((s) => (
+                      <option key={s.key} value={s.key}>{s.label}</option>
+                    ))}
+                  </Form.Select>
                 </Col>
-                {filtersActive && (
-                  <Col xs={5} md={2} className="text-end">
-                    <Button variant="link" size="sm" className="text-decoration-none p-0 d-inline-flex align-items-center gap-1" onClick={clearFilters}>
+                <Col xs={5} md={4} className="d-flex align-items-center justify-content-end gap-2">
+                  {filtersActive && (
+                    <Button variant="link" size="sm" className="text-decoration-none p-0 d-inline-flex align-items-center gap-1 me-2" onClick={clearFilters}>
                       <X size={14} />
                       <span>ล้างตัวกรอง</span>
                     </Button>
-                  </Col>
-                )}
+                  )}
+                  {/* ปุ่มสลับมุมมอง Card / Table */}
+                  <div className="btn-group projects-view-toggle" role="group" aria-label="รูปแบบมุมมองโปรเจกต์">
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className={`d-inline-flex align-items-center gap-1.5 ${viewMode === 'card' ? 'active' : ''}`}
+                      onClick={() => setViewMode('card')}
+                      aria-label="มุมมองการ์ด (Card View)"
+                      title="มุมมองการ์ด"
+                    >
+                      <LayoutGrid size={15} />
+                      <span className="d-none d-sm-inline">การ์ด</span>
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      className={`d-inline-flex align-items-center gap-1.5 ${viewMode === 'table' ? 'active' : ''}`}
+                      onClick={() => setViewMode('table')}
+                      aria-label="มุมมองตาราง (Table View)"
+                      title="มุมมองตาราง"
+                    >
+                      <List size={15} />
+                      <span className="d-none d-sm-inline">ตาราง</span>
+                    </Button>
+                  </div>
+                </Col>
               </Row>
             </Card.Body>
           </Card>
@@ -244,10 +269,34 @@ export default function Projects() {
 
           {actionError && <Alert variant="danger" dismissible onClose={() => setActionError('')}>{actionError}</Alert>}
 
-
-
-          {/* ── ตารางติดตามโปรเจกต์ 8 คอลัมน์ (โหมด mock — อ่านจาก Context กลาง) ── */}
-          {!loading && !noProjectsAtAll && <ProjectsTrackingTable />}
+          {/* ── มุมมองโปรเจกต์: ตาราง (Table View) หรือ การ์ด (Card View) ── */}
+          {!loading && !noProjectsAtAll && (
+            viewMode === 'card' ? (
+              sortedProjects.length === 0 ? (
+                <Card className="border-0 shadow-sm">
+                  <Card.Body className="text-center py-5">
+                    <Folder size={36} className="text-muted mb-2" />
+                    <div className="fw-medium">ไม่พบโปรเจกต์ที่ตรงกับเงื่อนไขการค้นหา</div>
+                    <p className="text-muted small mb-0">ลองปรับเปลี่ยนคำค้นหาหรือตัวกรองสถานะ</p>
+                  </Card.Body>
+                </Card>
+              ) : (
+                <Row className="g-3">
+                  {sortedProjects.map((p) => (
+                    <Col key={p.id} xs={12} md={6} lg={4}>
+                      <ProjectCard
+                        project={p}
+                        onEdit={(proj) => setEditing(proj)}
+                        onDelete={(proj) => setDeleting(proj)}
+                      />
+                    </Col>
+                  ))}
+                </Row>
+              )
+            ) : (
+              <ProjectsTrackingTable projects={sortedProjects} />
+            )
+          )}
         </>
       )}
 
