@@ -9,6 +9,7 @@ import ReactDOM from 'react-dom/client';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/tokens.css';
 import './index.css';
+import './styles/project-modal.css';
 import App from './App';
 import { startScrollbarActivity } from './utils/scrollbarActivity';
 
