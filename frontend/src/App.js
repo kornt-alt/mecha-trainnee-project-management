@@ -6,6 +6,7 @@ import Layout from './components/Layout';
 import Home from './components/Home';
 import About from './components/About';
 import Projects from './components/Projects';
+import ProjectDetail from './components/project-detail/ProjectDetail';
 import Tasks from './components/Tasks';
 import Reports from './components/Reports';
 import Workload from './components/Workload';
@@ -24,6 +25,7 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="projects" element={<Projects />} />
+          <Route path="projects/:projectId" element={<ProjectDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="workload" element={<Workload />} />
           <Route path="reports" element={<Reports />} />

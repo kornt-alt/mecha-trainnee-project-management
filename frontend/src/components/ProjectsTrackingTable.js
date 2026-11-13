@@ -1,6 +1,7 @@
 // frontend/src/components/ProjectsTrackingTable.js — ตารางติดตามโปรเจกต์ 8 คอลัมน์ (ผู้รับผิดชอบ/ชื่อ/หมวด/ลำดับความสำคัญ/สถานะ/ความคืบหน้า/เริ่มต้น/กำหนดส่ง)
 // อ่านข้อมูลจาก MockDataContext (แหล่งเดียวร่วมกับหน้าโปรเจกต์) · สถานะ "ล่าช้า" คือการแสดงผลจากวันกำหนดส่งแล้ว ไม่แก้ข้อมูลจริง
 import { Badge, ProgressBar, Table } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
 import { statusLabel } from '../utils/config';
 import {
@@ -61,7 +62,11 @@ export default function ProjectsTrackingTable({ projects: propProjects }) {
                   )}
                 </td>
                 {/* ── 2. ชื่อโปรเจกต์ ── */}
-                <td className="tracking-project-name">{p.name}</td>
+                <td className="tracking-project-name">
+                  <Link className="tracking-project-link" to={`/projects/${p.id}`}>
+                    {p.name}
+                  </Link>
+                </td>
                 {/* ── 3. หมวดหมู่ (pastel badge) ── */}
                 <td>
                   <Badge bg="" className="tracking-pill tracking-pill-category text-nowrap">{p.category || '-'}</Badge>

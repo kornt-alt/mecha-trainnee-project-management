@@ -1,6 +1,6 @@
 // Mock schedule + planned allocation for Workload Dashboard.
 // All schedule and allocation data in this file are frontend-only fixtures.
-import { MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS, MOCK_WORK_ENTRIES } from './mockData';
+import { MOCK_WORK_ENTRIES } from './mockData';
 
 // ── Approved leave ────────────────────────────────────────────────────────
 // Single source of truth for all approved leave records.
@@ -19,15 +19,7 @@ export const MOCK_APPROVED_LEAVE = [
   { id: 'lv-09', employeeId: 'emp-013', date: '2026-12-21', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
   { id: 'lv-10', employeeId: 'emp-020', date: '2027-02-08', hours: 8, reason: 'ลาพักร้อน' },
   { id: 'lv-11', employeeId: 'emp-020', date: '2027-02-09', hours: 8, reason: 'ลาพักร้อน' },
-  // Full-month leave (Feb 2027) → zero actual capacity that month (drives the N/A scenario).
-  ...Array.from({ length: 27 }, (_, index) => {
-    const date = `2027-02-${String(index + 1).padStart(2, '0')}`;
-    return { id: `lv-12-${date}`, employeeId: 'emp-016', date, hours: 8, reason: 'ลาคลอดบุตร' };
-  }),
-  { id: 'lv-31', employeeId: 'emp-031', date: '2026-11-23', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
   { id: 'lv-32', employeeId: 'emp-024', date: '2027-01-25', hours: 8, reason: 'ลาป่วย' },
-  { id: 'lv-33', employeeId: 'emp-006', date: '2026-12-02', hours: 8, reason: 'ลากิจ' },
-  { id: 'lv-34', employeeId: 'emp-030', date: '2027-03-08', hours: 4, reason: 'ลากิจ (ครึ่งวัน)' },
 ];
 
 // Pre-indexed by employeeId for O(1) lookup.
@@ -229,73 +221,11 @@ export function getEmployeeCapacity(employee, startValue, endValue) {
   return { minutes: totalMinutes, hours: totalMinutes / 60, days };
 }
 
-const activeProjectIds = new Set(MOCK_PROJECTS.filter((project) => !['done', 'cancelled'].includes(project.status)).map((project) => project.id));
-const taskPools = new Map();
-MOCK_EMPLOYEES.forEach((employee) => {
-  let pool = MOCK_TASKS.filter((task) => task.assigneeId === employee.id && activeProjectIds.has(task.projectId) && task.status !== 'completed');
-  if (!pool.length) pool = MOCK_TASKS.filter((task) => task.departmentId === employee.departmentId && activeProjectIds.has(task.projectId) && task.status !== 'completed');
-  if (!pool.length) pool = MOCK_TASKS.filter((task) => activeProjectIds.has(task.projectId));
-  taskPools.set(employee.id, pool);
-});
-
-function createPlannedEntries() {
-  const entries = [];
-  let sequence = 1;
-  // Generate deterministic fixtures across 2026 so all timeframe controls have data.
-  const cursor = new Date(2026, 0, 1);
-  const finish = new Date(2026, 11, 31);
-  while (cursor <= finish) {
-    const dateString = toISODate(cursor);
-    const dayNumber = Math.floor(cursor.getTime() / 86400000);
-    for (let employeeIndex = 0; employeeIndex < MOCK_EMPLOYEES.length; employeeIndex += 1) {
-      const employee = MOCK_EMPLOYEES[employeeIndex];
-      const schedule = getEmployeeDaySchedule(employee, dateString);
-      if (schedule.dayOff || schedule.capacityMinutes <= 0) continue;
-      const pool = taskPools.get(employee.id) || [];
-      if (!pool.length) continue;
-
-      // Deterministic utilization between roughly 42% and 118%, with a few peaks.
-      const loadHash = hashNumber(`${employee.id}-load-${dayNumber}`);
-      let utilization = 0.42 + ((loadHash % 66) / 100);
-      if (employeeIndex % 9 === 3 && loadHash % 4 === 0) utilization = 1.04 + ((loadHash % 15) / 100);
-      const plannedMinutes = Math.round(schedule.capacityMinutes * utilization / 15) * 15;
-      const taskCount = plannedMinutes > 300 && loadHash % 3 === 0 ? 2 : 1;
-      let remainingMinutes = plannedMinutes;
-      for (let taskIndex = 0; taskIndex < taskCount; taskIndex += 1) {
-        const task = pool[(dayNumber + employeeIndex * 3 + taskIndex * 5) % pool.length];
-        const minutes = taskIndex === taskCount - 1
-          ? remainingMinutes
-          : Math.round((plannedMinutes * 0.58) / 15) * 15;
-        remainingMinutes -= minutes;
-        entries.push({
-          id: `planned-${String(sequence++).padStart(6, '0')}`,
-          employeeId: employee.id,
-          taskId: task.id,
-          projectId: task.projectId,
-          date: dateString,
-          hours: Number((minutes / 60).toFixed(2)),
-          type: 'planned',
-        });
-      }
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return entries;
-}
-
-// Transform and extend existing MOCK_WORK_ENTRIES as the primary source of truth.
-// Preserves 100% of existing employee records, project relationships, and 6,540 original work entries.
-function getPlannedWorkEntries() {
-  if (Array.isArray(MOCK_WORK_ENTRIES) && MOCK_WORK_ENTRIES.length > 0) {
-    return MOCK_WORK_ENTRIES.map((entry) => ({
-      ...entry,
-      type: entry.type || 'planned',
-    }));
-  }
-  return createPlannedEntries();
-}
-
-export const MOCK_PLANNED_WORK_ENTRIES = getPlannedWorkEntries();
+// Workload has no allocations until real Task and work-hour records exist.
+export const MOCK_PLANNED_WORK_ENTRIES = MOCK_WORK_ENTRIES.map((entry) => ({
+  ...entry,
+  type: entry.type || 'planned',
+}));
 
 /**
  * Filters employee records by Section (departmentId), Sub-section (position), and search query.

@@ -1,6 +1,7 @@
 // frontend/src/components/Projects.js — รายการโปรเจกต์: ค้นหา + กรองสถานะ, เพิ่ม/แก้ไข (Modal), เปลี่ยนสถานะ (ผ่านเมนูแถว), ลบ
 // รองรับทั้งข้อมูลจริงจาก API และ Mock Data กลางที่เชื่อมโยงกับ Tasks เมื่อยังไม่ต่อ backend
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Alert,
   Badge,
@@ -84,6 +85,8 @@ const sortProjectsByUrgency = (projects) => {
 };
 
 export default function Projects() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
   const [viewMode, setViewMode] = useState('table'); // 'table' | 'card'
@@ -94,7 +97,15 @@ export default function Projects() {
   const [actionError, setActionError] = useState('');
 
   // Mock Mode ใช้ชุดข้อมูลกลางจาก MockDataContext (แชร์ข้ามหน้า กับ Tasks) — ไม่มี local copy อีกต่อไป
-  const { projects, setProjects, tasks } = useMockData();
+  const { projects, setProjects, tasks, deliverables } = useMockData();
+
+  useEffect(() => {
+    const requestedId = location.state?.editProjectId;
+    if (requestedId === undefined || requestedId === null) return;
+    const target = projects.find((project) => String(project.id) === String(requestedId));
+    if (target) setEditing(target);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate, projects]);
 
   // API Mode = คำขอล่าสุด "สำเร็จ" (data ไม่ใช่ null) · ห้ามใช้ data.length ตัดสินการเชื่อมต่อ
   // เพราะ backend ตอบ array ว่าง [] เมื่อ DB ยังไม่มีโปรเจกต์ — ยังเป็นคำตอบที่สำเร็จเสมอ
@@ -131,9 +142,10 @@ export default function Projects() {
       // (เช็คเฉพาะ Mock Mode เพราะ tasks ใน Context คือ mock; ฝั่ง API ต้องตรวจที่ backend — deferred)
       // (id เทียบแบบ String เพราะ project.id และ task.projectId ผ่านฟอร์ม input เป็น string ได้)
       const hasRelatedTasks = tasks.some((t) => String(t.projectId) === String(p.id));
-      if (hasRelatedTasks) {
+      const hasRelatedDeliverables = deliverables.some((item) => String(item.projectId) === String(p.id));
+      if (hasRelatedTasks || hasRelatedDeliverables) {
         // ลบถูกบล็อค — คง popup เปิดไว้และแสดงเหตุผลใน popup (ข้อความ/พฤติกรรม Policy B ไม่เปลี่ยน)
-        setDeleteError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงาน (Tasks) ที่ผูกกับโปรเจกต์นี้อยู่ — กรุณาจัดการงานที่เกี่ยวข้องก่อนลบโปรเจกต์');
+        setDeleteError('ไม่สามารถลบโปรเจกต์ได้ เนื่องจากยังมีงานหรือสิ่งที่ส่งมอบผูกอยู่ — กรุณาจัดการข้อมูลที่เกี่ยวข้องก่อนลบโปรเจกต์');
         return;
       }
       // โหมดตัวอย่าง: ลบจาก shared mock state โดยตรง (ไม่ยิง API) — immutable update; ลบสำเร็จจึงปิด popup
@@ -1049,7 +1061,7 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
                           value={form.status}
                           onChange={set('status')}
                         >
-                          {PROJECT_STATUSES.map((s) => (
+                          {PROJECT_STATUSES.filter((s) => (s.key !== 'done' || form.status === 'done') && (initial.closure?.status !== 'closed' || s.key === 'done')).map((s) => (
                             <option key={s.key} value={s.key}>
                               {s.label}
                             </option>

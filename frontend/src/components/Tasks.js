@@ -1,6 +1,7 @@
 // frontend/src/components/Tasks.js — หน้าตารางงาน (Tasks) และกระดานคานบัน (Kanban Board)
 // เชื่อมโยงกับ MOCK_TASKS, MOCK_PROJECTS และ MOCK_EMPLOYEES (Single Source of Truth)
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Badge,
   Button,
@@ -18,6 +19,7 @@ import {
 } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
 import { TASK_CATEGORIES } from '../utils/config';
+import TaskDetailModal from './TaskDetailModal';
 import {
   CalendarDays,
   ChevronLeft,
@@ -44,6 +46,8 @@ const today = () => {
 };
 
 export default function Tasks() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { tasks: taskList, projects, updateTasksAndSyncProjects } = useMockData();
   const MOCK_PROJECTS = projects;
   const [currentView, setCurrentView] = useState('list'); // 'list' หรือ 'kanban'
@@ -53,6 +57,14 @@ export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
+
+  useEffect(() => {
+    const requestedId = location.state?.selectedTaskId;
+    if (requestedId === undefined || requestedId === null) return;
+    const target = taskList.find((task) => String(task.id) === String(requestedId));
+    if (target) setSelectedTask(target);
+    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+  }, [location.pathname, location.search, location.state, navigate, taskList]);
 
   const todayStr = today();
 
@@ -86,6 +98,7 @@ export default function Tasks() {
   // ฟังก์ชันย้ายสถานะของงาน (สำหรับ Kanban Board) — อัปเดต task และ sync metrics โปรเจกต์ต้นสังกัดพร้อมกัน
   const moveTaskStatus = (taskId, newStatus) => {
     const affected = taskList.find((t) => t.id === taskId);
+    if (!affected || ['pending_review', 'completed'].includes(affected.status) || ['pending_review', 'completed'].includes(newStatus)) return;
     updateTasksAndSyncProjects((prev) =>
       prev.map((t) => {
         if (t.id !== taskId) return t;
@@ -406,8 +419,10 @@ export default function Tasks() {
                       ) : (
                         colTasks.map((task) => {
                           const isTaskOverdue = task.dueDate < todayStr && task.status !== 'completed';
-                          const prevStatus = getPrevStatus(task.status);
-                          const nextStatus = getNextStatus(task.status);
+                          const prevCandidate = getPrevStatus(task.status);
+                          const nextCandidate = getNextStatus(task.status);
+                          const prevStatus = ['pending_review', 'completed'].includes(prevCandidate) ? null : prevCandidate;
+                          const nextStatus = ['pending_review', 'completed'].includes(nextCandidate) ? null : nextCandidate;
 
                           return (
                             <Card key={task.id} className="border shadow-none kanban-card p-2">
@@ -502,87 +517,7 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* ── Modal แสดงรายละเอียดงาน (Task Detail Modal) ─────────── */}
-      {selectedTask && (
-        <Modal show onHide={() => setSelectedTask(null)} centered className="mecha-detail-modal">
-          <Modal.Header closeButton>
-            <Modal.Title className="h5 fw-bold text-ink">รายละเอียดงาน</Modal.Title>
-          </Modal.Header>
-          <Modal.Body className="p-4">
-            <div className="mb-3">
-              <span className="small text-muted d-block mb-1">ชื่องาน</span>
-              <h5 className="fw-semibold text-ink">{selectedTask.title}</h5>
-            </div>
-
-            <div className="mb-3">
-              <span className="small text-muted d-block mb-1">โปรเจกต์ต้นสังกัด</span>
-              <div className="d-flex align-items-center gap-2 fw-medium text-ink">
-                <Folder size={16} className="text-primary" />
-                <span>{selectedTask.projectName}</span>
-              </div>
-            </div>
-
-            <div className="row g-3 mb-3">
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">หมวดหมู่</span>
-                <span className="badge bg-light text-dark border">{selectedTask.category}</span>
-              </div>
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">ระดับความสำคัญ</span>
-                {renderPriorityBadge(selectedTask.priority)}
-              </div>
-            </div>
-
-            <div className="row g-3 mb-3">
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">สถานะปัจจุบัน</span>
-                {renderStatusBadge(selectedTask.status)}
-              </div>
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">ผู้รับผิดชอบ</span>
-                <div className="small fw-medium text-ink">
-                  {MOCK_EMPLOYEES.find((e) => e.id === selectedTask.assigneeId)?.name || selectedTask.assigneeId}
-                </div>
-              </div>
-            </div>
-
-            <div className="row g-3 mb-3">
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">วันที่เริ่ม</span>
-                <span className="small text-ink">{selectedTask.startDate}</span>
-              </div>
-              <div className="col-6">
-                <span className="small text-muted d-block mb-1">กำหนดส่ง</span>
-                <span className="small text-ink">{selectedTask.dueDate}</span>
-              </div>
-            </div>
-
-            <div className="mb-3">
-              <div className="d-flex justify-content-between mb-1">
-                <span className="small text-muted">ความคืบหน้า</span>
-                <span className="small fw-semibold">{selectedTask.progress}%</span>
-              </div>
-              <ProgressBar
-                now={selectedTask.progress}
-                variant={selectedTask.progress === 100 ? 'success' : 'primary'}
-                style={{ height: 8 }}
-              />
-            </div>
-
-            <div className="mb-2">
-              <span className="small text-muted d-block mb-1">คำอธิบายรายละเอียด</span>
-              <div className="p-3 bg-light rounded small text-ink" style={{ lineHeight: 1.6 }}>
-                {selectedTask.description || 'ไม่มีรายละเอียดเพิ่มเติม'}
-              </div>
-            </div>
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="outline-secondary" onClick={() => setSelectedTask(null)}>
-              ปิดหน้าต่าง
-            </Button>
-          </Modal.Footer>
-        </Modal>
-      )}
+      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />
 
       {/* ── Modal เพิ่มงานใหม่ (New Task Modal) ─────────────────── */}
       {isAdding && (
@@ -606,6 +541,8 @@ function NewTaskModal({ initial, onClose, onAdd }) {
     title: initial?.title ?? '',
     projectId: initial?.projectId ?? '',
     assigneeId: initial?.assigneeId ?? '',
+    reviewerId: initial?.reviewerId ?? '',
+    collaborators: initial?.collaborators ?? [],
     category: initial?.category ?? '',
     startDate: initial?.startDate ?? today(),
     dueDate: initial?.dueDate ?? today(),
@@ -659,6 +596,9 @@ function NewTaskModal({ initial, onClose, onAdd }) {
       errors.assigneeId = 'กรุณาเลือกผู้รับผิดชอบ';
     }
 
+    if (!form.reviewerId) errors.reviewerId = 'กรุณากำหนดผู้ตรวจงาน';
+    if (form.reviewerId && String(form.reviewerId) === String(form.assigneeId)) errors.reviewerId = 'ผู้ตรวจงานต้องไม่ซ้ำกับผู้รับผิดชอบหลัก';
+
     if (form.startDate && form.dueDate && form.startDate > form.dueDate) {
       errors.dateRange = 'วันที่เริ่มต้นต้องไม่มากกว่ากำหนดส่ง';
     }
@@ -677,6 +617,7 @@ function NewTaskModal({ initial, onClose, onAdd }) {
       id: initial?.id || `task-${Date.now()}`,
       projectId: Number(form.projectId),
       projectName: proj ? proj.name : '',
+      collaborators: [...new Set(form.collaborators.map(String).filter((id) => id !== String(form.assigneeId)))],
       status: initial?.status || 'not_started',
       statusLabel: initial?.statusLabel || 'รอเริ่มทำ',
       progress: initial?.progress ?? 0,
@@ -756,6 +697,23 @@ function NewTaskModal({ initial, onClose, onAdd }) {
               {fieldErrors.assigneeId && (
                 <Form.Control.Feedback type="invalid">{fieldErrors.assigneeId}</Form.Control.Feedback>
               )}
+            </Col>
+          </Row>
+
+          <Row className="g-2 mb-3">
+            <Col xs={6}>
+              <Form.Label className="mecha-form-required">ผู้ตรวจงาน</Form.Label>
+              <Form.Select value={form.reviewerId} onChange={set('reviewerId')} isInvalid={!!fieldErrors.reviewerId} aria-label="เลือกผู้ตรวจงาน">
+                <option value="">กรุณาเลือกผู้ตรวจ</option>
+                {MOCK_EMPLOYEES.filter((emp) => String(emp.id) !== String(form.assigneeId)).map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </Form.Select>
+              {fieldErrors.reviewerId && <Form.Control.Feedback type="invalid">{fieldErrors.reviewerId}</Form.Control.Feedback>}
+            </Col>
+            <Col xs={6}>
+              <Form.Label>ผู้ร่วมงาน</Form.Label>
+              <Form.Select multiple value={form.collaborators.map(String)} onChange={(event) => setForm((prev) => ({ ...prev, collaborators: Array.from(event.target.selectedOptions, (option) => option.value) }))} aria-label="เลือกผู้ร่วมงาน">
+                {MOCK_EMPLOYEES.filter((emp) => String(emp.id) !== String(form.assigneeId)).map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+              </Form.Select>
             </Col>
           </Row>
 

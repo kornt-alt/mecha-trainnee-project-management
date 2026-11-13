@@ -1526,7 +1526,7 @@ body {
 
 .status-pill-orange {
   background: var(--amber-tint);
-  color: var(--amber);
+  color: var(--workspace-status-review-legacy-fg);
   border: 1px solid #FDE68A;
 }
 
@@ -2536,6 +2536,16 @@ body {
 }
 .mecha-detail-modal .modal-footer .btn {
   min-width: 6rem;
+}
+.mecha-detail-modal .modal-footer .btn-outline-secondary {
+  --bs-btn-color: var(--workspace-secondary-strong);
+  --bs-btn-border-color: var(--workspace-control-border);
+  --bs-btn-hover-color: var(--surface);
+  --bs-btn-hover-bg: var(--workspace-secondary-strong);
+  --bs-btn-hover-border-color: var(--workspace-secondary-strong);
+  --bs-btn-active-color: var(--surface);
+  --bs-btn-active-bg: var(--workspace-ink);
+  --bs-btn-active-border-color: var(--workspace-ink);
 }
 
 /* ── ป็อปอัปยืนยัน (confirm modal) ── ผูม สี Destructive ขึ้นกับ .is-destructive เท่านั้น (ไม่ hardcode สีใน element ก่อできจาก toolcard)

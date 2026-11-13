@@ -3,6 +3,7 @@
 // ความคืบหน้า Milestone, ทีมงาน, วันที่เริ่ม-สิ้นสุด + จำนวนวัน (duration), ปุ่มแก้ไขและลบ
 import React, { useMemo } from 'react';
 import { Badge, ProgressBar } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
 import { MOCK_EMPLOYEES } from '../data/mockData';
 import { statusLabel } from '../utils/config';
@@ -97,6 +98,11 @@ export default function ProjectCard({ project, onEdit, onDelete }) {
 
   return (
     <div className="project-card-item h-100">
+      <Link
+        to={`/projects/${project.id}`}
+        className="project-card-navigation-link"
+        aria-label={`เปิดโปรเจกต์ ${project.name}`}
+      />
       {/* ── 1. Top Bar: Category & Priority Badge ── */}
       <div className="project-card-header">
         <span className="project-card-category" title={project.category || 'ทั่วไป'}>
