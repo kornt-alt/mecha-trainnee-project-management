@@ -79,6 +79,25 @@ function EmptyCard() {
   );
 }
 
+function PartialCard({ employeeId }) {
+  return (
+    <div className="login-id-card is-partial">
+      <CardHeader />
+      <div className="login-idc-photo login-idc-photo-empty" aria-hidden="true">?</div>
+      <div className="login-idc-info" aria-hidden="true">
+        <div className="login-skeleton login-skeleton-80" />
+        <div className="login-skeleton login-skeleton-55" />
+        <div className="login-skeleton login-skeleton-65" />
+        <div className="login-idc-partial-row">
+          <small>Employee ID</small>
+          <b className="login-idc-partial-value">{employeeId}</b>
+        </div>
+      </div>
+      <div className="login-idc-stripe" />
+    </div>
+  );
+}
+
 function NotFoundCard() {
   return (
     <div className="login-id-card is-not-found">
@@ -117,9 +136,10 @@ function EmployeeCard({ employee }) {
   );
 }
 
-const EmployeeIdCard = React.memo(function EmployeeIdCard({ employee, notFound = false }) {
+const EmployeeIdCard = React.memo(function EmployeeIdCard({ employee, notFound = false, partialId = '' }) {
   if (employee) return <EmployeeCard employee={employee} />;
   if (notFound) return <NotFoundCard />;
+  if (partialId) return <PartialCard employeeId={partialId} />;
   return <EmptyCard />;
 });
 

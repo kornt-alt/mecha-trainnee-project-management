@@ -39,6 +39,44 @@ test('shows the exact matching card for EMP-001 through EMP-008', async ({ page 
   }
 });
 
+test('shows partial Employee IDs immediately without a not-found state', async ({ page }) => {
+  const employeeId = page.getByLabel('Employee ID');
+  const card = page.locator('.login-id-card');
+
+  await employeeId.fill('EMP-001');
+  await expect(card.getByText('Mock Employee 01')).toBeVisible();
+
+  for (const value of ['E', 'EM', 'EMP-', 'EMP-0', 'EMP-00']) {
+    await employeeId.fill(value);
+    await expect(card).toHaveClass(/is-partial/);
+    await expect(card.locator('.login-idc-partial-value')).toHaveText(value);
+    await expect(card.getByText('Employee not found')).toHaveCount(0);
+    await expect(card.getByText('Mock Employee 01')).toHaveCount(0);
+  }
+});
+
+test('clears stale employee details for unknown IDs and restores the empty card', async ({ page }) => {
+  const employeeId = page.getByLabel('Employee ID');
+  const card = page.locator('.login-id-card');
+
+  await employeeId.fill('EMP-001');
+  await expect(card.getByText('Mock Employee 01')).toBeVisible();
+  await employeeId.fill('EMP-00');
+  await expect(card.locator('.login-idc-partial-value')).toHaveText('EMP-00');
+  await expect(card.getByText('Mock Employee 01')).toHaveCount(0);
+
+  await employeeId.fill('EMP-999');
+  await expect(card).toHaveClass(/is-not-found/);
+  await expect(card.getByText('Employee not found')).toBeVisible();
+  await expect(card.getByText(/Mock Employee/)).toHaveCount(0);
+  await expect(card.getByText('Project Engineer')).toHaveCount(0);
+  await expect(card.getByText('PE', { exact: true })).toHaveCount(0);
+
+  await employeeId.fill('');
+  await expect(card).toHaveClass(/is-empty/);
+  await expect(card.getByText('Enter an Employee ID')).toBeVisible();
+});
+
 test('unknown employee IDs never display another employee card', async ({ page }) => {
   await page.getByLabel('Employee ID').fill('EMP-999');
 
@@ -112,30 +150,47 @@ test('traps keyboard focus and exposes labelled errors and live status', async (
   await page.keyboard.press('Shift+Tab');
   await expect(page.getByRole('button', { name: 'Sign in' })).toBeFocused();
 
-  await employeeId.fill('UNKNOWN');
+  await employeeId.fill('EMP-999');
   await expect(employeeId).toHaveAttribute('aria-describedby', 'login-employee-id-error');
-  await expect(page.getByRole('status')).toContainText('Employee not found.');
+  await expect(page.getByRole('status')).toContainText('Employee EMP-999 was not found.');
 });
 
 test('keeps the login form faded while the preview expands', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Welcome back' });
   const form = page.locator('.login-form-col');
+  const cardWrap = page.locator('.login-card-wrap');
 
   await page.getByLabel('Employee ID').fill('EMP-001');
   await page.getByLabel('Password').fill('demo');
+  await expect(cardWrap).not.toHaveClass(/is-lift/);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page.locator('.login-preview-col')).toHaveClass(/is-expanded/);
-
-  await page.waitForTimeout(120);
+  await expect(page.locator('.login-submit')).toBeDisabled();
+  await expect(page.locator('.login-submit')).toHaveAttribute('aria-busy', 'true');
   await expect(dialog).toHaveClass(/is-leaving/);
+  await expect(cardWrap).toHaveClass(/is-lift/);
+  await expect(page.locator('.login-preview-col')).toHaveClass(/is-expanded/);
+  await page.waitForTimeout(120);
+  await expect(dialog).toHaveClass(/is-cinematic/);
   await expect(form).toHaveCSS('opacity', '0');
 });
 
 test('plays the signature animation and reveals the dashboard as a demo only', async ({ page }) => {
   const authRequests = [];
+  const apiRequests = [];
+  const consoleErrors = [];
+  const pageErrors = [];
   page.on('request', (request) => {
-    if (/\/api\/(auth|login)(\/|$)/i.test(new URL(request.url()).pathname)) authRequests.push(request.url());
+    const pathname = new URL(request.url()).pathname;
+    if (/\/api\//i.test(pathname)) apiRequests.push(request.url());
+    if (/\/api\/(auth|login)(\/|$)/i.test(pathname)) authRequests.push(request.url());
   });
+  page.on('console', (message) => {
+    if (message.type() === 'error') consoleErrors.push(message.text());
+  });
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.waitForTimeout(800);
+  const apiRequestsBeforeSignIn = [...apiRequests];
+  const consoleErrorsBeforeSignIn = [...consoleErrors];
   const storageBefore = await page.evaluate(() => JSON.stringify({
     local: Object.keys(localStorage).sort(),
     session: Object.keys(sessionStorage).sort(),
@@ -143,6 +198,8 @@ test('plays the signature animation and reveals the dashboard as a demo only', a
 
   await page.getByLabel('Employee ID').fill('EMP-001');
   await page.getByLabel('Password').fill('anything');
+  await expect(page.locator('.login-id-card')).not.toContainText('anything');
+  await expect(page.locator('.login-password-dots .login-dot')).toHaveCount(8);
   const dialog = page.getByRole('dialog', { name: 'Welcome back' });
   const submit = page.locator('.login-submit');
   await submit.click();
@@ -173,11 +230,50 @@ test('plays the signature animation and reveals the dashboard as a demo only', a
   await expect(page.locator('.login-app-background')).toHaveClass(/is-revealed/);
 
   expect(authRequests).toEqual([]);
+  expect(apiRequests).toEqual(apiRequestsBeforeSignIn);
+  expect(consoleErrors).toEqual(consoleErrorsBeforeSignIn);
+  expect(pageErrors).toEqual([]);
   const storageAfter = await page.evaluate(() => JSON.stringify({
     local: Object.keys(localStorage).sort(),
     session: Object.keys(sessionStorage).sort(),
   }));
   expect(storageAfter).toBe(storageBefore);
+});
+
+test('replays the demo after the Dashboard reveal', async ({ page }) => {
+  await page.getByLabel('Employee ID').fill('EMP-001');
+  await page.getByLabel('Password').fill('demo');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('button', { name: 'Replay login demo' })).toBeVisible({ timeout: 6000 });
+
+  await page.getByRole('button', { name: 'Replay login demo' }).click();
+  await expect(page.getByRole('dialog', { name: 'Welcome back' })).toBeVisible();
+  await expect(page.getByLabel('Employee ID')).toHaveValue('');
+  await expect(page.locator('.login-id-card')).toHaveClass(/is-empty/);
+
+  await page.getByLabel('Employee ID').fill('EMP-002');
+  await page.getByLabel('Password').fill('demo');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('button', { name: 'Replay login demo' })).toBeVisible({ timeout: 6000 });
+  await expect(page.getByText('Dashboard reveal demo. No session was created.')).toBeVisible();
+});
+
+test('cancels animation state safely when Login unmounts mid-transition', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.getByLabel('Employee ID').fill('EMP-001');
+  await page.getByLabel('Password').fill('demo');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('.login-modal-panel')).toHaveClass(/is-leaving/);
+
+  await page.evaluate(() => {
+    window.history.pushState({}, '', '/PROJECT-MANAGEMENT/projects');
+    window.dispatchEvent(new PopStateEvent('popstate'));
+  });
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /เพิ่มโปรเจกต์/ }).first()).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(pageErrors).toEqual([]);
 });
 
 test('respects reduced motion while preserving the demo result', async ({ page }) => {
@@ -310,7 +406,9 @@ test('keeps the layout and ID card proportions across desktop, tablet, mobile, a
 
 test('keeps the Employee ID card centered across responsive widths', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
   const viewports = [
+    { name: 'desktop-wide', width: 1440, height: 900 },
     { name: 'desktop', width: 1280, height: 900 },
     { name: 'tablet-wide', width: 1024, height: 900 },
     { name: 'tablet', width: 900, height: 900 },
@@ -385,14 +483,13 @@ test('keeps the Employee ID card centered across responsive widths', async ({ pa
     await expect(dialog).toHaveClass(/is-leaving/);
     await expect(form).toHaveCSS('opacity', '0');
     await page.waitForTimeout(120);
-    if (index === 0) await screenshot('preview-expansion');
     await expectFixedCardSize();
 
     await expect(dialog).toHaveClass(/is-welcomed/);
     await expect(dialog.getByText('Welcome to MECHA')).toBeVisible();
     await expect(dialog.getByText('Hello, Mock Employee 01')).toBeVisible();
     await expectFixedCardSize();
-    await expectCardCenteredIn('.login-preview-col', `${viewport.name}-welcome-preview`);
+    await expectCardCenteredIn('.login-modal-panel', `${viewport.name}-welcome-modal`);
     const centered = await page.evaluate(() => {
       const modalElement = document.querySelector('.login-modal-panel');
       const modal = modalElement.getBoundingClientRect();

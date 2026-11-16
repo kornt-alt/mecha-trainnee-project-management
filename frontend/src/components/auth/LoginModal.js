@@ -1,4 +1,4 @@
-// frontend/src/components/auth/LoginModal.js — runs the mock-only login preview and reveal sequence.
+  // frontend/src/components/auth/LoginModal.js — runs the mock-only login preview and reveal sequence.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EmployeeIdCard from './EmployeeIdCard';
 import { LOGIN_DEMO_EMPLOYEES } from '../../data/loginDemoEmployees';
@@ -16,22 +16,6 @@ const wait = (duration, signal) => {
     };
     const abort = () => finish(false);
     timeoutId = window.setTimeout(() => finish(true), duration);
-    signal?.addEventListener('abort', abort, { once: true });
-  });
-};
-
-const nextFrame = (signal) => {
-  if (signal?.aborted) return Promise.resolve(false);
-
-  return new Promise((resolve) => {
-    let frameId;
-    const finish = (completed) => {
-      window.cancelAnimationFrame(frameId);
-      signal?.removeEventListener('abort', abort);
-      resolve(completed);
-    };
-    const abort = () => finish(false);
-    frameId = window.requestAnimationFrame(() => finish(true));
     signal?.addEventListener('abort', abort, { once: true });
   });
 };
@@ -78,12 +62,9 @@ export default function LoginModal({ onBackgroundChange }) {
   const [isRunning, setIsRunning] = useState(false);
   const [isLifted, setIsLifted] = useState(false);
   const [isShining, setIsShining] = useState(false);
+  const [isCardMoving, setIsCardMoving] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
-  const [previewStyle, setPreviewStyle] = useState(null);
-  const [panelHeight, setPanelHeight] = useState(null);
-  const [placeholderStyle, setPlaceholderStyle] = useState(null);
   const [cardTransform, setCardTransform] = useState('none');
-  const [cardTransition, setCardTransition] = useState('transform .4s ease-in-out');
   const [showReopen, setShowReopen] = useState(false);
   const [showRevealNote, setShowRevealNote] = useState(false);
   const runningRef = useRef(false);
@@ -91,9 +72,7 @@ export default function LoginModal({ onBackgroundChange }) {
   const lastTriggerRef = useRef(null);
   const employeeIdRef = useRef(null);
   const reopenRef = useRef(null);
-  const modalWrapRef = useRef(null);
   const modalRef = useRef(null);
-  const previewRef = useRef(null);
   const cardWrapRef = useRef(null);
   const animationControllerRef = useRef(null);
 
@@ -132,6 +111,7 @@ export default function LoginModal({ onBackgroundChange }) {
   const changeEmployeeId = (event) => {
     const value = event.target.value;
     const normalizedId = value.trim().toUpperCase();
+    const isCompleteId = /^EMP-\d{3}$/.test(normalizedId);
     const match = normalizedId
       ? LOGIN_DEMO_EMPLOYEES.find((item) => item.id === normalizedId) || null
       : null;
@@ -142,7 +122,8 @@ export default function LoginModal({ onBackgroundChange }) {
 
     if (!normalizedId) announce('empty', '');
     else if (match) announce(`found-${match.id}`, `Employee found: ${match.name}.`);
-    else announce('not-found', 'Employee not found.');
+    else if (isCompleteId) announce(`not-found-${normalizedId}`, `Employee ${normalizedId} was not found.`);
+    else announce(`partial-${normalizedId}`, `Employee ID preview: ${value}. Keep typing to complete the ID.`);
   };
 
   const changePassword = (event) => {
@@ -163,12 +144,9 @@ export default function LoginModal({ onBackgroundChange }) {
     setPresentation('idle');
     setIsLifted(false);
     setIsShining(false);
+    setIsCardMoving(false);
     setIsPreviewExpanded(false);
-    setPreviewStyle(null);
-    setPanelHeight(null);
-    setPlaceholderStyle(null);
     setCardTransform('none');
-    setCardTransition('transform .4s ease-in-out');
   };
 
   const closeModal = () => {
@@ -198,64 +176,41 @@ export default function LoginModal({ onBackgroundChange }) {
     setIsRunning(true);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     setLiveMessage('Signing in.');
-    if (!await wait(reducedMotion ? 150 : 250, signal)) return;
+    if (!await wait(490, signal)) return;
 
     const modalRect = modalRef.current.getBoundingClientRect();
-    const previewRect = previewRef.current.getBoundingClientRect();
-    const dx = (modalRect.left + modalRect.width / 2) - (previewRect.left + previewRect.width / 2);
-    const dy = (modalRect.top + modalRect.height / 2) - (previewRect.top + previewRect.height / 2);
-    setPlaceholderStyle({
-      top: `${previewRect.top - modalRect.top}px`,
-      left: `${previewRect.left - modalRect.left}px`,
-      width: `${previewRect.width}px`,
-      height: `${previewRect.height}px`,
-    });
-    setPanelHeight(modalRect.height);
+    const cardRect = cardWrapRef.current.getBoundingClientRect();
+    const dx = (modalRect.left + modalRect.width / 2) - (cardRect.left + cardRect.width / 2);
+    const dy = (modalRect.top + modalRect.height / 2) - (cardRect.top + cardRect.height / 2);
     setPresentation('leaving');
     setIsLifted(true);
     setIsShining(true);
-    setCardTransition('transform .4s ease-in-out');
-    setCardTransform(`translate(${dx}px, ${dy}px)`);
+    setIsCardMoving(true);
+    setCardTransform(`translate3d(${dx}px, ${dy}px, 0)`);
     if (!reducedMotion) {
       const form = modalRef.current?.querySelector('.login-form-col');
-      const cardMove = waitForTransition(cardWrapRef.current, 'transform', 400, signal);
-      const formFade = waitForTransition(form, 'opacity', 350, signal);
-      const formSlide = waitForTransition(form, 'transform', 450, signal);
+      const cardMove = waitForTransition(cardWrapRef.current, 'transform', 700, signal);
+      const formFade = waitForTransition(form, 'opacity', 620, signal);
+      const formSlide = waitForTransition(form, 'transform', 620, signal);
       const completed = await Promise.all([cardMove, formFade, formSlide]);
       if (completed.some((result) => !result)) return;
     }
+    setIsCardMoving(false);
 
-    setPreviewStyle({
-      top: `${previewRect.top - modalRect.top}px`,
-      left: `${previewRect.left - modalRect.left}px`,
-      width: `${previewRect.width}px`,
-      height: `${previewRect.height}px`,
-    });
     setPresentation('expanding');
     setIsPreviewExpanded(true);
-    if (!await nextFrame(signal)) return;
-    setCardTransition('transform .55s var(--login-ease)');
-    setCardTransform('translate(0, 0)');
-    setPreviewStyle({ top: '0px', left: '0px', width: '100%', height: '100%' });
     if (!reducedMotion) {
-      const cardCenter = waitForTransition(cardWrapRef.current, 'transform', 550, signal);
-      const panelExpansion = waitForTransition(previewRef.current, 'height', 550, signal);
-      const completed = await Promise.all([cardCenter, panelExpansion]);
-      if (completed.some((result) => !result)) return;
+      if (!await waitForTransition(modalRef.current, 'opacity', 440, signal)) return;
     }
 
     setPresentation('welcomed');
     setLiveMessage(`Demo success. Welcome to MECHA, ${matchedEmployee.name}.`);
-    if (!reducedMotion) {
-      const checkmarkPath = modalRef.current?.querySelector('.login-check-svg path');
-      if (!await waitForTransition(checkmarkPath, 'stroke-dashoffset', 750, signal)) return;
-    }
-    if (!await wait(reducedMotion ? 1400 : 550, signal)) return;
+    if (!await wait(reducedMotion ? 120 : 700, signal)) return;
 
     setPresentation('dissolving');
     updateBackground('revealed');
     if (!reducedMotion) {
-      const modalFade = waitForTransition(modalRef.current, 'opacity', 450, signal);
+      const modalFade = waitForTransition(modalRef.current, 'opacity', 620, signal);
       const scrimFade = waitForTransition(document.querySelector('.login-scrim'), 'opacity', 600, signal);
       const completed = await Promise.all([modalFade, scrimFade]);
       if (completed.some((result) => !result)) return;
@@ -277,8 +232,13 @@ export default function LoginModal({ onBackgroundChange }) {
 
     const nextErrors = { employeeId: '', password: '' };
     const normalizedId = employeeId.trim().toUpperCase();
+    const isCompleteId = /^EMP-\d{3}$/.test(normalizedId);
     if (!normalizedId) nextErrors.employeeId = 'Enter your Employee ID.';
-    else if (!employee) nextErrors.employeeId = 'Employee ID not found in the demo data.';
+    else if (!employee) {
+      nextErrors.employeeId = isCompleteId
+        ? 'Employee ID not found in the demo data.'
+        : 'Enter a complete Employee ID from the demo list.';
+    }
     if (!password) nextErrors.password = 'Enter your password.';
     setErrors(nextErrors);
 
@@ -318,9 +278,13 @@ export default function LoginModal({ onBackgroundChange }) {
   };
 
   const cardView = !employee && Boolean(employeeId.trim());
+  const isCompleteId = /^EMP-\d{3}$/i.test(employeeId.trim());
+  const isNotFound = cardView && isCompleteId;
+  const partialId = cardView && !isCompleteId ? employeeId : '';
   const modalClassName = [
     'login-modal-panel',
     presentation !== 'idle' && 'is-leaving',
+    ['expanding', 'welcomed', 'dissolving'].includes(presentation) && 'is-cinematic',
     presentation === 'welcomed' && 'is-welcomed',
     presentation === 'dissolving' && 'is-dissolving',
   ].filter(Boolean).join(' ');
@@ -330,7 +294,7 @@ export default function LoginModal({ onBackgroundChange }) {
       {isOpen && (
         <>
           <div className={`login-scrim${presentation === 'dissolving' ? ' is-fading' : ''}`} aria-hidden="true" />
-          <div className="login-modal-wrap" ref={modalWrapRef}>
+          <div className="login-modal-wrap">
             <div
               className={modalClassName}
               ref={modalRef}
@@ -338,7 +302,6 @@ export default function LoginModal({ onBackgroundChange }) {
               aria-modal="true"
               aria-labelledby="login-title"
               onKeyDown={handleModalKeyDown}
-              style={panelHeight ? { height: `${panelHeight}px` } : undefined}
             >
               <button className="login-close" type="button" aria-label="Close login" onClick={closeModal}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -389,8 +352,6 @@ export default function LoginModal({ onBackgroundChange }) {
                         aria-describedby="login-password-error"
                         aria-invalid={Boolean(errors.password)}
                         onChange={changePassword}
-                        onFocus={() => setIsLifted(true)}
-                        onBlur={() => { if (!runningRef.current) setIsLifted(false); }}
                       />
                       <button
                         type="button"
@@ -415,7 +376,7 @@ export default function LoginModal({ onBackgroundChange }) {
                     </button>
                   </div>
 
-                  <button className={`login-submit${isRunning ? ' is-loading' : ''}`} type="submit" disabled={isRunning}>
+                  <button className={`login-submit${isRunning ? ' is-loading' : ''}`} type="submit" disabled={isRunning} aria-busy={isRunning}>
                     <span className="login-spinner" aria-hidden="true" />
                     <span>{isRunning ? 'Signing in...' : 'Sign in'}</span>
                   </button>
@@ -424,19 +385,14 @@ export default function LoginModal({ onBackgroundChange }) {
                 </form>
               </section>
 
-              {placeholderStyle && <div className="login-preview-placeholder" style={placeholderStyle} aria-hidden="true" />}
               <aside
                 className={`login-preview-col${isLifted ? ' is-lift' : ''}${isShining ? ' is-shining' : ''}${isPreviewExpanded ? ' is-lifted is-expanded' : ''}`}
-                ref={previewRef}
                 aria-label="Employee preview"
-                style={previewStyle || undefined}
               >
-                <span className="login-geo login-geo-a" aria-hidden="true" />
-                <span className="login-geo login-geo-b" aria-hidden="true" />
                 <div
-                  className={`login-card-wrap${isLifted ? ' is-lift' : ''}${isShining ? ' is-shining' : ''}`}
+                  className={`login-card-wrap${isLifted ? ' is-lift' : ''}${isShining ? ' is-shining' : ''}${isCardMoving ? ' is-moving' : ''}`}
                   ref={cardWrapRef}
-                  style={{ transform: cardTransform, transition: cardTransition }}
+                  style={{ transform: cardTransform }}
                 >
                   <div className="login-welcome-top" aria-hidden="true">
                     <svg className="login-check-svg" width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="var(--login-success)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -445,7 +401,7 @@ export default function LoginModal({ onBackgroundChange }) {
                     </svg>
                     <h2>Welcome to MECHA</h2>
                   </div>
-                  <EmployeeIdCard employee={employee} notFound={cardView} />
+                  <EmployeeIdCard employee={employee} notFound={isNotFound} partialId={partialId} />
                   <div className="login-password-row" aria-hidden="true">
                     <span>Password</span>
                     <div className="login-password-dots">
