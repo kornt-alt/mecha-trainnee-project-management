@@ -1,0 +1,332 @@
+<!-- Isolated motion experiments based on the approved MECHA login reference. -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MECHA Project Management — Login Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#0b1f4d;--blue-600:#1d4ed8;--blue-500:#2563eb;--blue-100:#dbeafe;--blue-50:#eff6ff;--ink:#0f172a;--ink-muted:#475569;--line:#e2e8f0;--error:#b91c1c;--ease:cubic-bezier(.65,0,.25,1);--font:"Outfit",system-ui,-apple-system,"Segoe UI",sans-serif;box-sizing:border-box;color-scheme:light}
+*,*::before,*::after{box-sizing:inherit}
+html,body{height:100%;margin:0}
+body{font-family:var(--font);color:var(--ink);background:#e7edf6;overflow:hidden;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* Dashboard background (visual only) */
+.dashboard{position:fixed;inset:0;filter:blur(6px) saturate(.9);transform:scale(1.02);transition:filter .7s ease,transform .7s ease;display:grid;grid-template-columns:220px 1fr;pointer-events:none;user-select:none}
+.dash-side{background:#1e3a8a;padding:24px 16px;display:grid;gap:14px;align-content:start}
+.dash-side b{color:#fff;font-size:16px;margin-bottom:8px}.dash-side span{color:rgba(255,255,255,.75);font-size:14px}
+.dash-main{padding:28px;display:grid;gap:20px;align-content:start;background:#f1f5f9}
+.dash-main h2{margin:0;font-size:22px}
+.dash-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.dash-cards div{height:110px;background:#fff;border-radius:14px;padding:18px;color:var(--ink-muted);font-size:14px}
+.dash-cards strong{display:block;color:var(--ink);font-size:32px;margin-top:6px}
+.dash-board{background:#fff;border-radius:14px;padding:6px 20px}
+.dash-board p{margin:0;padding:16px 0;border-bottom:1px solid var(--line);font-size:15px;display:flex;justify-content:space-between}
+.dash-board p:last-child{border:0}
+.scrim{position:fixed;inset:0;background:rgba(15,23,42,.28);transition:opacity .6s ease}
+body.revealed .dashboard{filter:none;transform:none}
+body.revealed .scrim{opacity:0}
+
+/* Modal */
+.modal-wrap{position:fixed;inset:0;display:grid;place-items:center;padding:16px;overflow-y:auto}
+.modal-wrap[hidden]{display:none}
+.modal{position:relative;width:min(1040px,100%);background:#fff;border-radius:22px;box-shadow:0 30px 80px -20px rgba(15,23,42,.35),0 8px 24px rgba(15,23,42,.08);display:grid;grid-template-columns:40% 60%;overflow:hidden;animation:rise .45s cubic-bezier(.2,.7,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+.close{position:absolute;top:14px;right:14px;z-index:2;width:40px;height:40px;border:0;border-radius:50%;background:transparent;color:var(--ink-muted);cursor:pointer;display:grid;place-items:center;transition:background .2s}
+.close:hover{background:var(--blue-50)}
+.close:focus-visible{outline:2px solid var(--blue-500)}
+
+/* Login form (left) */
+.form-col{padding:44px 40px 36px;display:flex;flex-direction:column;gap:22px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,var(--blue-500),var(--navy));display:grid;place-items:center;color:#fff;font-weight:700}
+.wordmark{font-weight:700;letter-spacing:.02em;font-size:18px;line-height:1.1}
+.wordmark small{display:block;font-weight:500;font-size:12px;color:var(--ink-muted);letter-spacing:.04em}
+h1{margin:6px 0 0;font-size:28px;font-weight:600;letter-spacing:-.01em}
+.lede{margin:0;color:var(--ink-muted);font-size:15px;line-height:1.5}
+form{display:grid;gap:16px}
+.field{display:grid;gap:6px}
+.field label{font-size:13px;font-weight:500}
+.input-wrap{position:relative}
+input[type=text],input[type=password]{width:100%;height:48px;padding:0 14px;font:inherit;font-size:15px;color:var(--ink);background:#f8fafc;border:1px solid var(--line);border-radius:12px;transition:border-color .2s,box-shadow .2s,background .2s}
+input:focus{outline:none;background:#fff;border-color:var(--blue-500);box-shadow:0 0 0 4px var(--blue-100)}
+input[aria-invalid=true]{border-color:var(--error)}
+.toggle-pw{position:absolute;right:6px;top:50%;transform:translateY(-50%);height:36px;padding:0 10px;border:0;border-radius:8px;background:transparent;color:var(--blue-600);font:inherit;font-size:13px;font-weight:500;cursor:pointer}
+.toggle-pw:hover{background:var(--blue-50)}
+.toggle-pw:focus-visible,.link:focus-visible,.check input:focus-visible{outline:2px solid var(--blue-500);outline-offset:2px}
+.error-text{min-height:18px;font-size:13px;color:var(--error);margin:0}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:14px}
+.check{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink-muted)}
+.check input{width:18px;height:18px;accent-color:var(--blue-600);margin:0}
+.link{color:var(--blue-600);background:none;border:0;padding:4px 2px;font:inherit;cursor:pointer}
+.link:hover{text-decoration:underline}
+.btn-primary{height:50px;border:0;border-radius:12px;background:var(--blue-600);color:#fff;font:inherit;font-weight:600;font-size:16px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:10px;transition:background .2s,transform .15s}
+.btn-primary:hover:not(:disabled){background:var(--blue-500)}
+.btn-primary:active:not(:disabled),.btn-primary.loading{transform:scale(.985)}
+.btn-primary:disabled{opacity:.75;cursor:progress}
+.btn-primary:focus-visible{outline:3px solid var(--blue-100);outline-offset:2px}
+.spinner{width:18px;height:18px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;animation:spin .8s linear infinite;display:none}
+.loading .spinner{display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{font-size:14px;min-height:20px;margin:0;color:var(--ink-muted)}
+.demo-banner{font-size:13px;color:var(--ink-muted);background:var(--blue-50);border-radius:10px;padding:10px 12px;margin:0}
+
+/* Employee preview (right) */
+.preview-col{position:relative;background:linear-gradient(160deg,var(--blue-50),#f8fbff 60%);padding:44px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.preview-col.lifted{position:absolute;margin:0;z-index:3;transition:top .55s var(--ease),left .55s var(--ease),width .55s var(--ease),height .55s var(--ease)}
+.geo{position:absolute;pointer-events:none;border:1.5px solid var(--blue-100);border-radius:50%}
+.geo.a{width:180px;height:180px;top:-60px;right:-50px}
+.geo.b{width:90px;height:90px;bottom:40px;left:30px;border-radius:22px;transform:rotate(18deg)}
+
+/* Corporate ID card: fixed 340x214 (1.586:1), scaled uniformly only on narrow screens */
+.cardwrap{position:relative;--s:1;width:calc(340px*var(--s));height:calc(214px*var(--s));flex:none}
+.idcard{position:absolute;left:0;top:0;width:340px;height:214px;transform:scale(var(--s));transform-origin:0 0;border-radius:14px;border:1px solid #c7d2e5;background:linear-gradient(135deg,#fff 0%,#f1f6ff 55%,#e4edfb 100%);box-shadow:0 14px 30px -18px rgba(15,35,90,.45),0 2px 6px rgba(15,35,90,.08);overflow:hidden;transition:box-shadow .4s ease}
+.cardwrap.lift .idcard{box-shadow:0 30px 52px -20px rgba(15,35,90,.55),0 6px 14px rgba(15,35,90,.12)}
+.idcard::after{content:"";position:absolute;top:0;bottom:0;left:-60%;width:40%;background:linear-gradient(100deg,transparent,rgba(255,255,255,.7),transparent);transform:skewX(-18deg);opacity:0;pointer-events:none}
+.cardwrap.shine .idcard::after{animation:shine .8s ease-in-out}
+@keyframes shine{from{left:-60%;opacity:1}to{left:130%;opacity:1}}
+.idc-head{position:relative;height:46px;background:linear-gradient(120deg,var(--navy),#163a8f);display:flex;align-items:center;gap:8px;padding:0 16px;color:#fff}
+.idc-head::before{content:"";position:absolute;top:6px;left:50%;width:34px;height:5px;margin-left:-17px;border-radius:3px;background:rgba(255,255,255,.28)}
+.idc-logo{width:24px;height:24px;border-radius:7px;background:#fff;color:var(--navy);font-weight:700;font-size:14px;display:grid;place-items:center}
+.idc-brand{font-weight:700;letter-spacing:.04em;font-size:15px}
+.idc-tag{margin-left:auto;font-size:11px;color:#bcd0f5}
+.idc-photo{position:absolute;left:16px;top:58px;width:84px;height:130px;border-radius:8px;overflow:hidden;border:1px solid #c7d2e5}
+.idc-photo svg{display:block;width:100%;height:100%}
+.idc-info{position:absolute;left:114px;top:56px;right:16px}
+.idc-name{font-size:17px;font-weight:600;color:var(--navy);line-height:1.2;margin:0}
+.idc-pos{font-size:12.5px;color:var(--ink-muted);margin:2px 0 10px}
+.idc-f{margin-bottom:8px}
+.idc-f small{display:block;font-size:10.5px;color:#64748b}
+.idc-f b{font-size:14px;font-weight:600}
+.idc-qr{position:absolute;right:16px;bottom:26px;width:54px;height:54px}
+.idc-stripe{position:absolute;left:0;right:0;bottom:0;height:8px;background:linear-gradient(90deg,var(--blue-600),#60a5fa)}
+.idcard.empty .idc-head{background:#94a3b8}
+.idcard.empty .idc-photo{background:#e2e8f0;display:grid;place-items:center;color:#94a3b8;font-size:30px}
+.idcard.empty .idc-stripe{background:#cbd5e1}
+.sk{height:10px;border-radius:5px;background:#e2e8f0;margin:0 0 12px}
+.idc-hint{position:absolute;left:114px;right:16px;bottom:22px;margin:0;font-size:12.5px;color:#64748b}
+.idcard.nf{border-style:dashed}
+.idc-msg{position:absolute;left:0;right:0;top:46px;bottom:8px;display:grid;place-content:center;text-align:center;gap:4px}
+.idc-msg strong{color:var(--error);font-size:16px}.idc-msg span{font-size:13px;color:var(--ink-muted)}
+
+.pw-row{position:absolute;top:100%;left:0;right:0;margin-top:16px;display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-muted);transition:opacity .3s}
+.dots{display:flex;flex-wrap:wrap;gap:6px;min-height:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--blue-500);animation:pop .2s ease}
+@keyframes pop{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+
+/* Welcome overlay (around the card, never over it) */
+.welcome-top,.welcome-bottom{position:absolute;left:50%;transform:translate(-50%,8px);width:max-content;max-width:90vw;text-align:center;opacity:0;pointer-events:none;transition:opacity .45s ease,transform .45s ease}
+.welcome-top{bottom:100%;padding-bottom:22px;display:grid;justify-items:center;gap:8px}
+.welcome-top h2{margin:0;font-size:26px;font-weight:600}
+.welcome-bottom{top:100%;padding-top:20px;font-size:19px}
+.check-svg circle{stroke-dasharray:140;stroke-dashoffset:140;transition:stroke-dashoffset .5s ease .1s}
+.check-svg path{stroke-dasharray:40;stroke-dashoffset:40;transition:stroke-dashoffset .35s ease .4s}
+
+/* Signature transition states */
+.modal.leaving .form-col{opacity:0;transform:translateX(-28px);pointer-events:none;transition:opacity .35s ease,transform .45s ease}
+.modal.welcomed .welcome-top,.modal.welcomed .welcome-bottom{opacity:1;transform:translate(-50%,0)}
+.modal.welcomed .pw-row{opacity:0}
+.modal.welcomed .check-svg circle,.modal.welcomed .check-svg path{stroke-dashoffset:0}
+.modal.dissolving{opacity:0;transform:scale(.96);transition:opacity .45s ease,transform .45s ease}
+.modal.dissolving .welcome-top,.modal.dissolving .welcome-bottom{opacity:0}
+.reveal-note{position:fixed;top:calc(16px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);z-index:5;background:var(--ink);color:#fff;font-size:14px;padding:10px 16px;border-radius:999px;max-width:calc(100% - 32px);text-align:center}
+.reveal-note[hidden]{display:none}
+.reopen{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:5;height:44px;padding:0 20px;border-radius:999px;border:0;background:var(--ink);color:#fff;font:inherit;font-weight:500;cursor:pointer}
+.reopen[hidden]{display:none}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* Responsive */
+@media (max-width:1024px){
+  .modal{width:min(720px,100%);grid-template-columns:1fr}
+  .preview-col{order:-1;padding:32px 24px 40px}
+  .form-col{padding:28px}
+}
+@media (max-width:767px){
+  .modal-wrap{padding:0;place-items:stretch}
+  .modal{width:100%;min-height:100%;border-radius:0;box-shadow:none}
+  .preview-col{padding:56px 20px 40px}
+  .form-col{padding:20px 20px 28px;gap:18px}
+  h1{font-size:24px}
+  .dashboard{grid-template-columns:1fr}.dash-side{display:none}
+}
+@media (max-width:380px){.cardwrap{--s:.85}}
+@media (max-width:340px){.cardwrap{--s:.74}}
+@media (max-height:560px) and (min-width:768px){.form-col{gap:14px;padding-top:28px}.preview-col{padding:28px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+<link rel="stylesheet" href="./lab.css">
+</head>
+<body>
+
+<div class="dashboard-stage" aria-hidden="true">
+  <iframe class="dashboard-frame" id="dashboardFrame" src="/PROJECT-MANAGEMENT/" title="MECHA Dashboard"></iframe>
+</div>
+<div class="scrim" aria-hidden="true"></div>
+
+<div class="modal-wrap" id="modalWrap">
+  <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+    <button class="close" id="closeBtn" aria-label="Close login" type="button">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+
+    <section class="form-col" id="formCol">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">M</div>
+        <div class="wordmark">MECHA<small>Project Management</small></div>
+      </div>
+      <div>
+        <h1 id="loginTitle">Welcome back</h1>
+        <p class="lede">Sign in with your Employee ID to continue to your projects.</p>
+      </div>
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="empId">Employee ID</label>
+          <input type="text" id="empId" autocomplete="username" placeholder="e.g. EMP-001" aria-describedby="empIdErr">
+          <p class="error-text" id="empIdErr" role="alert"></p>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <div class="input-wrap">
+            <input type="password" id="password" autocomplete="current-password" placeholder="Enter your password" aria-describedby="pwErr">
+            <button type="button" class="toggle-pw" id="togglePw" aria-controls="password" aria-pressed="false">Show</button>
+          </div>
+          <p class="error-text" id="pwErr" role="alert"></p>
+        </div>
+        <div class="row">
+          <label class="check"><input type="checkbox" id="remember"> Remember me</label>
+          <button type="button" class="link" id="forgot">Forgot password?</button>
+        </div>
+        <button type="submit" class="btn-primary" id="submitBtn"><span class="spinner" aria-hidden="true"></span><span id="submitLabel">Sign in</span></button>
+        <p class="status" id="status"></p>
+        <p class="demo-banner">Demo only. Try EMP-001 to EMP-008 with any password. Nothing is checked or saved.</p>
+      </form>
+    </section>
+
+    <aside class="preview-col" id="previewCol" aria-label="Employee preview">
+      <span class="geo a" aria-hidden="true"></span><span class="geo b" aria-hidden="true"></span>
+      <div class="cardwrap" id="cardWrap">
+        <div class="welcome-top" aria-hidden="true">
+          <svg class="check-svg" width="56" height="56" viewBox="0 0 56 56" fill="none" stroke="#15803d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="28" r="22"/><path d="M18 29l7 7 13-14"/></svg>
+          <h2>Welcome to MECHA</h2>
+        </div>
+        <div id="cardSlot"></div>
+        <div class="pw-row" aria-hidden="true"><span>Password</span><div class="dots" id="pwDots"></div></div>
+        <div class="welcome-bottom" id="greetName" aria-hidden="true"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="reveal-note" id="revealNote" hidden>Dashboard reveal demo. No session was created.</div>
+<div class="sr-only" id="srLive" role="status" aria-live="polite"></div>
+<button class="reopen" id="reopenBtn" type="button" hidden>Open login</button>
+
+<script src="./lab.js"></script>
+<script>
+// Mock dataset for this preview only (isolated, login-specific)
+const EMP = [
+  {id:"EMP-001",name:"Mock Employee 01",position:"Project Engineer",department:"PE",tone:"#60a5fa"},
+  {id:"EMP-002",name:"Mock Employee 02",position:"Production Planner",department:"PD",tone:"#7dd3fc"},
+  {id:"EMP-003",name:"Mock Employee 03",position:"Mechanical Engineer",department:"ENG",tone:"#93c5fd"},
+  {id:"EMP-004",name:"Mock Employee 04",position:"Project Manager",department:"PE",tone:"#a5b4fc"},
+  {id:"EMP-005",name:"Mock Employee 05",position:"Systems Analyst",department:"IT",tone:"#67e8f9"},
+  {id:"EMP-006",name:"Mock Employee 06",position:"ML Engineer",department:"AI",tone:"#99f6e4"},
+  {id:"EMP-007",name:"Mock Employee 07",position:"Production Supervisor",department:"PD",tone:"#bfdbfe"},
+  {id:"EMP-008",name:"Mock Employee 08",position:"Design Engineer",department:"ENG",tone:"#c4b5fd"}
+];
+const $ = id => document.getElementById(id);
+const modalWrap=$("modalWrap"),modal=$("modal"),closeBtn=$("closeBtn"),reopenBtn=$("reopenBtn"),previewCol=$("previewCol"),cardWrap=$("cardWrap"),cardSlot=$("cardSlot"),formCol=$("formCol");
+const form=$("loginForm"),empIdInput=$("empId"),pwInput=$("password"),togglePw=$("togglePw"),submitBtn=$("submitBtn"),submitLabel=$("submitLabel"),status=$("status"),pwDots=$("pwDots"),empIdErr=$("empIdErr"),pwErr=$("pwErr"),srLive=$("srLive"),revealNote=$("revealNote"),greetName=$("greetName");
+let current=null,lastTrigger=null,running=false,lastState="";
+
+const HEAD='<div class="idc-head"><div class="idc-logo">M</div><span class="idc-brand">MECHA</span><span class="idc-tag">Employee</span></div>';
+function qr(id){let h=0;for(const ch of id)h=(h*31+ch.charCodeAt(0))>>>0;let s="";
+  for(let r=0;r<11;r++)for(let c=0;c<11;c++){
+    const f=(r<3&&c<3)||(r<3&&c>7)||(r>7&&c<3);let on;
+    if(f)on=!((r===1&&c===1)||(r===1&&c===9)||(r===9&&c===1));
+    else{h=(h*1103515245+12345)>>>0;on=(h>>>16)&1;}
+    if(on)s+=`<rect x="${c*5}" y="${r*5}" width="4.4" height="4.4" rx=".8"/>`;}
+  return `<svg viewBox="0 0 55 55" fill="#0b1f4d" aria-hidden="true">${s}</svg>`;}
+function photo(e){return `<svg viewBox="0 0 84 130" aria-hidden="true"><rect width="84" height="130" fill="${e.tone}"/><circle cx="42" cy="50" r="20" fill="#fff" opacity=".92"/><path d="M6 130C6 98 24 86 42 86s36 12 36 44z" fill="#fff" opacity=".92"/></svg>`;}
+function cardHTML(e){return `<div class="idcard">${HEAD}<div class="idc-photo">${photo(e)}</div><div class="idc-info"><p class="idc-name">${e.name}</p><p class="idc-pos">${e.position}</p><div class="idc-f"><small>Department</small><b>${e.department}</b></div><div class="idc-f"><small>Employee ID</small><b>${e.id}</b></div></div><div class="idc-qr">${qr(e.id)}</div><div class="idc-stripe"></div></div>`;}
+function showEmpty(){cardSlot.innerHTML=`<div class="idcard empty">${HEAD}<div class="idc-photo">?</div><div class="idc-info"><div class="sk" style="width:80%"></div><div class="sk" style="width:55%"></div><div class="sk" style="width:65%"></div></div><p class="idc-hint">Enter an Employee ID</p><div class="idc-stripe"></div></div>`;}
+function showNotFound(){cardSlot.innerHTML=`<div class="idcard nf">${HEAD}<div class="idc-msg"><strong>Employee not found</strong><span>Check the ID and try again.</span></div><div class="idc-stripe"></div></div>`;}
+function announce(state,text){if(state!==lastState){lastState=state;srLive.textContent=text;}}
+
+empIdInput.addEventListener("input",()=>{
+  empIdErr.textContent="";empIdInput.removeAttribute("aria-invalid");
+  const v=empIdInput.value.trim().toUpperCase();
+  if(!v){current=null;showEmpty();announce("empty","");return;}
+  const e=EMP.find(x=>x.id===v);
+  if(e){current=e;cardSlot.innerHTML=cardHTML(e);announce("f"+e.id,"Employee found: "+e.name+".");}
+  else{current=null;showNotFound();announce("nf","Employee not found.");}
+});
+function renderDots(){pwDots.innerHTML='<span class="dot"></span>'.repeat(pwInput.value.length);}
+pwInput.addEventListener("input",()=>{pwErr.textContent="";pwInput.removeAttribute("aria-invalid");renderDots();});
+pwInput.addEventListener("focus",()=>cardWrap.classList.add("lift"));
+pwInput.addEventListener("blur",()=>{if(!running)cardWrap.classList.remove("lift");});
+togglePw.addEventListener("click",()=>{const s=pwInput.type==="password";pwInput.type=s?"text":"password";togglePw.textContent=s?"Hide":"Show";togglePw.setAttribute("aria-pressed",String(s));});
+$("forgot").addEventListener("click",()=>{status.textContent="Password recovery is not available in this preview.";});
+
+form.addEventListener("submit",e=>{
+  e.preventDefault();if(running)return;
+  let ok=true;
+  if(!empIdInput.value.trim()){empIdErr.textContent="Enter your Employee ID.";empIdInput.setAttribute("aria-invalid","true");ok=false;}
+  else if(!current){empIdErr.textContent="Employee ID not found in the demo data.";empIdInput.setAttribute("aria-invalid","true");ok=false;}
+  if(!pwInput.value){pwErr.textContent="Enter your password.";pwInput.setAttribute("aria-invalid","true");ok=false;}
+  if(!ok){status.textContent="";(empIdInput.getAttribute("aria-invalid")?empIdInput:pwInput).focus();return;}
+  submitBtn.disabled=true;submitBtn.classList.add("loading");submitLabel.textContent="Signing in...";status.textContent="";
+  window.loginAnimationLab.setStage("button-response");
+  runSignature(current);
+});
+
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+const reduced=()=>matchMedia("(prefers-reduced-motion: reduce)").matches;
+async function runSignature(emp){
+  running=true;const rm=reduced();srLive.textContent="Signing in.";
+  await wait(rm?150:250);
+  greetName.textContent="Hello, "+emp.name;
+  await window.loginAnimationLab.play({employee:emp,reducedMotion:rm,elements:{modal,modalWrap,previewCol,cardWrap,formCol,greetName,revealNote,reopenBtn,srLive}});
+  modalWrap.hidden=true;resetDemo();running=false;
+  revealNote.hidden=false;reopenBtn.textContent="Replay login demo";reopenBtn.hidden=false;reopenBtn.focus();
+}
+function resetDemo(){
+  modal.classList.remove("leaving","welcomed","dissolving");modal.style.height="";
+  previewCol.classList.remove("lifted");previewCol.removeAttribute("style");
+  cardWrap.classList.remove("lift","shine");cardWrap.removeAttribute("style");
+  const ph=$("previewPh");if(ph)ph.remove();
+  formCol.inert=false;
+  empIdInput.value="";pwInput.value="";pwInput.type="password";togglePw.textContent="Show";togglePw.setAttribute("aria-pressed","false");
+  current=null;lastState="";showEmpty();renderDots();
+  submitBtn.disabled=false;submitBtn.classList.remove("loading");submitLabel.textContent="Sign in";status.textContent="";
+}
+
+function openModal(){
+  lastTrigger=document.activeElement;document.body.classList.remove("revealed");
+  window.loginAnimationLab.reset();
+  revealNote.hidden=true;reopenBtn.textContent="Open login";
+  modalWrap.hidden=false;reopenBtn.hidden=true;setTimeout(()=>empIdInput.focus(),50);
+}
+function closeModal(){
+  if(running)return;
+  modalWrap.hidden=true;reopenBtn.hidden=false;
+  if(lastTrigger&&lastTrigger.focus)lastTrigger.focus();else reopenBtn.focus();
+}
+closeBtn.addEventListener("click",closeModal);
+reopenBtn.addEventListener("click",openModal);
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!modalWrap.hidden)closeModal();});
+modalWrap.addEventListener("keydown",e=>{
+  if(e.key!=="Tab"||modalWrap.hidden)return;
+  const f=[...modal.querySelectorAll("button,input,a[href]")].filter(el=>!el.disabled&&el.offsetParent!==null);
+  if(!f.length)return;const a=f[0],z=f[f.length-1];
+  if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus();}
+  else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus();}
+});
+showEmpty();empIdInput.focus();
+window.loginAnimationLab.initialize();
+</script>
+</body>
+</html>
