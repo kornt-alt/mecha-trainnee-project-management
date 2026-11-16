@@ -1,0 +1,144 @@
+/* Isolated animation treatments for the approved MECHA login surface. */
+
+@property --reveal-radius {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+html,
+body {
+  overflow-x: clip;
+}
+
+.dashboard-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: var(--blue-50, #eff6ff);
+}
+
+.dashboard-frame {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+.dashboard-frame:not(.is-ready) {
+  visibility: hidden;
+}
+
+body[data-concept="a"] .dashboard-frame {
+  filter: blur(6px) saturate(.9);
+  transform: scale(1.02);
+  transition: filter 760ms ease, transform 760ms ease;
+}
+
+body[data-concept="a"][data-dashboard-reveal="true"] .dashboard-frame,
+body[data-concept="a"][data-dashboard-reveal="complete"] .dashboard-frame {
+  filter: none;
+  transform: none;
+}
+
+.dashboard-overlay {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  pointer-events: none;
+}
+
+body[data-concept="b"] #dashboardFrame,
+body[data-concept="c"] #dashboardFrame {
+  transform: scale(1.02);
+  transition: transform 760ms ease;
+}
+
+body[data-concept="b"][data-dashboard-reveal="true"] #dashboardFrame,
+body[data-concept="b"][data-dashboard-reveal="complete"] #dashboardFrame,
+body[data-concept="c"][data-dashboard-reveal="true"] #dashboardFrame,
+body[data-concept="c"][data-dashboard-reveal="complete"] #dashboardFrame {
+  transform: none;
+}
+
+body[data-concept="b"] .dashboard-overlay,
+body[data-concept="c"] .dashboard-overlay {
+  z-index: 1;
+  background: rgba(255, 255, 255, .01);
+  backdrop-filter: blur(6px) saturate(.9);
+  -webkit-backdrop-filter: blur(6px) saturate(.9);
+  transform: scale(1.02);
+  opacity: 1;
+}
+
+body[data-concept="b"] .dashboard-overlay.is-clearing {
+  opacity: 0;
+  transition: opacity 760ms ease;
+}
+
+body[data-concept="c"] #dashboardFrame {
+  z-index: 0;
+}
+
+body[data-concept="c"] .dashboard-overlay {
+  -webkit-mask-image: radial-gradient(circle at var(--focus-x, 50%) var(--focus-y, 50%), transparent 0, transparent var(--reveal-radius, 0px), #000 calc(var(--reveal-radius, 0px) + 2px));
+  mask-image: radial-gradient(circle at var(--focus-x, 50%) var(--focus-y, 50%), transparent 0, transparent var(--reveal-radius, 0px), #000 calc(var(--reveal-radius, 0px) + 2px));
+}
+
+body[data-concept="c"] .dashboard-overlay.is-revealing {
+  --reveal-radius: 150vmax;
+  transition: --reveal-radius 1050ms cubic-bezier(.22, .61, .36, 1);
+}
+
+.scrim {
+  z-index: 1;
+  transition: opacity 760ms ease;
+}
+
+body[data-dashboard-reveal="true"] .scrim,
+body[data-dashboard-reveal="complete"] .scrim {
+  opacity: 0;
+}
+
+.modal-wrap {
+  z-index: 2;
+}
+
+body[data-concept="a"] .modal.leaving .form-col,
+body[data-concept="c"] .modal.leaving .form-col {
+  transform: translate3d(-12px, 0, 0);
+  transition: opacity 460ms cubic-bezier(.22, .61, .36, 1), transform 520ms cubic-bezier(.22, .61, .36, 1);
+}
+
+body[data-concept="b"] .modal.leaving .form-col {
+  transform: none;
+  transition: opacity 460ms ease;
+}
+
+body[data-concept="a"] .modal.dissolving,
+body[data-concept="b"] .modal.dissolving,
+body[data-concept="c"] .modal.dissolving {
+  transform: none;
+  transition: opacity 520ms cubic-bezier(.22, .61, .36, 1);
+}
+
+body[data-concept="a"] .cardwrap.is-moving,
+body[data-concept="c"] .cardwrap.is-moving {
+  will-change: transform;
+  transition: transform 620ms cubic-bezier(.22, .61, .36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-frame,
+  .dashboard-overlay,
+  .modal,
+  .modal * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

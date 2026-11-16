@@ -1,0 +1,1061 @@
+{
+  "generatedAt": "2026-11-13T09:35:48.682Z",
+  "environment": {
+    "browser": "headed system Chromium",
+    "chromiumBinary": "chromium",
+    "chromiumVersion": "Chromium 156.0.8078.79 built on Debian GNU/Linux 13 (trixie)",
+    "display": ":0",
+    "wayland": "wayland-0",
+    "runCount": 5
+  },
+  "measurements": [
+    {
+      "concept": "a",
+      "trial": 1,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 119,
+      "medianMs": 20,
+      "p95Ms": 39.8,
+      "maxMs": 189.9,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 373.4,
+        "form-and-card-motion -> welcome-overlay": 642.8,
+        "welcome-overlay -> dashboard-reveal": 760.6,
+        "dashboard-reveal -> dashboard-complete": 620.6
+      }
+    },
+    {
+      "concept": "b",
+      "trial": 1,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 105,
+      "medianMs": 20.3,
+      "p95Ms": 30,
+      "maxMs": 40.3,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-fade": 371.6,
+        "form-fade -> welcome-overlay": 540.7,
+        "welcome-overlay -> dashboard-reveal": 760.7,
+        "dashboard-reveal -> dashboard-complete": 841.7
+      }
+    },
+    {
+      "concept": "c",
+      "trial": 1,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 132,
+      "medianMs": 29.6,
+      "p95Ms": 39.9,
+      "maxMs": 50.1,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 373.6,
+        "form-and-card-motion -> welcome-overlay": 714.4,
+        "welcome-overlay -> dashboard-reveal": 760.7,
+        "dashboard-reveal -> dashboard-complete": 1342.2
+      }
+    },
+    {
+      "concept": "a",
+      "trial": 2,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 135,
+      "medianMs": 19.8,
+      "p95Ms": 30.1,
+      "maxMs": 50,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 371.1,
+        "form-and-card-motion -> welcome-overlay": 643.7,
+        "welcome-overlay -> dashboard-reveal": 761.2,
+        "dashboard-reveal -> dashboard-complete": 621.3
+      }
+    },
+    {
+      "concept": "b",
+      "trial": 2,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 102,
+      "medianMs": 20.3,
+      "p95Ms": 30.3,
+      "maxMs": 40,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-fade": 371.2,
+        "form-fade -> welcome-overlay": 540.6,
+        "welcome-overlay -> dashboard-reveal": 760.8,
+        "dashboard-reveal -> dashboard-complete": 842.9
+      }
+    },
+    {
+      "concept": "c",
+      "trial": 2,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 134,
+      "medianMs": 20.2,
+      "p95Ms": 39.7,
+      "maxMs": 80,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 410.4,
+        "form-and-card-motion -> welcome-overlay": 679.2,
+        "welcome-overlay -> dashboard-reveal": 760.6,
+        "dashboard-reveal -> dashboard-complete": 1341.2
+      }
+    },
+    {
+      "concept": "a",
+      "trial": 3,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 133,
+      "medianMs": 19.8,
+      "p95Ms": 30,
+      "maxMs": 50.3,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 371.5,
+        "form-and-card-motion -> welcome-overlay": 635.9,
+        "welcome-overlay -> dashboard-reveal": 760.5,
+        "dashboard-reveal -> dashboard-complete": 620.5
+      }
+    },
+    {
+      "concept": "b",
+      "trial": 3,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 108,
+      "medianMs": 20.1,
+      "p95Ms": 30.2,
+      "maxMs": 60,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-fade": 371.1,
+        "form-fade -> welcome-overlay": 540.5,
+        "welcome-overlay -> dashboard-reveal": 760.5,
+        "dashboard-reveal -> dashboard-complete": 841
+      }
+    },
+    {
+      "concept": "c",
+      "trial": 3,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 130,
+      "medianMs": 20.3,
+      "p95Ms": 40,
+      "maxMs": 70,
+      "over50ms": 3,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 371.9,
+        "form-and-card-motion -> welcome-overlay": 679,
+        "welcome-overlay -> dashboard-reveal": 760.6,
+        "dashboard-reveal -> dashboard-complete": 1341.4
+      }
+    },
+    {
+      "concept": "a",
+      "trial": 4,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 126,
+      "medianMs": 20,
+      "p95Ms": 30.3,
+      "maxMs": 40.3,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 373.3,
+        "form-and-card-motion -> welcome-overlay": 647.2,
+        "welcome-overlay -> dashboard-reveal": 762.3,
+        "dashboard-reveal -> dashboard-complete": 620.6
+      }
+    },
+    {
+      "concept": "b",
+      "trial": 4,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 104,
+      "medianMs": 20.2,
+      "p95Ms": 30.3,
+      "maxMs": 60,
+      "over50ms": 1,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-fade": 371.3,
+        "form-fade -> welcome-overlay": 540.6,
+        "welcome-overlay -> dashboard-reveal": 760.8,
+        "dashboard-reveal -> dashboard-complete": 842.4
+      }
+    },
+    {
+      "concept": "c",
+      "trial": 4,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 130,
+      "medianMs": 20.3,
+      "p95Ms": 30.3,
+      "maxMs": 49.9,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 373.3,
+        "form-and-card-motion -> welcome-overlay": 677.4,
+        "welcome-overlay -> dashboard-reveal": 760.6,
+        "dashboard-reveal -> dashboard-complete": 1341.3
+      }
+    },
+    {
+      "concept": "a",
+      "trial": 5,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 138,
+      "medianMs": 19.8,
+      "p95Ms": 30.1,
+      "maxMs": 40.3,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 372.8,
+        "form-and-card-motion -> welcome-overlay": 638.9,
+        "welcome-overlay -> dashboard-reveal": 761.8,
+        "dashboard-reveal -> dashboard-complete": 620.7
+      }
+    },
+    {
+      "concept": "b",
+      "trial": 5,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 110,
+      "medianMs": 20.1,
+      "p95Ms": 30.3,
+      "maxMs": 40.1,
+      "over50ms": 0,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-fade": 371.2,
+        "form-fade -> welcome-overlay": 540.8,
+        "welcome-overlay -> dashboard-reveal": 761,
+        "dashboard-reveal -> dashboard-complete": 841
+      }
+    },
+    {
+      "concept": "c",
+      "trial": 5,
+      "intervalSource": "headed-page requestAnimationFrame callback intervals; compositor presentation telemetry is separate",
+      "frameSamples": 124,
+      "medianMs": 29.7,
+      "p95Ms": 40,
+      "maxMs": 60,
+      "over50ms": 3,
+      "longTasks": [],
+      "stageDurationsMs": {
+        "button-response -> form-and-card-motion": 371.9,
+        "form-and-card-motion -> welcome-overlay": 683.9,
+        "welcome-overlay -> dashboard-reveal": 760.6,
+        "dashboard-reveal -> dashboard-complete": 1341.2
+      }
+    }
+  ],
+  "measurementSummary": {
+    "a": {
+      "runs": 5,
+      "medianMsAcrossRuns": 19.88,
+      "p95MsAcrossRuns": 32.06,
+      "maxIntervalMs": 189.9,
+      "intervalsOver50ms": 2
+    },
+    "b": {
+      "runs": 5,
+      "medianMsAcrossRuns": 20.2,
+      "p95MsAcrossRuns": 30.22,
+      "maxIntervalMs": 60,
+      "intervalsOver50ms": 2
+    },
+    "c": {
+      "runs": 5,
+      "medianMsAcrossRuns": 24.02,
+      "p95MsAcrossRuns": 37.98,
+      "maxIntervalMs": 80,
+      "intervalsOver50ms": 8
+    }
+  },
+  "traceEvents": {
+    "a": {
+      "file": "concept-a-trace.json.gz",
+      "scope": "between button-response and dashboard-complete stage markers",
+      "stageMarkers": [
+        "button-response",
+        "form-and-card-motion",
+        "welcome-overlay",
+        "dashboard-reveal",
+        "dashboard-complete"
+      ],
+      "eventCount": 69929,
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 192,
+          "summedDurationMs": 225.96
+        },
+        "Layout": {
+          "count": 83,
+          "summedDurationMs": 37.03
+        },
+        "LocalFrameView::performLayout": {
+          "count": 83,
+          "summedDurationMs": 31.58
+        },
+        "LocalFrameView::performPostLayoutTasks": {
+          "count": 83,
+          "summedDurationMs": 1.24
+        },
+        "LocalFrameView::RunStyleAndLayoutLifecyclePhases": {
+          "count": 104,
+          "summedDurationMs": 147.39
+        },
+        "InvalidateLayout": {
+          "count": 82,
+          "summedDurationMs": 0
+        },
+        "PrePaint": {
+          "count": 104,
+          "summedDurationMs": 46.7
+        },
+        "auto cc::Scheduler::SendDidNotProduceFrame(const viz::BeginFrameArgs &, FrameSkippedReason)::(lambda)::operator()()::(lambda)::operator()(uint32_t) const": {
+          "count": 91,
+          "summedDurationMs": 24.34
+        },
+        "LocalFrameView::RunPrePaintLifecyclePhase": {
+          "count": 104,
+          "summedDurationMs": 31.69
+        },
+        "LocalFrameView::RunPaintLifecyclePhase": {
+          "count": 104,
+          "summedDurationMs": 165.63
+        },
+        "Paint": {
+          "count": 161,
+          "summedDurationMs": 111.69
+        },
+        "BeginFrame": {
+          "count": 240,
+          "summedDurationMs": 0
+        },
+        "PaintImage": {
+          "count": 35,
+          "summedDurationMs": 0.74
+        },
+        "DisplayScheduler::OnBeginFrameDeadline": {
+          "count": 204,
+          "summedDurationMs": 128.67
+        },
+        "PaintController::commitNewDisplayItems": {
+          "count": 65,
+          "summedDurationMs": 1.31
+        },
+        "TileManager::CreateRasterTask": {
+          "count": 232,
+          "summedDurationMs": 5.62
+        },
+        "RasterTask": {
+          "count": 116,
+          "summedDurationMs": 27.51
+        },
+        "DelayBasedBeginFrameSource::OnTimerTick": {
+          "count": 203,
+          "summedDurationMs": 41.22
+        },
+        "SendBeginFrameDecision": {
+          "count": 203,
+          "summedDurationMs": 0.64
+        },
+        "DisplayScheduler::BeginFrame": {
+          "count": 203,
+          "summedDurationMs": 10.79
+        },
+        "DisplayScheduler::ScheduleBeginFrameDeadline": {
+          "count": 429,
+          "summedDurationMs": 5.78
+        },
+        "ExternalBeginFrameSource::OnBeginFrame": {
+          "count": 203,
+          "summedDurationMs": 50.7
+        },
+        "Scheduler::BeginFrame": {
+          "count": 203,
+          "summedDurationMs": 44.8
+        },
+        "DirectRenderer::DrawFrame": {
+          "count": 113,
+          "summedDurationMs": 74.68
+        },
+        "DirectRenderer::DrawFrame ProcessForOverlays": {
+          "count": 113,
+          "summedDurationMs": 2.61
+        },
+        "SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass": {
+          "count": 310,
+          "summedDurationMs": 332.59
+        },
+        "DrawFrame": {
+          "count": 113,
+          "summedDurationMs": 0
+        },
+        "Waiting for next BeginFrame": {
+          "count": 98,
+          "summedDurationMs": 0
+        },
+        "AnimationFrame::StyleAndLayout": {
+          "count": 208,
+          "summedDurationMs": 0
+        },
+        "SubmitCompositorFrameToPresentationCompositorFrame": {
+          "count": 415,
+          "summedDurationMs": 0
+        },
+        "EndActivateToSubmitCompositorFrame": {
+          "count": 408,
+          "summedDurationMs": 0
+        }
+      }
+    },
+    "b": {
+      "file": "concept-b-trace.json.gz",
+      "scope": "between button-response and dashboard-complete stage markers",
+      "stageMarkers": [
+        "button-response",
+        "form-fade",
+        "welcome-overlay",
+        "dashboard-reveal",
+        "dashboard-complete"
+      ],
+      "eventCount": 52732,
+      "events": {
+        "UpdateLayoutTree": {
+          "count": 151,
+          "summedDurationMs": 124.02
+        },
+        "Layout": {
+          "count": 14,
+          "summedDurationMs": 7.81
+        },
+        "LocalFrameView::performLayout": {
+          "count": 14,
+          "summedDurationMs": 7.16
+        },
+        "LocalFrameView::performPostLayoutTasks": {
+          "count": 14,
+          "summedDurationMs": 0.21
+        },
+        "LocalFrameView::RunStyleAndLayoutLifecyclePhases": {
+          "count": 80,
+          "summedDurationMs": 66.85
+        },
+        "InvalidateLayout": {
+          "count": 13,
+          "summedDurationMs": 0
+        },
+        "PrePaint": {
+          "count": 80,
+          "summedDurationMs": 29.87
+        },
+        "LocalFrameView::RunPrePaintLifecyclePhase": {
+          "count": 80,
+          "summedDurationMs": 19.94
+        },
+        "LocalFrameView::RunPaintLifecyclePhase": {
+          "count": 80,
+          "summedDurationMs": 89.3
+        },
+        "auto cc::Scheduler::SendDidNotProduceFrame(const viz::BeginFrameArgs &, FrameSkippedReason)::(lambda)::operator()()::(lambda)::operator()(uint32_t) const": {
+          "count": 104,
+          "summedDurationMs": 20.81
+        },
+        "Paint": {
+          "count": 110,
+          "summedDurationMs": 72.14
+        },
+        "PaintImage": {
+          "count": 12,
+          "summedDurationMs": 0.33
+        },
+        "BeginFrame": {
+          "count": 252,
+          "summedDurationMs": 0
+        },
+        "DisplayScheduler::OnBeginFrameDeadline": {
+          "count": 202,
+          "summedDurationMs": 136.71
+        },
+        "PaintController::commitNewDisplayItems": {
+          "count": 41,
+          "summedDurationMs": 0.62
+        },
+        "TileManager::CreateRasterTask": {
+          "count": 188,
+          "summedDurationMs": 3.77
+        },
+        "RasterTask": {
+          "count": 94,
+          "summedDurationMs": 20.78
+        },
+        "DelayBasedBeginFrameSource::OnTimerTick": {
+          "count": 201,
+          "summedDurationMs": 37.61
+        },
+        "SendBeginFrameDecision": {
+          "count": 204,
+          "summedDurationMs": 0.6
+        },
+        "DisplayScheduler::BeginFrame": {
+          "count": 203,
+          "summedDurationMs": 13.37
+        },
+        "DisplayScheduler::ScheduleBeginFrameDeadline": {
+          "count": 405,
+          "summedDurationMs": 3.22
+        },
+        "ExternalBeginFrameSource::OnBeginFrame": {
+          "count": 203,
+          "summedDurationMs": 46.89
+        },
+        "Scheduler::BeginFrame": {
+          "count": 203,
+          "summedDurationMs": 42.48
+        },
+        "DirectRenderer::DrawFrame": {
+          "count": 100,
+          "summedDurationMs": 95.05
+        },
+        "DirectRenderer::DrawFrame ProcessForOverlays": {
+          "count": 100,
+          "summedDurationMs": 2.17
+        },
+        "SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass": {
+          "count": 260,
+          "summedDurationMs": 297.95
+        },
+        "DrawFrame": {
+          "count": 100,
+          "summedDurationMs": 0
+        },
+        "Waiting for next BeginFrame": {
+          "count": 98,
+          "summedDurationMs": 0
+        },
+        "NeedsBeginFrameChanged": {
+          "count": 2,
+          "summedDurationMs": 0
+        },
+        "FramePresented": {
+          "count": 1,
+          "summedDurationMs": 0
+        },
+        "AnimationFrame::StyleAndLayout": {
+          "count": 160,
+          "summedDurationMs": 0
+        },
+        "SubmitCompositorFrameToPresentationCompositorFrame": {
+          "count": 308,
+          "summedDurationMs": 0
+        },
+        "EndActivateToSubmitCompositorFrame": {
+          "count": 304,
+          "summedDurationMs": 0
+        },
+        "NeedsBeginFrames": {
+          "count": 2,
+          "summedDurationMs": 0
+        }
+      }
+    },
+    "c": {
+      "file": "concept-c-trace.json.gz",
+      "scope": "between button-response and dashboard-complete stage markers",
+      "stageMarkers": [
+        "button-response",
+        "form-and-card-motion",
+        "welcome-overlay",
+        "dashboard-reveal",
+        "dashboard-complete"
+      ],
+      "eventCount": 71165,
+      "events": {
+        "BeginFrame": {
+          "count": 316,
+          "summedDurationMs": 0
+        },
+        "DelayBasedBeginFrameSource::OnTimerTick": {
+          "count": 244,
+          "summedDurationMs": 35.17
+        },
+        "SendBeginFrameDecision": {
+          "count": 249,
+          "summedDurationMs": 0.69
+        },
+        "DisplayScheduler::BeginFrame": {
+          "count": 228,
+          "summedDurationMs": 6.74
+        },
+        "DisplayScheduler::ScheduleBeginFrameDeadline": {
+          "count": 463,
+          "summedDurationMs": 3.33
+        },
+        "DisplayScheduler::OnBeginFrameDeadline": {
+          "count": 227,
+          "summedDurationMs": 163.13
+        },
+        "ExternalBeginFrameSource::OnBeginFrame": {
+          "count": 248,
+          "summedDurationMs": 53.35
+        },
+        "Scheduler::BeginFrame": {
+          "count": 248,
+          "summedDurationMs": 47.57
+        },
+        "DirectRenderer::DrawFrame": {
+          "count": 114,
+          "summedDurationMs": 102.93
+        },
+        "DirectRenderer::DrawFrame ProcessForOverlays": {
+          "count": 114,
+          "summedDurationMs": 2.53
+        },
+        "UpdateLayoutTree": {
+          "count": 214,
+          "summedDurationMs": 216.98
+        },
+        "SkiaOutputSurfaceImplOnGpu::FinishPaintRenderPass": {
+          "count": 271,
+          "summedDurationMs": 381.4
+        },
+        "Layout": {
+          "count": 71,
+          "summedDurationMs": 31.73
+        },
+        "LocalFrameView::performLayout": {
+          "count": 71,
+          "summedDurationMs": 26.97
+        },
+        "LocalFrameView::performPostLayoutTasks": {
+          "count": 71,
+          "summedDurationMs": 1.32
+        },
+        "LocalFrameView::RunStyleAndLayoutLifecyclePhases": {
+          "count": 113,
+          "summedDurationMs": 117.93
+        },
+        "InvalidateLayout": {
+          "count": 70,
+          "summedDurationMs": 0
+        },
+        "PrePaint": {
+          "count": 113,
+          "summedDurationMs": 43.38
+        },
+        "LocalFrameView::RunPrePaintLifecyclePhase": {
+          "count": 113,
+          "summedDurationMs": 30.83
+        },
+        "LocalFrameView::RunPaintLifecyclePhase": {
+          "count": 113,
+          "summedDurationMs": 151.24
+        },
+        "Paint": {
+          "count": 222,
+          "summedDurationMs": 114.16
+        },
+        "DrawFrame": {
+          "count": 113,
+          "summedDurationMs": 0
+        },
+        "Waiting for next BeginFrame": {
+          "count": 109,
+          "summedDurationMs": 0
+        },
+        "PaintImage": {
+          "count": 69,
+          "summedDurationMs": 1.69
+        },
+        "PaintController::commitNewDisplayItems": {
+          "count": 92,
+          "summedDurationMs": 0.75
+        },
+        "TileManager::CreateRasterTask": {
+          "count": 310,
+          "summedDurationMs": 7.67
+        },
+        "auto cc::Scheduler::SendDidNotProduceFrame(const viz::BeginFrameArgs &, FrameSkippedReason)::(lambda)::operator()()::(lambda)::operator()(uint32_t) const": {
+          "count": 137,
+          "summedDurationMs": 24.89
+        },
+        "RasterTask": {
+          "count": 155,
+          "summedDurationMs": 26.18
+        },
+        "NeedsBeginFrameChanged": {
+          "count": 2,
+          "summedDurationMs": 0
+        },
+        "Scheduler::MissedBeginFrameDropped": {
+          "count": 1,
+          "summedDurationMs": 0
+        },
+        "Scheduler::BeginFrameDropped": {
+          "count": 1,
+          "summedDurationMs": 0
+        },
+        "FramePresented": {
+          "count": 1,
+          "summedDurationMs": 0
+        },
+        "SubmitCompositorFrameToPresentationCompositorFrame": {
+          "count": 444,
+          "summedDurationMs": 0
+        },
+        "AnimationFrame::StyleAndLayout": {
+          "count": 226,
+          "summedDurationMs": 0
+        },
+        "EndActivateToSubmitCompositorFrame": {
+          "count": 440,
+          "summedDurationMs": 0
+        },
+        "NeedsBeginFrames": {
+          "count": 2,
+          "summedDurationMs": 0
+        }
+      }
+    }
+  },
+  "evidence": {
+    "a": {
+      "video": "concept-a.mp4",
+      "videoBytes": 810902,
+      "screencastFrames": 75,
+      "stageTimes": [
+        {
+          "stage": "button-response",
+          "msFromButtonResponse": 0
+        },
+        {
+          "stage": "form-and-card-motion",
+          "msFromButtonResponse": 373.2
+        },
+        {
+          "stage": "welcome-overlay",
+          "msFromButtonResponse": 1146.3
+        },
+        {
+          "stage": "dashboard-reveal",
+          "msFromButtonResponse": 1907.8
+        },
+        {
+          "stage": "dashboard-complete",
+          "msFromButtonResponse": 2534.9
+        }
+      ],
+      "selectedFrames": [
+        {
+          "stage": "button-response",
+          "file": "concept-a-button-loading.jpg",
+          "requestedOffsetMs": 80,
+          "actualOffsetMs": 66.5,
+          "frameDistanceFromTargetMs": -13.5
+        },
+        {
+          "stage": "form-and-card-motion",
+          "file": "concept-a-card-motion.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 321.6,
+          "frameDistanceFromTargetMs": 21.6
+        },
+        {
+          "stage": "welcome-overlay",
+          "file": "concept-a-welcome.jpg",
+          "requestedOffsetMs": 140,
+          "actualOffsetMs": 151.8,
+          "frameDistanceFromTargetMs": 11.8
+        },
+        {
+          "stage": "dashboard-reveal",
+          "file": "concept-a-dashboard-reveal.jpg",
+          "requestedOffsetMs": 240,
+          "actualOffsetMs": 215.1,
+          "frameDistanceFromTargetMs": -24.9
+        },
+        {
+          "stage": "dashboard-complete",
+          "file": "concept-a-complete.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 277.4,
+          "frameDistanceFromTargetMs": -22.6
+        }
+      ],
+      "finalState": {
+        "stage": "dashboard-complete",
+        "dashboardReveal": "complete",
+        "modalHidden": true,
+        "dashboardFilter": "none",
+        "dashboardTransform": "none"
+      }
+    },
+    "b": {
+      "video": "concept-b.mp4",
+      "videoBytes": 843891,
+      "screencastFrames": 71,
+      "stageTimes": [
+        {
+          "stage": "button-response",
+          "msFromButtonResponse": 0
+        },
+        {
+          "stage": "form-fade",
+          "msFromButtonResponse": 369.4
+        },
+        {
+          "stage": "welcome-overlay",
+          "msFromButtonResponse": 912.3
+        },
+        {
+          "stage": "dashboard-reveal",
+          "msFromButtonResponse": 1671.9
+        },
+        {
+          "stage": "dashboard-complete",
+          "msFromButtonResponse": 2522.8
+        }
+      ],
+      "selectedFrames": [
+        {
+          "stage": "button-response",
+          "file": "concept-b-button-loading.jpg",
+          "requestedOffsetMs": 80,
+          "actualOffsetMs": 76.7,
+          "frameDistanceFromTargetMs": -3.3
+        },
+        {
+          "stage": "form-fade",
+          "file": "concept-b-form-fade.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 319.1,
+          "frameDistanceFromTargetMs": 19.1
+        },
+        {
+          "stage": "welcome-overlay",
+          "file": "concept-b-welcome.jpg",
+          "requestedOffsetMs": 140,
+          "actualOffsetMs": 115.9,
+          "frameDistanceFromTargetMs": -24.1
+        },
+        {
+          "stage": "dashboard-reveal",
+          "file": "concept-b-dashboard-reveal.jpg",
+          "requestedOffsetMs": 240,
+          "actualOffsetMs": 240.8,
+          "frameDistanceFromTargetMs": 0.8
+        },
+        {
+          "stage": "dashboard-complete",
+          "file": "concept-b-complete.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 239.2,
+          "frameDistanceFromTargetMs": -60.8
+        }
+      ],
+      "finalState": {
+        "stage": "dashboard-complete",
+        "dashboardReveal": "complete",
+        "modalHidden": true,
+        "dashboardFilter": "none",
+        "dashboardTransform": "none"
+      }
+    },
+    "c": {
+      "video": "concept-c.mp4",
+      "videoBytes": 856468,
+      "screencastFrames": 73,
+      "stageTimes": [
+        {
+          "stage": "button-response",
+          "msFromButtonResponse": 0
+        },
+        {
+          "stage": "form-and-card-motion",
+          "msFromButtonResponse": 391.9
+        },
+        {
+          "stage": "welcome-overlay",
+          "msFromButtonResponse": 1152.2
+        },
+        {
+          "stage": "dashboard-reveal",
+          "msFromButtonResponse": 1912.5
+        },
+        {
+          "stage": "dashboard-complete",
+          "msFromButtonResponse": 3258.4
+        }
+      ],
+      "selectedFrames": [
+        {
+          "stage": "button-response",
+          "file": "concept-c-button-loading.jpg",
+          "requestedOffsetMs": 80,
+          "actualOffsetMs": 69.8,
+          "frameDistanceFromTargetMs": -10.2
+        },
+        {
+          "stage": "form-and-card-motion",
+          "file": "concept-c-card-motion.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 321.4,
+          "frameDistanceFromTargetMs": 21.4
+        },
+        {
+          "stage": "welcome-overlay",
+          "file": "concept-c-welcome.jpg",
+          "requestedOffsetMs": 140,
+          "actualOffsetMs": 146.6,
+          "frameDistanceFromTargetMs": 6.6
+        },
+        {
+          "stage": "dashboard-reveal",
+          "file": "concept-c-dashboard-reveal.jpg",
+          "requestedOffsetMs": 650,
+          "actualOffsetMs": 646.6,
+          "frameDistanceFromTargetMs": -3.4
+        },
+        {
+          "stage": "dashboard-complete",
+          "file": "concept-c-complete.jpg",
+          "requestedOffsetMs": 300,
+          "actualOffsetMs": 83.9,
+          "frameDistanceFromTargetMs": -216.1
+        }
+      ],
+      "finalState": {
+        "stage": "dashboard-complete",
+        "dashboardReveal": "complete",
+        "modalHidden": true,
+        "dashboardFilter": "none",
+        "dashboardTransform": "none"
+      }
+    }
+  },
+  "responsive": [
+    {
+      "width": 320,
+      "cardWidth": 251.59,
+      "cardHeight": 158.36,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 340,
+      "cardWidth": 251.59,
+      "cardHeight": 158.36,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 360,
+      "cardWidth": 289,
+      "cardHeight": 181.89,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 375,
+      "cardWidth": 289,
+      "cardHeight": 181.89,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 390,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 414,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 767,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 1024,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    },
+    {
+      "width": 1440,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "cardAspectRatio": 1.589,
+      "centerOffsetPx": 0,
+      "horizontalOverflow": false
+    }
+  ],
+  "reducedMotion": [
+    {
+      "concept": "a",
+      "reducedMotionMatches": true,
+      "completed": true,
+      "durationMs": 642.3,
+      "activeAnimations": 0
+    },
+    {
+      "concept": "b",
+      "reducedMotionMatches": true,
+      "completed": true,
+      "durationMs": 642.2,
+      "activeAnimations": 0
+    },
+    {
+      "concept": "c",
+      "reducedMotionMatches": true,
+      "completed": true,
+      "durationMs": 642,
+      "activeAnimations": 0
+    }
+  ],
+  "consoleErrors": [
+    {
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "url": "http://localhost:3011/PROJECT-MANAGEMENT/api/health"
+    },
+    {
+      "text": "Failed to load resource: net::ERR_CONNECTION_REFUSED",
+      "url": "http://localhost:3011/PROJECT-MANAGEMENT/api/projects"
+    }
+  ]
+}
