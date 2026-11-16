@@ -1,15 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import { Badge, Card, Col, Form, Modal, Row, Table } from 'react-bootstrap';
-import { MOCK_PROJECTS } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
+import { buildTaskProjectAssignments, filterEmployees } from '../data/workloadMockData';
 import {
-  MOCK_PROJECT_ASSIGNMENTS,
   STANDARD_CAP_MO,
   buildMatrixMonths,
   computeEmployeeMatrixRow,
   getAssignmentStatusLabel,
   WORKLOAD_STATUS_META,
 } from '../data/workloadMatrixData';
-import { filterEmployees } from '../data/workloadMockData';
 
 const MONTH_LABELS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('en-US', { maximumFractionDigits: 1 })} hrs`;
@@ -46,7 +45,10 @@ const getEmployeeStandardCap = (employee) => {
 
 // 6-Month Workload Planning Matrix — Matrix-owned component.
 // Forecast window state is independent from the Dashboard's global date picker.
-export default function WorkloadMatrix({ employees = [], department = 'all', position = 'all', projectFilter = 'all', search = '' }) {
+export default function WorkloadMatrix({ employees = [], tasks = [], projects = [], department = 'all', position = 'all', projectFilter = 'all', search = '' }) {
+  const { tasks: contextTasks, projects: contextProjects } = useMockData();
+  const taskRecords = tasks.length ? tasks : contextTasks;
+  const projectRecords = projects.length ? projects : contextProjects;
   const now = new Date();
   const [windowStart, setWindowStart] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [statusFilter, setStatusFilter] = useState('all');
@@ -59,9 +61,10 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
     [employees, department, position, search],
   );
 
+  const assignments = useMemo(() => buildTaskProjectAssignments(taskRecords, employees), [taskRecords, employees]);
   const rows = useMemo(
-    () => filteredEmployees.map((employee) => computeEmployeeMatrixRow(employee, months, MOCK_PROJECT_ASSIGNMENTS, projectFilter)),
-    [filteredEmployees, months, projectFilter],
+    () => filteredEmployees.map((employee) => computeEmployeeMatrixRow(employee, months, assignments, projectFilter)),
+    [filteredEmployees, months, projectFilter, assignments],
   );
 
   const visibleRows = useMemo(
@@ -92,7 +95,7 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
     }
   };
 
-  const projectById = useMemo(() => new Map(MOCK_PROJECTS.map((project) => [project.id, project])), []);
+  const projectById = useMemo(() => new Map(projectRecords.map((project) => [String(project.id), project])), [projectRecords]);
   const windowLabel = `${MONTH_LABELS[months[0].month]} ${months[0].year} – ${MONTH_LABELS[months[5].month]} ${months[5].year}`;
 
   return (
@@ -242,7 +245,7 @@ export default function WorkloadMatrix({ employees = [], department = 'all', pos
                     <thead><tr><th>Project</th><th>Status</th><th>Period</th><th className="text-end">Hours (this month)</th></tr></thead>
                     <tbody>
                       {cell.contributing.map(({ assignment, hours }) => {
-                        const project = projectById.get(assignment.projectId);
+                        const project = projectById.get(String(assignment.projectId));
                         return (
                           <tr key={assignment.id}>
                             <td>{project ? project.name : `Project #${assignment.projectId}`}</td>

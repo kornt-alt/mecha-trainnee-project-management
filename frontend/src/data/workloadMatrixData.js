@@ -87,22 +87,25 @@ export function getAssignmentStatusLabel(status) {
 }
 
 // ── Planned hours allocation ─────────────────────────────────────────────
-// Counts actual working days (non-weekend, non-leave) between two ISO dates.
+// Sums available scheduled capacity between two ISO dates, including partial leave.
 // HOLIDAY_SET is intentionally empty until Calendar integration is complete,
 // so !isHoliday is always true for now — the check remains for forward-compat.
-function getWorkingDaysBetween(employee, startISO, endISO) {
-  let days = 0;
+function getWorkingCapacityBetween(employee, startISO, endISO) {
+  let minutes = 0;
   const cursor = parseISODate(startISO);
   const end = parseISODate(endISO);
   while (cursor <= end) {
     const iso = toISODate(cursor);
     const schedule = getEmployeeDaySchedule(employee, iso);
     const isHoliday = HOLIDAY_SET.has(iso);
-    const onLeave = (LEAVE_BY_EMPLOYEE.get(employee.id) || []).some((leave) => leave.date === iso);
-    if (!schedule.dayOff && schedule.capacityHours > 0 && !isHoliday && !onLeave) days += 1;
+    const leaveHours = (LEAVE_BY_EMPLOYEE.get(employee.id) || [])
+      .filter((leave) => leave.date === iso)
+      .reduce((sum, leave) => sum + (Number(leave.hours) || 0), 0);
+    const leaveMinutes = Math.min(leaveHours * 60, schedule.capacityMinutes);
+    if (!schedule.dayOff && schedule.capacityMinutes > 0 && !isHoliday) minutes += Math.max(0, schedule.capacityMinutes - leaveMinutes);
     cursor.setDate(cursor.getDate() + 1);
   }
-  return days;
+  return minutes;
 }
 
 // Hours from one assignment credited to a specific month (year: number, month: 0-based).
@@ -132,11 +135,11 @@ export function getAssignmentHoursInMonth(assignment, employee, year, month) {
   if (!overlapStart || !overlapEnd || overlapStart > overlapEnd) return 0;
 
   // Denominator = total working days across the FULL assignment range.
-  const totalAssignmentWorkingDays = getWorkingDaysBetween(employee, rangeStart, rangeEnd);
-  if (!totalAssignmentWorkingDays) return 0;
+  const totalAssignmentCapacity = getWorkingCapacityBetween(employee, rangeStart, rangeEnd);
+  if (!totalAssignmentCapacity) return 0;
 
-  const overlapWorkingDays = getWorkingDaysBetween(employee, overlapStart, overlapEnd);
-  if (!overlapWorkingDays) return 0;
+  const overlapCapacity = getWorkingCapacityBetween(employee, overlapStart, overlapEnd);
+  if (!overlapCapacity) return 0;
 
   const total = Number(assignment.totalPlannedHours) || 0;
   if (total <= 0) return 0;
@@ -157,9 +160,9 @@ export function getAssignmentHoursInMonth(assignment, employee, year, month) {
       const oEnd = rangeEnd < curMonthEnd ? rangeEnd : curMonthEnd;
 
       if (oStart <= oEnd) {
-        const oDays = getWorkingDaysBetween(employee, oStart, oEnd);
-        if (oDays > 0) {
-          const mHours = Number(((total * oDays) / totalAssignmentWorkingDays).toFixed(2));
+          const overlapCapacityInMonth = getWorkingCapacityBetween(employee, oStart, oEnd);
+        if (overlapCapacityInMonth > 0) {
+          const mHours = Number(((total * overlapCapacityInMonth) / totalAssignmentCapacity).toFixed(2));
           allocatedPrior += mHours;
         }
       }
@@ -175,7 +178,7 @@ export function getAssignmentHoursInMonth(assignment, employee, year, month) {
     return Math.max(0, remaining);
   }
 
-  return Number(((total * overlapWorkingDays) / totalAssignmentWorkingDays).toFixed(2));
+  return Number(((total * overlapCapacity) / totalAssignmentCapacity).toFixed(2));
 }
 
 // ── Workload status thresholds (exact) ───────────────────────────────────

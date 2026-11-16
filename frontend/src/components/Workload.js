@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
-import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS, MOCK_PROJECTS } from '../data/mockData';
+import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
 import {
-  MOCK_PLANNED_WORK_ENTRIES,
+  buildTaskPlannedWorkEntries,
   getWeekSchedulePattern,
   parseISODate,
   toISODate,
@@ -92,7 +92,7 @@ function TeamWorkloadBar({ utilization, isOver, index }) {
 }
 
 export default function Workload() {
-  const { projects: mockProjects } = useMockData();
+  const { projects: projectRecords, tasks } = useMockData();
   
 
   
@@ -134,8 +134,9 @@ export default function Workload() {
   );
 
   const data = useMemo(() => {
-    return computeEmployeeWorkloadData(visibleEmployees, MOCK_PLANNED_WORK_ENTRIES, range, projectFilter);
-  }, [range, visibleEmployees, projectFilter]);
+    const entries = buildTaskPlannedWorkEntries(tasks, MOCK_EMPLOYEES);
+    return computeEmployeeWorkloadData(visibleEmployees, entries, range, projectFilter);
+  }, [range, visibleEmployees, projectFilter, tasks]);
 
   const rangeDates = useMemo(() => {
     const dates = [];
@@ -185,11 +186,11 @@ export default function Workload() {
     });
   }, [matrixBuckets, data?.employees, data?.entries]);
 
-  const projects = useMemo(() => {
-    if (!Array.isArray(mockProjects)) return [];
-    const entriesList = Array.isArray(data?.entries) ? data.entries : [];
-    return MOCK_PROJECTS.filter((project) => entriesList.some((entry) => entry.projectId === project.id));
-  }, [data?.entries]);
+  const projectsWithWorkload = useMemo(() => {
+    if (!Array.isArray(projectRecords)) return [];
+    return projectRecords.filter((project) => tasks.some((task) => String(task.projectId) === String(project.id)
+      && task.status !== 'completed' && (task.plannedAllocations || []).some((allocation) => Number(allocation.hours) > 0)));
+  }, [projectRecords, tasks]);
 
   const selectedDetails = selectedEmployee
     ? (data.employees || []).find((emp) => emp.id === selectedEmployee.id) || selectedEmployee
@@ -280,7 +281,7 @@ export default function Workload() {
               </Form.Select>
               <Form.Select size="sm" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} aria-label="กรองโปรเจกต์">
                 <option value="all">ทุกโปรเจกต์</option>
-                {projects.map((project) => (
+                {projectsWithWorkload.map((project) => (
                   <option key={project.id} value={project.id}>{project.name}</option>
                 ))}
               </Form.Select>
@@ -430,6 +431,8 @@ export default function Workload() {
 
       <WorkloadMatrix
         employees={MOCK_EMPLOYEES}
+        tasks={tasks}
+        projects={projectRecords}
         department={department}
         position={position}
         projectFilter={projectFilter}

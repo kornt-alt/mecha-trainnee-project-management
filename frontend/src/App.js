@@ -25,7 +25,6 @@ export default function App() {
         <Route element={<Layout />}>
           <Route index element={<Home />} />
           <Route path="projects" element={<Projects />} />
-          <Route path="projects/:projectId" element={<ProjectDetail />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="workload" element={<Workload />} />
           <Route path="reports" element={<Reports />} />
@@ -41,6 +40,7 @@ export default function App() {
           <Route path="about" element={<About />} />
           <Route path="*" element={<NotFound />} />
         </Route>
+        <Route path="projects/:projectId" element={<ProjectDetail />} />
       </Routes>
       </MockDataProvider>
     </Router>

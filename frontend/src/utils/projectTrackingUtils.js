@@ -38,8 +38,9 @@ export const initials = (name) => {
 };
 
 // ลำดับความสำคัญรายโปรเจกต์ = อนุพันธ์จากงานทั้งหมดในโปรเจกต์ (เอาลำดับสูงสุด)
-export const RANK = { urgent: 3, high: 2, normal: 1, medium: 1, low: 0 };
+export const RANK = { urgent: 3, high: 2, normal: 1, medium: 1, low: 0, none: -1 };
 export const PRIORITY_BADGES = {
+  none: { label: '-', variant: 'low' },
   urgent: { label: 'ด่วนมาก', variant: 'urgent' },
   high: { label: 'สูง', variant: 'high' },
   normal: { label: 'ปกติ (Medium)', variant: 'medium' },
@@ -52,6 +53,7 @@ export const normalizePriorityKey = (val) => {
   if (!val) return 'low';
   if (typeof val === 'string') {
     const k = val.toLowerCase().trim();
+    if (k === 'none' || k === 'ไม่ระบุ') return 'none';
     if (k === 'ด่วนมาก' || k === 'urgent') return 'urgent';
     if (k === 'สูง' || k === 'high') return 'high';
     if (k === 'ปกติ' || k === 'ปานกลาง' || k === 'medium' || k === 'normal') return 'normal';
