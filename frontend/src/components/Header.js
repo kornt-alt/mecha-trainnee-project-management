@@ -3,12 +3,13 @@ import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'react-bootstrap';
 import { Clock, Bell, Check, ChevronDown } from './common/Icons';
 import CalendarDropdown from './common/CalendarDropdown';
-import { NOTIFICATIONS } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 
 export default function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const { notifications: allNotifications, actorId, markNotificationsRead } = useMockData();
+  const notifications = allNotifications.filter((item) => String(item.employeeId) === String(actorId));
 
   useEffect(() => {
     // อัปเดตเวลานาฬิกาทุกวินาทีเพื่อให้เวลาตรงกับปัจจุบันเสมอ
@@ -41,7 +42,7 @@ export default function Header() {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    markNotificationsRead(actorId);
   };
 
   return (

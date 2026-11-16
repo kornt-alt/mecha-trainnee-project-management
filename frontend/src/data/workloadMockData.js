@@ -1,6 +1,6 @@
 // Mock schedule + planned allocation for Workload Dashboard.
 // All schedule and allocation data in this file are frontend-only fixtures.
-import { MOCK_WORK_ENTRIES } from './mockData';
+import { MOCK_EMPLOYEES, MOCK_WORK_ENTRIES } from './mockData';
 
 // ── Approved leave ────────────────────────────────────────────────────────
 // Single source of truth for all approved leave records.
@@ -173,6 +173,88 @@ export function getEmployeeDaySchedule(employee, dateValue) {
     shiftType: shortShift ? 'short' : 'standard',
     weekPattern: pattern,
   };
+}
+
+// Task planned allocations are the canonical planning source; these rows are derived for display.
+export function buildTaskPlannedWorkEntries(tasks = [], employees = []) {
+  const employeeById = new Map(employees.map((employee) => [String(employee.id), employee]));
+  const leaveByEmployee = new Map();
+  MOCK_APPROVED_LEAVE.forEach((leave) => {
+    const key = `${leave.employeeId}:${leave.date}`;
+    leaveByEmployee.set(key, (leaveByEmployee.get(key) || 0) + (Number(leave.hours) || 0));
+  });
+  const entries = [];
+  (Array.isArray(tasks) ? tasks : []).forEach((task) => {
+    if (!task || task.status === 'completed') return;
+    const startDate = task.startDate || task.dueDate;
+    const endDate = task.dueDate || startDate;
+    if (!startDate || !endDate || startDate > endDate) return;
+    (task.plannedAllocations || []).forEach((allocation) => {
+      const employee = employeeById.get(String(allocation.employeeId));
+      const totalHours = Number(allocation.hours);
+      if (!employee || !Number.isFinite(totalHours) || totalHours <= 0) return;
+      const dates = [];
+      const cursor = parseISODate(startDate);
+      const end = parseISODate(endDate);
+      while (cursor <= end) {
+        const date = toISODate(cursor);
+        const schedule = getEmployeeDaySchedule(employee, date);
+        const leaveMinutes = Math.min((leaveByEmployee.get(`${employee.id}:${date}`) || 0) * 60, schedule.capacityMinutes);
+        const availableMinutes = Math.max(0, schedule.capacityMinutes - leaveMinutes);
+        if (!schedule.dayOff && availableMinutes > 0) dates.push({ date, capacityMinutes: availableMinutes });
+        cursor.setDate(cursor.getDate() + 1);
+      }
+      if (!dates.length) return;
+      const totalAvailableMinutes = dates.reduce((sum, item) => sum + item.capacityMinutes, 0);
+      let allocated = 0;
+      dates.forEach(({ date, capacityMinutes }, index) => {
+        const hours = index === dates.length - 1
+          ? Number((totalHours - allocated).toFixed(2))
+          : Math.floor((totalHours * capacityMinutes / totalAvailableMinutes) * 100) / 100;
+        allocated += hours;
+        if (hours > 0) entries.push({
+          id: `${task.id}:${allocation.employeeId}:${date}`,
+          taskId: task.id,
+          projectId: task.projectId,
+          employeeId: String(allocation.employeeId),
+          date,
+          hours,
+          type: 'planned',
+          title: task.title,
+        });
+      });
+    });
+  });
+  return entries;
+}
+
+// Matrix rows aggregate the same Task allocations by employee and retain drill-down IDs.
+export function buildTaskProjectAssignments(tasks = [], employees = MOCK_EMPLOYEES) {
+  const taskById = new Map((Array.isArray(tasks) ? tasks : []).map((task) => [String(task.id), task]));
+  const groups = new Map();
+  buildTaskPlannedWorkEntries(tasks, employees).forEach((entry) => {
+    const key = `${entry.taskId}:${entry.employeeId}`;
+    const task = taskById.get(String(entry.taskId));
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: key,
+        taskId: entry.taskId,
+        projectId: entry.projectId,
+        employeeId: String(entry.employeeId),
+        startDate: task?.startDate || task?.dueDate,
+        endDate: task?.dueDate || task?.startDate,
+        totalPlannedHours: 0,
+        monthlyAllocations: {},
+        allocationType: 'monthly',
+        status: task?.status === 'in_progress' ? 'in_progress' : 'planned',
+      });
+    }
+    const assignment = groups.get(key);
+    const monthKey = entry.date.slice(0, 7);
+    assignment.monthlyAllocations[monthKey] = Number(((assignment.monthlyAllocations[monthKey] || 0) + entry.hours).toFixed(2));
+    assignment.totalPlannedHours = Number((assignment.totalPlannedHours + entry.hours).toFixed(2));
+  });
+  return [...groups.values()];
 }
 
 // getEmployeeCapacity: Actual capacity for a date range.

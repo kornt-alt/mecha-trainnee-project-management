@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Badge, Modal, Row, Col, Table } from 'react-bootstrap';
-import { MOCK_PROJECTS, MOCK_TASKS } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
 import { getEmployeeLeaveDays } from '../data/workloadMockData';
 
 
@@ -9,11 +9,13 @@ import { getEmployeeLeaveDays } from '../data/workloadMockData';
 const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ชม.`;
 const fmtPercent = (util) => (util === null || util === undefined ? 'N/A' : `${Math.round(util)}%`);
 
-const PRIORITY_ORDER = { urgent: 4, high: 3, normal: 2, low: 1 };
+const PRIORITY_ORDER = { urgent: 4, high: 3, medium: 2, normal: 2, low: 1, none: 0 };
 const PRIORITY_META = {
+  none: { label: 'ไม่ระบุ', bg: 'secondary' },
   urgent: { label: 'Urgent', bg: 'danger' },
   high: { label: 'High', bg: 'warning' },
-  normal: { label: 'Normal', bg: 'primary' },
+  normal: { label: 'ปานกลาง', bg: 'primary' },
+  medium: { label: 'ปานกลาง', bg: 'primary' },
   low: { label: 'Low', bg: 'secondary' },
 };
 
@@ -29,6 +31,7 @@ const PRIORITY_META = {
  *   cell      – optional matrix cell data (when opened from the matrix)
  */
 export default function EmployeeDetailModal({ show, onHide, employee, range, period, cell }) {
+  const { projects, tasks: taskRecords } = useMockData();
   const [sortKey, setSortKey] = useState('workload');
   const [sortDirection, setSortDirection] = useState('desc');
 
@@ -67,7 +70,7 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
       const hasProject = assignment.projectId != null;
       const pId = hasProject ? assignment.projectId : 'unassigned';
       if (!projectMap.has(pId)) {
-        const project = hasProject ? (MOCK_PROJECTS || []).find(p => p.id === assignment.projectId) : null;
+        const project = hasProject ? projects.find(p => String(p.id) === String(assignment.projectId)) : null;
         projectMap.set(pId, {
           id: pId,
           name: project ? project.name : (hasProject ? `Project #${assignment.projectId}` : 'Unassigned Tasks'),
@@ -87,7 +90,7 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
       const hasProject = entry.projectId != null;
       const pId = hasProject ? entry.projectId : 'unassigned';
       if (!projectMap.has(pId)) {
-        const project = hasProject ? (MOCK_PROJECTS || []).find(p => p.id === entry.projectId) : null;
+        const project = hasProject ? projects.find(p => String(p.id) === String(entry.projectId)) : null;
         projectMap.set(pId, {
           id: pId,
           name: project ? project.name : (hasProject ? `Project #${entry.projectId}` : 'Unassigned Tasks'),
@@ -104,7 +107,7 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
 
   const projectRows = Array.from(projectMap.values()).map(p => {
     const tasks = Array.from(p.taskIds)
-      .map(id => (MOCK_TASKS || []).find(t => t.id === id))
+      .map(id => taskRecords.find(t => String(t.id) === String(id)))
       .filter(Boolean);
     const priorities = [...new Set(tasks.map(t => t.priority).filter(Boolean))];
     let priorityLabel = '—';

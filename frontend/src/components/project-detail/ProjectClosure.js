@@ -37,9 +37,10 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
   const execute = () => {
     setError('');
     const timestamp = new Date().toISOString();
+    let result = null;
     if (action === 'owner_review') {
       if (!isOwner) return setError('เฉพาะ Project Owner เท่านั้นที่ยืนยันการตรวจสรุปได้');
-      mutate({
+      result = mutate({
         ...closure,
         status: closure.status === 'returned' ? 'draft' : closure.status || 'draft',
         ownerReviewedAt: timestamp,
@@ -48,16 +49,16 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
       }, 'project_closure_summary_reviewed', `Project Owner ตรวจสรุปโปรเจกต์ “${project.name}”`);
     } else if (action === 'submit') {
       if (!isOwner || !canSubmit) return setError('ยังไม่ครบเงื่อนไขการส่งปิดโปรเจกต์');
-      mutate({ ...closure, status: 'pending_approval', submittedAt: timestamp, submittedBy: actorId, returnReason: null },
+      result = mutate({ ...closure, status: 'pending_approval', submittedAt: timestamp, submittedBy: actorId, returnReason: null },
         'project_closure_submitted', `ส่งโปรเจกต์ “${project.name}” ให้ Team Leader อนุมัติ`);
     } else if (action === 'approve') {
       if (!isTeamLead || closure.status !== 'pending_approval') return setError('เฉพาะ Team Leader ที่ได้รับมอบหมายเท่านั้น');
-      mutate({ ...closure, status: 'approved', approvedAt: timestamp, approvedBy: actorId },
+      result = mutate({ ...closure, status: 'approved', approvedAt: timestamp, approvedBy: actorId },
         'project_closure_approved', `Team Leader อนุมัติการปิดโปรเจกต์ “${project.name}”`);
     } else if (action === 'return') {
       if (!reason.trim()) return setError('กรุณาระบุเหตุผลที่ส่งกลับ');
       if (!isTeamLead || closure.status !== 'pending_approval') return setError('เฉพาะ Team Leader ที่ได้รับมอบหมายเท่านั้น');
-      mutate({
+      result = mutate({
         ...closure,
         status: 'returned',
         returnedAt: timestamp,
@@ -68,12 +69,14 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
       }, 'project_closure_returned', `ส่งโปรเจกต์ “${project.name}” กลับให้แก้ไข`, { reason: reason.trim() });
     } else if (action === 'close') {
       if (!isOwner || closure.status !== 'approved') return setError('Project Owner เท่านั้นที่ปิดโปรเจกต์หลังการอนุมัติได้');
-      mutate({ ...closure, status: 'closed', closedAt: timestamp, closedBy: actorId },
+      const closed = mutate({ ...closure, status: 'closed', closedAt: timestamp, closedBy: actorId },
         'project_closed', `Project Owner ปิดโปรเจกต์ “${project.name}”`);
-      updateProject(project.id, { status: 'done' }, {
+      if (!closed) return setError('ปิดโปรเจกต์ไม่สำเร็จ กรุณาตรวจสอบเงื่อนไขอีกครั้ง');
+      result = updateProject(project.id, { status: 'done' }, {
         type: 'project_status_changed', description: `เปลี่ยนสถานะโปรเจกต์ “${project.name}” เป็น ${statusLabel('done')}`,
       });
     }
+    if (!result) return setError('ดำเนินการไม่สำเร็จ กรุณาตรวจสอบสิทธิ์และเงื่อนไขของโปรเจกต์');
     setAction('');
     setReason('');
   };
@@ -94,7 +97,7 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
   }[action] || [];
 
   return (
-    <Card className="workspace-panel workspace-closure">
+    <Card id="project-closure" className="workspace-panel workspace-closure" tabIndex="-1">
       <Card.Body>
         <div className="workspace-panel-heading">
           <div><h3>ขั้นตอนการปิดโปรเจกต์</h3><p>งานเสร็จและ Project Closure เป็นคนละสถานะ</p></div>
@@ -112,7 +115,7 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
         {deliverablesRequired && !deliverablesDone && <Alert variant="warning">ต้องทำสิ่งที่ส่งมอบให้เสร็จครบก่อนส่งปิดโปรเจกต์</Alert>}
         {!project.teamLeadId && <Alert variant="warning">ยังไม่ได้กำหนด Team Leader สำหรับการอนุมัติปิดโปรเจกต์</Alert>}
         <div className="workspace-closure-actions">
-          {isOwner && !['pending_approval', 'approved', 'closed'].includes(closure.status) && <><Button variant="outline-primary" onClick={() => setAction('owner_review')}>{closure.ownerReviewedAt ? 'ตรวจสรุปอีกครั้ง' : 'ยืนยันตรวจสรุป'}</Button>{closure.status !== 'returned' && deliverablesRequired && <small>ยืนยันการตรวจสิ่งที่ส่งมอบได้ในแท็บ สิ่งที่ส่งมอบ</small>}<Button disabled={!canSubmit} onClick={() => setAction('submit')}>ส่งขออนุมัติ</Button></>}
+          {isOwner && !['pending_approval', 'approved', 'closed'].includes(closure.status) && <><Button variant="outline-primary" disabled={!tasksDone} onClick={() => setAction('owner_review')}>{closure.ownerReviewedAt ? 'ตรวจสรุปอีกครั้ง' : 'ยืนยันตรวจสรุป'}</Button>{closure.status !== 'returned' && deliverablesRequired && <small>ยืนยันการตรวจสิ่งที่ส่งมอบได้ในแท็บ สิ่งที่ส่งมอบ</small>}<Button disabled={!canSubmit} onClick={() => setAction('submit')}>ส่งขออนุมัติ</Button></>}
           {isTeamLead && closure.status === 'pending_approval' && <><Button variant="success" onClick={() => setAction('approve')}>อนุมัติ</Button><Button variant="outline-warning" onClick={() => setAction('return')}>ส่งกลับให้แก้ไข</Button></>}
           {isOwner && closure.status === 'approved' && <Button onClick={() => setAction('close')}>ปิดโปรเจกต์</Button>}
           {closure.status === 'closed' && <span className="workspace-closure-complete">ปิดโดย {personName(closure.closedBy)}</span>}

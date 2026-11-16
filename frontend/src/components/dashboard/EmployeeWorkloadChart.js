@@ -5,8 +5,9 @@ import { Card, Form, Badge } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { UserRound, Filter, ChevronRight } from '../common/Icons';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { useMockData } from '../../context/MockDataContext';
 import {
-  MOCK_PLANNED_WORK_ENTRIES,
+  buildTaskPlannedWorkEntries,
   getWorkloadPeriodRange,
   computeEmployeeWorkloadData,
   toISODate,
@@ -39,10 +40,10 @@ function formatRangeLabel(period, range) {
 const fmtHours = (hours) =>
   `${Number(hours || 0).toLocaleString('th-TH', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ชม.`;
 
-export default function EmployeeWorkloadChart({
-  employees   = MOCK_EMPLOYEES || [],
-  workEntries = MOCK_PLANNED_WORK_ENTRIES || [],
-} = {}) {
+export default function EmployeeWorkloadChart() {
+  const { tasks } = useMockData();
+  const employees = MOCK_EMPLOYEES;
+  const workEntries = useMemo(() => buildTaskPlannedWorkEntries(tasks, employees), [tasks, employees]);
   const [period, setPeriod] = useState('weekly');
   const [referenceDate, setReferenceDate] = useState(() => toISODate(new Date()));
 

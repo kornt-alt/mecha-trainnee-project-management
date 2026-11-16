@@ -1,5 +1,5 @@
 // frontend/src/components/Tasks.js — หน้าตารางงาน (Tasks) และกระดานคานบัน (Kanban Board)
-// เชื่อมโยงกับ MOCK_TASKS, MOCK_PROJECTS และ MOCK_EMPLOYEES (Single Source of Truth)
+// เชื่อมโยงกับ MockDataContext และ MOCK_EMPLOYEES (Single Source of Truth)
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -9,7 +9,6 @@ import {
   Col,
   Form,
   InputGroup,
-  Modal,
   ProgressBar,
   Row,
   Table,
@@ -18,8 +17,8 @@ import {
   MOCK_EMPLOYEES,
 } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
-import { TASK_CATEGORIES } from '../utils/config';
 import TaskDetailModal from './TaskDetailModal';
+import TaskFormModal from './project-detail/TaskFormModal';
 import {
   CalendarDays,
   ChevronLeft,
@@ -48,8 +47,7 @@ const today = () => {
 export default function Tasks() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { tasks: taskList, projects, updateTasksAndSyncProjects } = useMockData();
-  const MOCK_PROJECTS = projects;
+  const { tasks: taskList, projects, actorId, createTask, updateTask } = useMockData();
   const [currentView, setCurrentView] = useState('list'); // 'list' หรือ 'kanban'
   const [projectFilter, setProjectFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -57,6 +55,7 @@ export default function Tasks() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedTask, setSelectedTask] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
 
   useEffect(() => {
     const requestedId = location.state?.selectedTaskId;
@@ -81,7 +80,9 @@ export default function Tasks() {
     }
 
     if (priorityFilter) {
-      list = list.filter((t) => t.priority === priorityFilter);
+      list = list.filter((t) => priorityFilter === 'medium'
+        ? ['medium', 'normal'].includes(t.priority)
+        : t.priority === priorityFilter);
     }
 
     if (searchTerm.trim()) {
@@ -98,46 +99,20 @@ export default function Tasks() {
   // ฟังก์ชันย้ายสถานะของงาน (สำหรับ Kanban Board) — อัปเดต task และ sync metrics โปรเจกต์ต้นสังกัดพร้อมกัน
   const moveTaskStatus = (taskId, newStatus) => {
     const affected = taskList.find((t) => t.id === taskId);
-    if (!affected || ['pending_review', 'completed'].includes(affected.status) || ['pending_review', 'completed'].includes(newStatus)) return;
-    updateTasksAndSyncProjects((prev) =>
-      prev.map((t) => {
-        if (t.id !== taskId) return t;
-        let newProgress = t.progress;
-        let newLabel = t.statusLabel;
-
-        if (newStatus === 'completed') {
-          newProgress = 100;
-          newLabel = 'เสร็จสิ้น';
-        } else if (newStatus === 'not_started') {
-          newProgress = 0;
-          newLabel = 'รอเริ่มทำ';
-        } else if (newStatus === 'pending_review') {
-          newProgress = t.progress < 80 ? 90 : t.progress;
-          newLabel = 'รอการตรวจสอบ';
-        } else if (newStatus === 'in_progress') {
-          newProgress = t.progress === 0 || t.progress === 100 ? 50 : t.progress;
-          newLabel = 'กำลังดำเนินการ';
-        }
-
-        return {
-          ...t,
-          status: newStatus,
-          statusLabel: newLabel,
-          progress: newProgress,
-        };
-      })
-    , affected ? [affected.projectId] : []);
+    if (!affected || affected.status !== 'not_started' || newStatus !== 'in_progress') return;
+    const isContributor = String(actorId) === String(affected.assigneeId)
+      || (affected.collaborators || []).some((id) => String(id) === String(actorId));
+    if (!isContributor) return;
+    updateTask(taskId, { status: 'in_progress', statusLabel: 'กำลังดำเนินการ', progress: Math.max(1, Number(affected.progress) || 0) }, {
+      type: 'task_started', description: `เริ่มทำงาน “${affected.title}”`,
+    });
   };
 
   // ฟังก์ชันหาคอลัมน์ก่อนหน้า/ถัดไป
-  const getPrevStatus = (currentStatus) => {
-    const idx = TASK_COLUMNS.findIndex((c) => c.key === currentStatus);
-    return idx > 0 ? TASK_COLUMNS[idx - 1].key : null;
-  };
+  const getPrevStatus = () => null;
 
   const getNextStatus = (currentStatus) => {
-    const idx = TASK_COLUMNS.findIndex((c) => c.key === currentStatus);
-    return idx < TASK_COLUMNS.length - 1 ? TASK_COLUMNS[idx + 1].key : null;
+    return currentStatus === 'not_started' ? 'in_progress' : null;
   };
 
   const renderStatusBadge = (status) => {
@@ -157,9 +132,11 @@ export default function Tasks() {
 
   const renderPriorityBadge = (p) => {
     const map = {
+      none: { label: 'ไม่ระบุ', bg: 'secondary' },
       urgent: { label: 'ด่วนมาก', bg: 'danger' },
       high: { label: 'สูง', bg: 'warning' },
-      normal: { label: 'ปกติ', bg: 'primary' },
+      normal: { label: 'ปานกลาง', bg: 'primary' },
+      medium: { label: 'ปานกลาง', bg: 'primary' },
       low: { label: 'ต่ำ', bg: 'secondary' },
     };
     const item = map[p] || { label: p, bg: 'secondary' };
@@ -268,8 +245,8 @@ export default function Tasks() {
                 value={projectFilter}
                 onChange={(e) => setProjectFilter(e.target.value)}
               >
-                <option value="">ทุกโปรเจกต์ ({MOCK_PROJECTS.length})</option>
-                {MOCK_PROJECTS.map((p) => (
+                <option value="">ทุกโปรเจกต์ ({projects.length})</option>
+                {projects.map((p) => (
                   <option key={p.id} value={p.id}>{p.name}</option>
                 ))}
               </Form.Select>
@@ -297,9 +274,10 @@ export default function Tasks() {
                 onChange={(e) => setPriorityFilter(e.target.value)}
               >
                 <option value="">ทุกความสำคัญ</option>
+                <option value="none">ไม่ระบุ</option>
                 <option value="urgent">ด่วนมาก</option>
                 <option value="high">สูง</option>
-                <option value="normal">ปกติ</option>
+                <option value="medium">ปานกลาง</option>
                 <option value="low">ต่ำ</option>
               </Form.Select>
             </Col>
@@ -517,258 +495,21 @@ export default function Tasks() {
         </div>
       )}
 
-      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onEdit={(task) => { setEditingTask(task); setSelectedTask(null); }} />
 
       {/* ── Modal เพิ่มงานใหม่ (New Task Modal) ─────────────────── */}
       {isAdding && (
-        <NewTaskModal
-          onClose={() => setIsAdding(false)}
-          onAdd={(newTask) => {
-            // เก็บ task ใหม่พร้อมคำนวณ metrics โปรเจกต์ต้นสังกัดใหม่จากชุด task ล่าสุด
-            updateTasksAndSyncProjects((prev) => [newTask, ...prev], [newTask.projectId]);
-            setIsAdding(false);
-          }}
-        />
+        <TaskFormModal projects={projects} onClose={() => setIsAdding(false)} onSave={(values) => {
+          const result = createTask({ ...values, status: 'not_started', statusLabel: 'รอเริ่มทำ' });
+          if (result) setIsAdding(false);
+          return result;
+        }} />
       )}
+      {editingTask && <TaskFormModal project={projects.find((project) => String(project.id) === String(editingTask.projectId))} task={editingTask} onClose={() => setEditingTask(null)} onSave={(values) => {
+        const result = updateTask(editingTask.id, values, { type: 'task_updated', description: `แก้ไขรายละเอียดงาน “${values.title}”` });
+        if (result) setEditingTask(null);
+        return result;
+      }} />}
     </div>
-  );
-}
-
-function NewTaskModal({ initial, onClose, onAdd }) {
-  const { projects } = useMockData();
-  const MOCK_PROJECTS = projects;
-  const [form, setForm] = useState({
-    title: initial?.title ?? '',
-    projectId: initial?.projectId ?? '',
-    assigneeId: initial?.assigneeId ?? '',
-    reviewerId: initial?.reviewerId ?? '',
-    collaborators: initial?.collaborators ?? [],
-    category: initial?.category ?? '',
-    startDate: initial?.startDate ?? today(),
-    dueDate: initial?.dueDate ?? today(),
-    priority: initial?.priority ?? 'normal',
-    description: initial?.description ?? '',
-  });
-  const [fieldErrors, setFieldErrors] = useState({});
-
-  // รายการหมวดหมู่งาน: ใช้ชุดมาตรฐาน TASK_CATEGORIES (Documentation, Testing, Backend, Design, Frontend)
-  // หากมีหมวดหมู่งานเดิมแบบ Legacy ที่ไม่อยู่ใน 5 หมวดหมู่นี้ ให้คงไว้ในตัวเลือกเสมอ
-  const categoryOptions = (() => {
-    const list = [...TASK_CATEGORIES];
-    if (form.category && !list.includes(form.category)) {
-      list.push(form.category);
-    }
-    return list;
-  })();
-
-  const set = (k) => (e) => {
-    const val = e.target.value;
-    setForm((prev) => ({ ...prev, [k]: val }));
-    // เคลียร์ error ของฟิลด์เมื่อผู้ใช้แก้ไขข้อมูล
-    if (fieldErrors[k]) {
-      setFieldErrors((prev) => ({ ...prev, [k]: '' }));
-    }
-    if ((k === 'startDate' || k === 'dueDate') && fieldErrors.dateRange) {
-      setFieldErrors((prev) => ({ ...prev, dateRange: '' }));
-    }
-  };
-
-  const submit = (e) => {
-    e.preventDefault();
-
-    // Client-side Validation
-    const trimmedTitle = form.title.trim();
-    const errors = {};
-
-    if (!trimmedTitle) {
-      errors.title = 'กรุณาระบุชื่องาน';
-    }
-
-    if (String(form.projectId ?? '') === '') {
-      errors.projectId = 'กรุณาเลือกโปรเจกต์ต้นสังกัด';
-    }
-
-    if (!form.category) {
-      errors.category = 'กรุณาเลือกประเภทงาน';
-    }
-
-    if (!form.assigneeId) {
-      errors.assigneeId = 'กรุณาเลือกผู้รับผิดชอบ';
-    }
-
-    if (!form.reviewerId) errors.reviewerId = 'กรุณากำหนดผู้ตรวจงาน';
-    if (form.reviewerId && String(form.reviewerId) === String(form.assigneeId)) errors.reviewerId = 'ผู้ตรวจงานต้องไม่ซ้ำกับผู้รับผิดชอบหลัก';
-
-    if (form.startDate && form.dueDate && form.startDate > form.dueDate) {
-      errors.dateRange = 'วันที่เริ่มต้นต้องไม่มากกว่ากำหนดส่ง';
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    setFieldErrors({});
-
-    const proj = MOCK_PROJECTS.find((p) => String(p.id) === String(form.projectId));
-    const newTask = {
-      ...form,
-      title: trimmedTitle,
-      id: initial?.id || `task-${Date.now()}`,
-      projectId: Number(form.projectId),
-      projectName: proj ? proj.name : '',
-      collaborators: [...new Set(form.collaborators.map(String).filter((id) => id !== String(form.assigneeId)))],
-      status: initial?.status || 'not_started',
-      statusLabel: initial?.statusLabel || 'รอเริ่มทำ',
-      progress: initial?.progress ?? 0,
-      estimatedHours: initial?.estimatedHours ?? 16,
-      supervisor: initial?.supervisor || 'Supachai M.',
-    };
-    onAdd(newTask);
-  };
-
-  return (
-    <Modal show onHide={onClose} backdrop="static" size="lg" centered dialogClassName="mecha-form-modal">
-      <Form onSubmit={submit}>
-        <Modal.Header closeButton>
-          <Modal.Title className="h5 fw-bold text-ink">
-            {initial?.id ? 'แก้ไขงาน' : 'เพิ่มงานใหม่'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <div className="mecha-form-section">ข้อมูลงาน</div>
-          <Form.Group className="mb-3">
-            <Form.Label className="mecha-form-required">ชื่องาน</Form.Label>
-            <Form.Control
-              autoFocus
-              value={form.title}
-              onChange={set('title')}
-              isInvalid={!!fieldErrors.title}
-            />
-            {fieldErrors.title && (
-              <Form.Control.Feedback type="invalid">
-                {fieldErrors.title}
-              </Form.Control.Feedback>
-            )}
-          </Form.Group>
-
-          <Form.Group className="mb-3">
-            <Form.Label className="mecha-form-required">โปรเจกต์ต้นสังกัด</Form.Label>
-            <Form.Select value={form.projectId} onChange={set('projectId')} isInvalid={!!fieldErrors.projectId} aria-label="เลือกโปรเจกต์ต้นสังกัด">
-              <option value="">กรุณาเลือกโปรเจกต์</option>
-              {MOCK_PROJECTS.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </Form.Select>
-            {fieldErrors.projectId && (
-              <Form.Control.Feedback type="invalid">{fieldErrors.projectId}</Form.Control.Feedback>
-            )}
-          </Form.Group>
-
-          <div className="mecha-form-section">การจัดการ</div>
-          <Row className="g-2 mb-3">
-            <Col xs={6}>
-              <Form.Label>หมวดหมู่งาน</Form.Label>
-              <Form.Select
-                value={form.category}
-                onChange={set('category')}
-                isInvalid={!!fieldErrors.category}
-                aria-label="เลือกหมวดหมู่งาน"
-              >
-                <option value="">กรุณาเลือกประเภทงาน</option>
-                {categoryOptions.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </Form.Select>
-              {fieldErrors.category && (
-                <Form.Control.Feedback type="invalid">{fieldErrors.category}</Form.Control.Feedback>
-              )}
-            </Col>
-            <Col xs={6}>
-              <Form.Label>ผู้รับผิดชอบ</Form.Label>
-              <Form.Select value={form.assigneeId} onChange={set('assigneeId')} isInvalid={!!fieldErrors.assigneeId} aria-label="เลือกผู้รับผิดชอบ">
-                <option value="">กรุณาเลือกผู้รับผิดชอบ</option>
-                {MOCK_EMPLOYEES.map((emp) => (
-                  <option key={emp.id} value={emp.id}>{emp.name}</option>
-                ))}
-              </Form.Select>
-              {fieldErrors.assigneeId && (
-                <Form.Control.Feedback type="invalid">{fieldErrors.assigneeId}</Form.Control.Feedback>
-              )}
-            </Col>
-          </Row>
-
-          <Row className="g-2 mb-3">
-            <Col xs={6}>
-              <Form.Label className="mecha-form-required">ผู้ตรวจงาน</Form.Label>
-              <Form.Select value={form.reviewerId} onChange={set('reviewerId')} isInvalid={!!fieldErrors.reviewerId} aria-label="เลือกผู้ตรวจงาน">
-                <option value="">กรุณาเลือกผู้ตรวจ</option>
-                {MOCK_EMPLOYEES.filter((emp) => String(emp.id) !== String(form.assigneeId)).map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </Form.Select>
-              {fieldErrors.reviewerId && <Form.Control.Feedback type="invalid">{fieldErrors.reviewerId}</Form.Control.Feedback>}
-            </Col>
-            <Col xs={6}>
-              <Form.Label>ผู้ร่วมงาน</Form.Label>
-              <Form.Select multiple value={form.collaborators.map(String)} onChange={(event) => setForm((prev) => ({ ...prev, collaborators: Array.from(event.target.selectedOptions, (option) => option.value) }))} aria-label="เลือกผู้ร่วมงาน">
-                {MOCK_EMPLOYEES.filter((emp) => String(emp.id) !== String(form.assigneeId)).map((emp) => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-              </Form.Select>
-            </Col>
-          </Row>
-
-          <Row className="g-2 mb-3">
-            <Col xs={12}>
-              <Form.Label>ระดับความสำคัญ</Form.Label>
-              <Form.Select value={form.priority} onChange={set('priority')}>
-                <option value="urgent">ด่วนมาก</option>
-                <option value="high">สูง</option>
-                <option value="normal">ปกติ</option>
-                <option value="low">ต่ำ</option>
-              </Form.Select>
-            </Col>
-          </Row>
-
-          <div className="mecha-form-section">กำหนดเวลา</div>
-          <Row className="g-2 mb-1">
-            <Col xs={6}>
-              <Form.Label>วันที่เริ่ม</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.startDate}
-                onChange={set('startDate')}
-                isInvalid={!!fieldErrors.dateRange}
-              />
-            </Col>
-            <Col xs={6}>
-              <Form.Label>กำหนดส่ง</Form.Label>
-              <Form.Control
-                type="date"
-                value={form.dueDate}
-                onChange={set('dueDate')}
-                isInvalid={!!fieldErrors.dateRange}
-              />
-            </Col>
-          </Row>
-          {fieldErrors.dateRange && (
-            <div className="text-danger small mb-3">
-              {fieldErrors.dateRange}
-            </div>
-          )}
-
-          <div className="mecha-form-section">รายละเอียดงาน</div>
-          <Form.Group className="mt-3">
-            <Form.Label>รายละเอียดงาน</Form.Label>
-            <Form.Control as="textarea" rows={3} value={form.description} onChange={set('description')} />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="outline-secondary" onClick={onClose}>ยกเลิก</Button>
-          <Button type="submit" variant="primary">
-            {initial?.id ? 'บันทึก' : 'เพิ่มงาน'}
-          </Button>
-        </Modal.Footer>
-      </Form>
-    </Modal>
   );
 }

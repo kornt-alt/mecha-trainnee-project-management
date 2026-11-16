@@ -39,7 +39,6 @@ import {
   CheckSquare,
   FileText,
   Clock,
-  Sparkles,
   AlertCircle,
   Info,
 } from './common/Icons';
@@ -97,7 +96,7 @@ export default function Projects() {
   const [actionError, setActionError] = useState('');
 
   // Mock Mode ใช้ชุดข้อมูลกลางจาก MockDataContext (แชร์ข้ามหน้า กับ Tasks) — ไม่มี local copy อีกต่อไป
-  const { projects, setProjects, tasks, deliverables } = useMockData();
+  const { projects, setProjects, tasks, deliverables, actorId } = useMockData();
 
   useEffect(() => {
     const requestedId = location.state?.editProjectId;
@@ -316,6 +315,7 @@ export default function Projects() {
       {editing && (
         <ProjectForm
           initial={editing}
+          actorId={actorId}
           onClose={() => setEditing(null)}
           mockMode={!isApiConnected}
           onSaved={(savedProject) => {
@@ -381,7 +381,7 @@ export default function Projects() {
 // mockMode = ยังไม่ต่อ backend → บันทึกในหน่วยความจำผ่าน onSaved() โดยตรง (parent อัปเดต mock state ที่แชร์เอง)
 // ปกติ (API mode): ยิง POST/PATCH จริง — ล้มเหลวแสดง error และค้างฟอร์มไว้แก้/ลองใหม่
 
-function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
+function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
   const isEditing = Boolean(initial.id);
   const [viewMode, setViewMode] = useState('stepper'); // 'stepper' | 'single'
   const [currentStep, setCurrentStep] = useState(1); // 1, 2, 3 for stepper
@@ -394,19 +394,19 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
       if (matches.length === 1) return String(matches[0].id);
     }
 
-    return '';
+    return initial.id ? '' : String(actorId || '');
   })();
 
   const [form, setForm] = useState({
     name: initial.name ?? '',
     category: initial.category ?? '',
     managerId: initialManagerId,
-    owner: initial.owner ?? '',
+    owner: initial.owner ?? (MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(initialManagerId))?.name || ''),
     status: initial.id ? (initial.status ?? 'planning') : 'planning',
     priority: initial.priority ?? 'normal',
     teamMemberIds: Array.isArray(initial.teamMemberIds)
       ? initial.teamMemberIds.map(String)
-      : [],
+      : initialManagerId ? [String(initialManagerId)] : [],
     requiresDeliverables: initial.requiresDeliverables ?? false,
     deliverableDescription: initial.deliverableDescription ?? '',
     startDate: initial.startDate ?? '',
@@ -538,33 +538,6 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
     if (fieldErrors.dateRange) {
       setFieldErrors((prev) => ({ ...prev, dateRange: '' }));
     }
-  };
-
-  // Pre-fill Sample Data for Testing
-  const fillSampleData = () => {
-    const todayDate = new Date();
-    const futureDate = new Date(todayDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-    const sDate = `${todayDate.getFullYear()}-${String(todayDate.getMonth() + 1).padStart(2, '0')}-${String(todayDate.getDate()).padStart(2, '0')}`;
-    const eDate = `${futureDate.getFullYear()}-${String(futureDate.getMonth() + 1).padStart(2, '0')}-${String(futureDate.getDate()).padStart(2, '0')}`;
-
-    const defaultOwner = MOCK_EMPLOYEES[0];
-    const otherMembers = MOCK_EMPLOYEES.slice(1, 4).map((m) => String(m.id));
-
-    setForm({
-      name: 'ระบบตรวจสอบคุณภาพชิ้นส่วน AI Vision System V2',
-      category: PROJECT_CATEGORIES[0] || 'ระบบซอฟต์แวร์',
-      managerId: String(defaultOwner.id),
-      owner: defaultOwner.name,
-      status: initial.id ? form.status : 'planning',
-      priority: 'high',
-      teamMemberIds: Array.from(new Set([String(defaultOwner.id), ...otherMembers])),
-      requiresDeliverables: true,
-      deliverableDescription: '1. โมเดล AI ตรวจจับรอยตำหนิความแม่นยำ >98%\n2. Dashboard แสดงสถิติคลังสินค้า\n3. รายงานการทดสอบและคู่มือผู้ใช้งานภาษาไทย',
-      startDate: sDate,
-      dueDate: eDate,
-      description: 'โครงการพัฒนาระบบตรวจสอบคุณภาพผลิตภัณฑ์ด้วย AI และกล้องความละเอียดสูง เพื่อลดข้อผิดพลาดในกระบวนการผลิต',
-    });
-    setFieldErrors({});
   };
 
   // Validate Step before advancing in Stepper mode
@@ -701,8 +674,11 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
       teamMemberIds = [...new Set([...teamMemberIds, form.managerId])];
     }
 
+    const creator = MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(actorId));
     const payload = {
       ...form,
+      managerId: isEditing ? form.managerId : String(actorId),
+      owner: isEditing ? form.owner : creator?.name || '',
       name: trimmedName,
       description: trimmedDescription,
       teamMemberIds,
@@ -929,30 +905,6 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
             <div className="flex-grow-1 overflow-y-auto px-4 px-md-5 py-4 custom-scrollbar" style={{ maxHeight: 'calc(85vh - 160px)' }}>
               {error && <Alert variant="danger" className="mb-4">{error}</Alert>}
 
-              {/* Sample Fill Banner from modal_redesign */}
-              {!isEditing && (
-                <div
-                  className="rounded-3 p-3 mb-4 d-flex align-items-center justify-content-between"
-                  style={{
-                    background: 'linear-gradient(to right, #eef2ff, #eff6ff)',
-                    border: '1px solid #e0e7ff',
-                  }}
-                >
-                  <div className="d-flex align-items-center gap-2 small text-dark">
-                    <Sparkles size={16} className="text-primary" />
-                    <span>ต้องการทดสอบเร็ว? คลิกปุ่มเพื่อเติมข้อมูลตัวอย่างได้ทันที</span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={fillSampleData}
-                    className="btn btn-sm btn-white text-primary border fw-semibold shadow-sm"
-                    style={{ background: '#fff' }}
-                  >
-                    เติมข้อมูลตัวอย่าง
-                  </button>
-                </div>
-              )}
-
               {/* STEP 1: Basic Information */}
               {(isEditing || currentStep === 1) && (
                 <div className="d-flex flex-column gap-4">
@@ -1110,7 +1062,7 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
                         <span className="text-danger">*</span>
                       </label>
                       <span className="text-muted" style={{ fontSize: '11px' }}>
-                        *จะเป็นสมาชิกในทีมโดยอัตโนมัติ
+                        {!isEditing ? 'ผู้สร้างจะเป็น Project Owner และสมาชิกทีมโดยอัตโนมัติ' : 'Project Owner จะเป็นสมาชิกทีมโดยอัตโนมัติ'}
                       </span>
                     </div>
 
@@ -1120,6 +1072,7 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
                           className={`stepper-fld ${fieldErrors.managerId ? 'is-invalid' : ''}`}
                           value={isLegacyOwner ? legacyOptionValue : form.managerId}
                           onChange={handleOwnerChange}
+                          disabled={!isEditing}
                           aria-label="เลือก Project Owner"
                         >
                           <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
@@ -1901,6 +1854,7 @@ function ProjectForm({ initial, onClose, onSaved, mockMode = false }) {
                       className="sp-fld"
                       value={isLegacyOwner ? legacyOptionValue : form.managerId}
                       onChange={handleOwnerChange}
+                      disabled={!isEditing}
                       aria-label="เลือก Project Owner"
                     >
                       <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
