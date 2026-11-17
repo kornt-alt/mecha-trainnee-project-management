@@ -1,5 +1,5 @@
 // Route shell and shared state binding for one Project Workspace.
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
@@ -27,6 +27,15 @@ export default function ProjectDetail() {
   const { projects, tasks, deliverables, activity, actorId, setActorId } = useMockData();
   const [activeSection, setActiveSection] = useState('overview');
   const [createTaskRequested, setCreateTaskRequested] = useState(false);
+  const [selectedTask, setSelectedTask] = useState(null);
+  const [taskAction, setTaskAction] = useState('');
+  const [taskFilter, setTaskFilter] = useState('all');
+  const [taskWorkEntries, setTaskWorkEntries] = useState({});
+  useEffect(() => {
+    setSelectedTask(null);
+    setTaskAction('');
+    setTaskFilter('all');
+  }, [projectId]);
   const project = projects.find((item) => String(item.id) === String(projectId));
   if (!project) return <section className="project-detail project-detail-not-found" aria-labelledby="project-not-found-title"><h1 id="project-not-found-title" className="page-title">ไม่พบโปรเจกต์</h1><p className="text-muted">โปรเจกต์นี้อาจถูกลบหรือไม่มีอยู่ในข้อมูลปัจจุบัน</p><Link to="/projects" className="btn btn-primary">กลับไปหน้าโปรเจกต์</Link></section>;
 
@@ -53,17 +62,52 @@ export default function ProjectDetail() {
     setActiveSection('tasks');
     setCreateTaskRequested(true);
   };
+  const openWorkspaceTask = (task, options = {}) => {
+    if (!task || String(task.projectId) !== String(project.id)) return;
+    setSelectedTask({ projectId: String(project.id), taskId: String(task.id) });
+    setTaskAction(options.action || '');
+    setTaskFilter('all');
+    setActiveSection('tasks');
+  };
+  const closeWorkspaceTask = () => {
+    setSelectedTask(null);
+    setTaskAction('');
+  };
+  const selectedTaskId = selectedTask?.projectId === String(project.id) ? selectedTask.taskId : null;
+  const addTaskWorkEntry = (taskId, kind, entry) => {
+    const key = `${project.id}:${taskId}`;
+    setTaskWorkEntries((current) => {
+      const existing = current[key] || { comments: [], timeLogs: [] };
+      return { ...current, [key]: { ...existing, [kind]: [...existing[kind], entry] } };
+    });
+  };
 
-  return <div className="project-detail"><div className="project-detail-inner">
+  return <div className="project-detail is-reference"><div className="project-detail-inner">
     <nav className="project-detail-breadcrumb" aria-label="เส้นทางนำทาง"><Link to="/projects"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>โปรเจกต์</Link><span aria-hidden="true">/</span><span aria-current="page">{project.name}</span></nav>
     <ProjectHeader project={project} stats={stats} priority={priority} actorId={actorId} onActorChange={setActorId} onOpenClosure={openClosure} />
     <ProjectNavigation activeSection={activeSection} onSelect={setActiveSection} sections={sections} />
-    {activeSection === 'overview' && <ProjectOverview project={project} tasks={relatedTasks} stats={stats} priority={priority} onNavigateSection={setActiveSection} onCreateTask={openTaskComposer} />}
-    {activeSection === 'tasks' && <ProjectTasks key={String(project.id)} projectId={project.id} openCreate={createTaskRequested} onConsumeCreate={() => setCreateTaskRequested(false)} />}
-    {activeSection === 'board' && <ProjectBoard key={String(project.id)} projectId={project.id} />}
+    {activeSection === 'overview' && <ProjectOverview project={project} tasks={relatedTasks} stats={stats} priority={priority} onNavigateSection={setActiveSection} onOpenTask={openWorkspaceTask} onCreateTask={openTaskComposer} />}
+    {activeSection === 'tasks' && <ProjectTasks
+      key={String(project.id)}
+      projectId={project.id}
+      openCreate={createTaskRequested}
+      selectedTaskId={selectedTaskId}
+      selectedTaskAction={selectedTaskId ? taskAction : ''}
+      statusFilter={taskFilter}
+      onStatusFilterChange={setTaskFilter}
+      onOpenTask={openWorkspaceTask}
+      onCloseTask={closeWorkspaceTask}
+      onClearTaskAction={() => setTaskAction('')}
+      onConsumeCreate={() => setCreateTaskRequested(false)}
+      taskWorkEntries={selectedTaskId ? taskWorkEntries[`${project.id}:${selectedTaskId}`] || { comments: [], timeLogs: [] } : { comments: [], timeLogs: [] }}
+      onAddTaskComment={(taskId, entry) => addTaskWorkEntry(taskId, 'comments', entry)}
+      onAddTaskTimeLog={(taskId, entry) => addTaskWorkEntry(taskId, 'timeLogs', entry)}
+      actorId={actorId}
+    />}
+    {activeSection === 'board' && <ProjectBoard key={String(project.id)} projectId={project.id} onOpenTask={openWorkspaceTask} />}
     {activeSection === 'team' && <ProjectTeam key={String(project.id)} projectId={project.id} />}
     {activeSection === 'deliverables' && <ProjectDeliverables key={String(project.id)} projectId={project.id} />}
-    {activeSection === 'timeline' && <ProjectTimeline key={String(project.id)} projectId={project.id} />}
+    {activeSection === 'timeline' && <ProjectTimeline key={String(project.id)} projectId={project.id} onOpenTask={openWorkspaceTask} />}
     {activeSection === 'activity' && <ProjectActivity key={String(project.id)} projectId={project.id} />}
   </div></div>;
 }

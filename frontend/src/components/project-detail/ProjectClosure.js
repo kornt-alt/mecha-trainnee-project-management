@@ -6,7 +6,6 @@ import { useMockData } from '../../context/MockDataContext';
 import { statusLabel } from '../../utils/config';
 
 const personName = (id) => MOCK_EMPLOYEES.find((person) => String(person.id) === String(id))?.name || id;
-const deliverableLabel = { pending: 'รอเริ่ม', in_progress: 'กำลังทำ', completed: 'เสร็จแล้ว' };
 
 export default function ProjectClosure({ projectId, tasks, deliverables }) {
   const { projects, actorId, updateProject } = useMockData();
@@ -21,15 +20,11 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
   const isTeamLead = Boolean(project.teamLeadId) && String(actorId) === String(project.teamLeadId);
   const tasksDone = tasks.length > 0 && tasks.every((task) => task.status === 'completed');
   const completedTasks = tasks.filter((task) => task.status === 'completed').length;
+  const completedDeliverables = deliverables.filter((item) => item.status === 'completed').length;
   const deliverablesRequired = Boolean(project.requiresDeliverables || deliverables.length);
   const deliverablesDone = !deliverablesRequired || (deliverables.length > 0 && deliverables.every((item) => item.status === 'completed'));
   const canSubmit = Boolean(tasksDone && deliverablesDone && closure.ownerReviewedAt
     && (!deliverablesRequired || closure.deliverablesReviewedAt) && project.teamLeadId);
-  const statusText = {
-    draft: 'กำลังเตรียมตรวจสอบ', returned: 'ส่งกลับให้แก้ไข', pending_approval: 'รอ Team Leader อนุมัติ',
-    approved: 'Team Leader อนุมัติแล้ว · รอ Owner ปิด', closed: 'ปิดโปรเจกต์แล้ว',
-  }[closure.status || 'draft'];
-
   const mutate = (nextClosure, type, description, extra = {}) => updateProject(project.id, { closure: nextClosure }, {
     type, description, ...extra,
   });
@@ -81,12 +76,37 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
     setReason('');
   };
 
+  const summaryReviewed = Boolean(closure.ownerReviewedAt)
+    && (!deliverablesRequired || (Boolean(closure.deliverablesReviewedAt) && deliverablesDone));
+  const submitted = ['pending_approval', 'approved', 'closed'].includes(closure.status);
+  const approved = ['approved', 'closed'].includes(closure.status);
+  const closed = closure.status === 'closed';
   const steps = [
-    { label: 'งานทั้งหมดเสร็จแล้ว', done: tasksDone, detail: `${completedTasks}/${tasks.length} งาน` },
-    { label: 'Project Owner ตรวจสรุป', done: Boolean(closure.ownerReviewedAt), detail: closure.ownerReviewedAt ? `ตรวจโดย ${personName(closure.ownerReviewedBy)}` : 'ยังไม่ได้ตรวจ' },
-    { label: 'สิ่งที่ส่งมอบผ่านการตรวจ', done: !deliverablesRequired || (Boolean(closure.deliverablesReviewedAt) && deliverablesDone), detail: deliverablesRequired ? `${deliverables.filter((item) => item.status === 'completed').length}/${deliverables.length} เสร็จ` : 'โปรเจกต์นี้ไม่กำหนดสิ่งที่ส่งมอบ' },
-    { label: 'Team Leader อนุมัติ', done: ['approved', 'closed'].includes(closure.status), detail: closure.status === 'pending_approval' ? 'รอพิจารณา' : closure.approvedAt ? `อนุมัติโดย ${personName(closure.approvedBy)}` : 'ยังไม่ส่งอนุมัติ' },
-    { label: 'Project Owner ปิดโปรเจกต์', done: closure.status === 'closed', detail: closure.closedAt ? `ปิดเมื่อ ${new Date(closure.closedAt).toLocaleString('th-TH')}` : 'ขั้นตอนสุดท้าย' },
+    {
+      label: 'ทุกงานเป็น “เสร็จแล้ว”',
+      detail: tasksDone ? 'ครบแล้ว' : `เสร็จ ${completedTasks}/${tasks.length} งาน`,
+      state: tasksDone ? 'complete' : 'current',
+    },
+    {
+      label: 'Owner ตรวจสรุปโปรเจกต์และสิ่งที่ส่งมอบ',
+      detail: `ส่งมอบแล้ว ${completedDeliverables}/${deliverables.length}`,
+      state: summaryReviewed ? 'complete' : tasksDone ? 'current' : 'upcoming',
+    },
+    {
+      label: 'Owner ส่งขออนุมัติปิดโปรเจกต์',
+      detail: 'ถึง Team Lead',
+      state: submitted ? 'complete' : summaryReviewed && project.teamLeadId ? 'current' : 'upcoming',
+    },
+    {
+      label: 'Team Lead อนุมัติหรือส่งกลับ',
+      detail: 'ถ้าส่งกลับ Owner แก้แล้วส่งใหม่',
+      state: approved ? 'complete' : closure.status === 'pending_approval' ? 'current' : 'upcoming',
+    },
+    {
+      label: 'Owner ปิดโปรเจกต์',
+      detail: closure.closedBy ? `ปิดโดย ${personName(closure.closedBy)}` : 'ขั้นตอนสุดท้าย',
+      state: closed ? 'complete' : approved ? 'current' : 'upcoming',
+    },
   ];
   const actionInfo = {
     owner_review: ['ยืนยันตรวจสรุปโปรเจกต์', 'ยืนยันว่าได้ตรวจข้อมูลสรุป สถานะงาน และสิ่งที่ส่งมอบด้านล่างแล้ว'],
@@ -99,21 +119,19 @@ export default function ProjectClosure({ projectId, tasks, deliverables }) {
   return (
     <Card id="project-closure" className="workspace-panel workspace-closure" tabIndex="-1">
       <Card.Body>
-        <div className="workspace-panel-heading">
-          <div><h3>ขั้นตอนการปิดโปรเจกต์</h3><p>งานเสร็จและ Project Closure เป็นคนละสถานะ</p></div>
-          <span className={`workspace-closure-state state-${closure.status || 'draft'}`}>{statusText}</span>
-        </div>
+        <h2 className="workspace-closure-title">ขั้นตอนการปิดโปรเจกต์</h2>
         {closure.returnReason && <Alert variant="warning">เหตุผลที่ส่งกลับ: {closure.returnReason}</Alert>}
-        <div className="workspace-closure-summary">
-          <div><h4>สรุปโปรเจกต์</h4><p>{project.description || 'ไม่มีรายละเอียดโปรเจกต์'}</p><small>{[project.category, project.startDate, project.dueDate].filter(Boolean).join(' · ') || 'ไม่มีข้อมูลหมวดหมู่หรือกำหนดการ'}</small></div>
-          <div><h4>สิ่งที่ส่งมอบ</h4>{deliverables.length ? <ul>{deliverables.map((item) => <li key={item.id}>{item.title}<span>{deliverableLabel[item.status] || item.status}</span></li>)}</ul> : <p>{project.requiresDeliverables ? 'ยังไม่มีรายการสิ่งที่ส่งมอบ' : 'โปรเจกต์นี้ไม่มีรายการสิ่งที่ส่งมอบ'}</p>}</div>
-        </div>
-        <ol className="project-detail-closure-list mb-3">{steps.map((step, index) => <li className={step.done ? 'closure-complete' : index === steps.findIndex((item) => !item.done) ? 'closure-current' : 'closure-upcoming'} key={step.label}><span className="project-detail-closure-number">{step.done ? '✓' : index + 1}</span><span><strong>{step.label}</strong><small>{step.detail}</small></span></li>)}</ol>
-        {tasks.length === 0
-          ? <Alert variant="warning">ยังไม่มีงานในโปรเจกต์ จึงยังส่งขออนุมัติปิดไม่ได้</Alert>
-          : !tasksDone && <Alert variant="warning">ยังมีงานที่ไม่เสร็จ {tasks.length - completedTasks} งาน</Alert>}
-        {deliverablesRequired && !deliverablesDone && <Alert variant="warning">ต้องทำสิ่งที่ส่งมอบให้เสร็จครบก่อนส่งปิดโปรเจกต์</Alert>}
-        {!project.teamLeadId && <Alert variant="warning">ยังไม่ได้กำหนด Team Leader สำหรับการอนุมัติปิดโปรเจกต์</Alert>}
+        <ol className="project-detail-closure-list">
+          {steps.map((step, index) => (
+            <li className={`closure-${step.state}`} key={step.label}>
+              <span className="project-detail-closure-marker">
+                <span className="project-detail-closure-number">{step.state === 'complete' ? '✓' : index + 1}</span>
+                {index < steps.length - 1 && <span className="project-detail-closure-line" aria-hidden="true" />}
+              </span>
+              <span className="project-detail-closure-copy"><strong>{step.label}</strong><small>{step.detail}</small></span>
+            </li>
+          ))}
+        </ol>
         <div className="workspace-closure-actions">
           {isOwner && !['pending_approval', 'approved', 'closed'].includes(closure.status) && <><Button variant="outline-primary" disabled={!tasksDone} onClick={() => setAction('owner_review')}>{closure.ownerReviewedAt ? 'ตรวจสรุปอีกครั้ง' : 'ยืนยันตรวจสรุป'}</Button>{closure.status !== 'returned' && deliverablesRequired && <small>ยืนยันการตรวจสิ่งที่ส่งมอบได้ในแท็บ สิ่งที่ส่งมอบ</small>}<Button disabled={!canSubmit} onClick={() => setAction('submit')}>ส่งขออนุมัติ</Button></>}
           {isTeamLead && closure.status === 'pending_approval' && <><Button variant="success" onClick={() => setAction('approve')}>อนุมัติ</Button><Button variant="outline-warning" onClick={() => setAction('return')}>ส่งกลับให้แก้ไข</Button></>}

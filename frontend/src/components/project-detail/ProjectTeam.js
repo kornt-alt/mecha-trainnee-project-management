@@ -24,12 +24,15 @@ export default function ProjectTeam({ projectId }) {
     ...(project?.teamMemberIds || []).map(String), String(project?.managerId || ''), String(project?.teamLeadId || ''),
   ].filter(Boolean))], [project]);
   const members = memberIds.map(findEmployee).filter(Boolean);
-  const availableEmployees = MOCK_EMPLOYEES.filter((person) => !memberIds.includes(String(person.id)));
+  const memberPool = project?.memberPoolIds
+    ? MOCK_EMPLOYEES.filter((person) => project.memberPoolIds.map(String).includes(String(person.id)))
+    : MOCK_EMPLOYEES;
+  const availableEmployees = memberPool.filter((person) => !memberIds.includes(String(person.id)));
   if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
 
   const addMember = () => {
     if (!addMemberId || !addReason.trim() || memberIds.includes(String(addMemberId))) return;
-    const result = addProjectMember(project.id, addMemberId, addReason);
+    const result = addProjectMember(project.id, addMemberId, addReason.trim());
     if (!result) return setError('เพิ่มสมาชิกไม่สำเร็จ กรุณาตรวจสอบสิทธิ์และข้อมูล');
     setAddMemberId('');
     setAddReason('');
@@ -66,9 +69,13 @@ export default function ProjectTeam({ projectId }) {
     setReplacementId('');
     setReason('');
   };
+  const requestRemove = (person) => {
+    setRemoving(person);
+    setError('');
+  };
 
   return (
-    <section className="workspace-section workspace-reference-grid workspace-team-layout" aria-label="ทีมงานโปรเจกต์">
+    <section className="workspace-section workspace-reference-grid workspace-team-layout is-reference" aria-label="ทีมงานโปรเจกต์">
       {error && !removing && !pendingLeadId && <Alert variant="danger" role="alert" dismissible onClose={() => setError('')}>{error}</Alert>}
       <Card className="workspace-panel workspace-team-members-panel"><Card.Body>
         <div className="workspace-panel-heading workspace-team-heading">
@@ -92,8 +99,8 @@ export default function ProjectTeam({ projectId }) {
                 <span className="project-detail-avatar" data-person-id={person.id} aria-hidden="true">{initials(person.name)}</span>
                 <span className="workspace-member-name">
                   <span className="workspace-member-title"><strong>{person.name}</strong>
-                    {isOwner && <Badge className="workspace-member-role is-owner">Owner</Badge>}
-                    {isLead && <Badge className="workspace-member-role is-leader">Team Lead</Badge>}
+                    {isOwner && <Badge bg="" className="workspace-member-role is-owner">Owner</Badge>}
+                    {isLead && <Badge bg="" className="workspace-member-role is-leader">Team Lead</Badge>}
                   </span>
                   <small>{person.position || 'สมาชิกโปรเจกต์'} · {person.department || 'Mecha'}</small>
                 </span>
@@ -101,7 +108,7 @@ export default function ProjectTeam({ projectId }) {
                   <span>งานค้าง <b>{openCount}</b> · เสร็จ <b>{doneCount}</b></span>
                   <span className="workspace-member-progress"><i className={openCount >= 4 ? 'is-heavy' : ''} style={{ width: `${progress}%` }} /></span>
                 </span>
-                {canManage && !isOwner && !isLead && <Button size="sm" variant="outline-danger" className="workspace-member-remove" onClick={() => { setRemoving(person); setError(''); }}>นำออก</Button>}
+                {canManage && !isOwner && !isLead && <Button size="sm" variant="outline-danger" className="workspace-member-remove" aria-label={`นำ ${person.name} ออกจากทีม`} onClick={() => requestRemove(person)}>นำออก</Button>}
               </article>;
             })}
           </div>

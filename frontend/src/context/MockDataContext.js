@@ -1,6 +1,6 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { CURRENT_USER, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
 
 export const MockDataContext = createContext(null);
 
@@ -70,9 +70,9 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
 export function MockDataProvider({ children }) {
   const [projectsState, setProjectsState] = useState(() => [...MOCK_PROJECTS_FALLBACK]);
   const [tasksState, setTasksState] = useState(initialTasks);
-  const [deliverablesState, setDeliverablesState] = useState([]);
+  const [deliverablesState, setDeliverablesState] = useState(() => MOCK_DELIVERABLES.map((item) => ({ ...item })));
   const [labelsState, setLabelsState] = useState([]);
-  const [activityState, setActivityState] = useState([]);
+  const [activityState, setActivityState] = useState(() => MOCK_ACTIVITIES.map((event) => ({ ...event })));
   const [notificationsState, setNotificationsState] = useState(() => [...NOTIFICATIONS]);
   const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
   const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId });
@@ -323,19 +323,29 @@ export function MockDataProvider({ children }) {
     if (assignmentChanged && ((!isProjectOwner && !isTeamLeader) || !String(event?.reason || '').trim())) return null;
     if (current.status !== nextTask.status) {
       const historyEntry = (nextTask.reviewHistory || []).slice(-1)[0];
-      if (current.status === 'not_started' && nextTask.status === 'in_progress' && eventType === 'task_started'
-        && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
-        // The assigned contributor starts the Task.
-      } else if (current.status === 'in_progress' && nextTask.status === 'pending_review' && eventType === 'task_review_submitted'
+      if (current.status === 'not_started' && nextTask.status === 'in_progress'
+        && ((eventType === 'task_started'
+          && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor)))
+          || (eventType === 'task_started_by_project_lead' && (isProjectOwner || isTeamLeader)))) {
+        // Contributors and project leads can start work from the board.
+      } else if (current.status === 'in_progress' && nextTask.status === 'not_started' && eventType === 'task_reopened'
+        && (actor === String(current.assigneeId) || isProjectOwner || isTeamLeader)) {
+        // The assignee or project lead can return active work to the backlog.
+      } else if (current.status === 'in_progress' && nextTask.status === 'pending_review'
         && employeeExists(nextTask.reviewerId) && historyEntry?.action === 'submitted'
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(nextTask.reviewerId)
-        && Boolean(historyEntry.timestamp) && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
-        // Submission is allowed only when a valid reviewer is present.
-      } else if (current.status === 'pending_review' && nextTask.status === 'completed' && eventType === 'task_review_approved'
-        && actor === String(current.reviewerId) && historyEntry?.action === 'approved'
+        && Boolean(historyEntry.timestamp)
+        && ((eventType === 'task_review_submitted'
+          && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor)))
+          || (eventType === 'task_review_submitted_by_project_lead' && (isProjectOwner || isTeamLeader)))) {
+        // Submission requires a valid reviewer and an authorized actor.
+      } else if (current.status === 'pending_review' && nextTask.status === 'completed'
+        && ((eventType === 'task_review_approved' && actor === String(current.reviewerId))
+          || (eventType === 'task_review_approved_by_project_lead' && (isProjectOwner || isTeamLeader)))
+        && historyEntry?.action === 'approved'
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
         && Boolean(historyEntry.timestamp)) {
-        // Only the designated reviewer approves.
+        // The designated reviewer or project lead approves.
       } else if (current.status === 'pending_review' && nextTask.status === 'in_progress'
         && ['task_changes_requested', 'task_review_withdrawn'].includes(eventType)
         && (eventType === 'task_changes_requested' ? actor === String(current.reviewerId)

@@ -1,9 +1,8 @@
 // Task timeline rendered from project dates and shared task records.
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Card } from 'react-bootstrap';
 import { useMockData } from '../../context/MockDataContext';
 import { today, ymd } from '../../utils/projectTrackingUtils';
-import TaskDetailModal from '../TaskDetailModal';
 
 const parseDay = (value) => {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -19,31 +18,30 @@ const statusColor = {
   completed: '#15803D',
 };
 
-export default function ProjectTimeline({ projectId }) {
+export default function ProjectTimeline({ projectId, onOpenTask }) {
   const { projects, tasks } = useMockData();
-  const [selectedTaskId, setSelectedTaskId] = useState(null);
   const project = projects.find((item) => String(item.id) === String(projectId));
   const projectTasks = useMemo(() => tasks.filter((task) => String(task.projectId) === String(projectId))
     .filter((task) => parseDay(task.startDate || task.dueDate) !== null || parseDay(task.dueDate || task.startDate) !== null)
     .slice().sort((left, right) => String(left.startDate || left.dueDate || '').localeCompare(String(right.startDate || right.dueDate || ''))), [tasks, projectId]);
-  const selectedTask = tasks.find((task) => String(task.id) === String(selectedTaskId));
   if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
-  const timestamps = [parseDay(project.startDate), parseDay(project.dueDate), ...projectTasks.flatMap((task) => [parseDay(task.startDate), parseDay(task.dueDate)])].filter((value) => value !== null);
-  if (!timestamps.length) timestamps.push(parseDay(today()));
-  const min = monthStart(Math.min(...timestamps));
-  const max = Date.UTC(new Date(Math.max(...timestamps)).getUTCFullYear(), new Date(Math.max(...timestamps)).getUTCMonth() + 1, 1);
-  const span = max - min;
-  const position = (value) => ((parseDay(value) - min) / span) * 100;
+  const rangeStart = project.startDate || today();
+  const rangeEnd = project.dueDate || rangeStart;
+  const rangeStartDay = parseDay(rangeStart);
+  const rangeEndDay = parseDay(rangeEnd);
+  const spanDays = Math.max(1, Math.round((rangeEndDay - rangeStartDay) / 86400000) + 1);
+  const min = monthStart(rangeStartDay);
+  const position = (value) => ((parseDay(value) - rangeStartDay) / 86400000 / spanDays) * 100;
   const ticks = [];
-  for (let tick = min; tick < max; tick = Date.UTC(new Date(tick).getUTCFullYear(), new Date(tick).getUTCMonth() + 1, 1)) {
-    ticks.push({ timestamp: tick, left: ((tick - min) / span) * 100, label: monthLabel(tick) });
+  for (let tick = min; tick <= rangeEndDay; tick = Date.UTC(new Date(tick).getUTCFullYear(), new Date(tick).getUTCMonth() + 1, 1)) {
+    ticks.push({ timestamp: tick, left: position(new Date(tick).toISOString().slice(0, 10)), label: monthLabel(tick) });
   }
   const currentDay = today();
-  const currentPosition = parseDay(currentDay) >= min && parseDay(currentDay) < max ? position(currentDay) : null;
+  const currentPosition = parseDay(currentDay) >= rangeStartDay && parseDay(currentDay) <= rangeEndDay ? position(currentDay) : null;
 
   return <>
     <section className="workspace-section" aria-label="ไทม์ไลน์งาน">
-      <Card className="workspace-panel"><Card.Body>
+      <Card className="workspace-panel workspace-timeline-panel"><Card.Body>
         <div className="workspace-panel-heading workspace-timeline-heading">
           <h2>ไทม์ไลน์งาน</h2>
           <div className="workspace-timeline-legend" aria-label="สัญลักษณ์สถานะ">
@@ -61,14 +59,13 @@ export default function ProjectTimeline({ projectId }) {
               const start = task.startDate || task.dueDate;
               const end = task.dueDate || task.startDate;
               const left = Math.max(0, Math.min(100, position(start)));
-              const right = Math.max(0, Math.min(100, position(end)));
               const overdue = end < currentDay && task.status !== 'completed';
               return <div className="workspace-reference-timeline-row" key={task.id}>
-                <button type="button" onClick={() => setSelectedTaskId(task.id)} title={task.title}>{task.title}</button>
+                <button type="button" onClick={() => onOpenTask?.(task)} title={task.title}>{task.title}</button>
                 <div className="workspace-reference-timeline-track">
-                  {ticks.map((tick) => <i key={tick.timestamp} style={{ left: `${tick.left}%` }} aria-hidden="true" />)}
+                  {ticks.slice(1).map((tick) => <i key={tick.timestamp} style={{ left: `${tick.left}%` }} aria-hidden="true" />)}
                   {currentPosition !== null && <i className="workspace-reference-today" style={{ left: `${currentPosition}%` }} aria-label="วันนี้" />}
-                  <span className={overdue ? 'is-overdue' : ''} style={{ left: `${left}%`, width: `${Math.max(1, right - left)}%`, backgroundColor: statusColor[task.status] || statusColor.not_started }} title={`${task.title}: ${start ? ymd(start) : 'ไม่ระบุ'} – ${end ? ymd(end) : 'ไม่ระบุ'}`} />
+                  <span className={overdue ? 'is-overdue' : ''} style={{ left: `${left}%`, width: `${((Math.max(0, Math.round((parseDay(end) - parseDay(start)) / 86400000)) + 1) / spanDays) * 100}%`, backgroundColor: statusColor[task.status] || statusColor.not_started }} title={`${task.title}: ${start ? ymd(start) : 'ไม่ระบุ'} – ${end ? ymd(end) : 'ไม่ระบุ'}`} />
                 </div>
               </div>;
             })}
@@ -77,6 +74,5 @@ export default function ProjectTimeline({ projectId }) {
         <span className="workspace-timeline-caption">แถบสีแดงเข้มที่ขอบหมายถึงเลยกำหนด กดชื่องานเพื่อเปิดรายละเอียด</span>
       </Card.Body></Card>
     </section>
-    {selectedTask && <TaskDetailModal task={selectedTask} projectId={project.id} onClose={() => setSelectedTaskId(null)} />}
   </>;
 }
