@@ -13,8 +13,16 @@ import Reports from './components/Reports';
 import Workload from './components/Workload';
 import PlaceholderPage from './components/PlaceholderPage';
 import NotFound from './components/NotFound';
+import NotificationCenter from './components/notifications/NotificationCenter';
+import NotificationDetail from './components/notifications/NotificationDetail';
+import SecurityIncidents from './components/notifications/SecurityIncidents';
+import SecurityIncidentDetail from './components/notifications/SecurityIncidentDetail';
+import AuditLog from './components/notifications/AuditLog';
+import ExportHistory from './components/notifications/ExportHistory';
+import ExportDetail from './components/notifications/ExportDetail';
 import { APP_BASE } from './utils/config';
 import { MockDataProvider } from './context/MockDataContext';
+import { NotificationCenterProvider } from './context/NotificationCenterContext';
 import LoginModal from './components/auth/LoginModal';
 
 // ⚠️ ไม่ import CSS ที่นี่ — ทั้งแอป import ที่ src/index.js ที่เดียวเพื่อคุมลำดับ
@@ -50,6 +58,13 @@ function RoutedApplication() {
             <Route path="tasks" element={<Tasks />} />
             <Route path="workload" element={<Workload />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="notifications" element={<NotificationCenter />} />
+            <Route path="notifications/:notificationId" element={<NotificationDetail />} />
+            <Route path="security/incidents" element={<SecurityIncidents />} />
+            <Route path="security/incidents/:incidentId" element={<SecurityIncidentDetail />} />
+            <Route path="audit-log" element={<AuditLog />} />
+            <Route path="exports" element={<ExportHistory />} />
+            <Route path="exports/:exportId" element={<ExportDetail />} />
             <Route
               path="settings"
               element={
@@ -72,9 +87,11 @@ function RoutedApplication() {
 export default function App() {
   return (
     <Router basename={APP_BASE}>
-      <MockDataProvider>
-        <RoutedApplication />
-      </MockDataProvider>
+      <NotificationCenterProvider>
+        <MockDataProvider>
+          <RoutedApplication />
+        </MockDataProvider>
+      </NotificationCenterProvider>
     </Router>
   );
 }

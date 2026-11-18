@@ -13,6 +13,10 @@ import {
   Layers,
   UserRound,
   LogOut,
+  Bell,
+  CircleAlert,
+  Activity,
+  FileText,
 } from './common/Icons';
 import { CURRENT_USER } from '../data/mockData';
 
@@ -22,6 +26,10 @@ const ICONS = {
   ClipboardList,
   ChartNoAxesColumn,
   Settings,
+  Bell,
+  CircleAlert,
+  Activity,
+  FileText,
 };
 
 export default function Layout() {

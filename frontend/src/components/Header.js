@@ -1,14 +1,16 @@
 // frontend/src/components/Header.js — แถบ Header ด้านบน แสดงเวลา/วันที่ปัจจุบัน และการแจ้งเตือนของระบบ
 import React, { useState, useEffect } from 'react';
 import { Dropdown } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import { Clock, Bell, Check, ChevronDown } from './common/Icons';
 import CalendarDropdown from './common/CalendarDropdown';
-import { NOTIFICATIONS } from '../data/mockData';
+import { useNotificationCenter } from '../context/NotificationCenterContext';
+import { formatThaiDateTime } from '../utils/notificationCenterUtils';
 
 export default function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [notifications, setNotifications] = useState(NOTIFICATIONS);
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const { notifications, markNotifications } = useNotificationCenter();
 
   useEffect(() => {
     // อัปเดตเวลานาฬิกาทุกวินาทีเพื่อให้เวลาตรงกับปัจจุบันเสมอ
@@ -39,9 +41,10 @@ export default function Header() {
 
   const { dateStr, timeStr } = formatDateTime(currentTime);
   const unreadCount = notifications.filter((n) => n.unread).length;
+  const recentNotifications = notifications.slice(0, 5);
 
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+    markNotifications(notifications.filter((item) => item.unread).map((item) => item.id), false);
   };
 
   return (
@@ -105,15 +108,24 @@ export default function Header() {
               )}
             </div>
             <div className="notifications-list">
-              {notifications.map((item) => (
-                <div key={item.id} className={`notification-item px-3 py-2 border-bottom ${item.unread ? 'unread' : ''}`}>
-                  <div className="d-flex justify-content-between align-items-baseline">
+              {recentNotifications.map((item) => (
+                <Dropdown.Item
+                  as={Link}
+                  to={`/notifications/${item.id}`}
+                  key={item.id}
+                  className={`notification-item px-3 py-2 border-bottom ${item.unread ? 'unread' : ''}`}
+                >
+                  <div className="d-flex justify-content-between align-items-baseline gap-2">
                     <span className="notification-title fw-medium">{item.title}</span>
-                    <span className="notification-time">{item.time}</span>
+                    <span className="notification-time">{formatThaiDateTime(item.createdAt)}</span>
                   </div>
                   <p className="notification-desc mb-0 small text-muted">{item.message}</p>
-                </div>
+                </Dropdown.Item>
               ))}
+              {!recentNotifications.length && <div className="px-3 py-3 small text-muted">ยังไม่มีการแจ้งเตือน</div>}
+            </div>
+            <div className="notifications-footer border-top px-3 py-2">
+              <Dropdown.Item as={Link} to="/notifications" className="p-0 text-primary fw-semibold">ดูการแจ้งเตือนทั้งหมด</Dropdown.Item>
             </div>
           </Dropdown.Menu>
         </Dropdown>

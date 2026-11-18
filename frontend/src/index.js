@@ -11,6 +11,7 @@ import './styles/tokens.css';
 import './index.css';
 import './styles/project-modal.css';
 import './styles/login.css';
+import './styles/notification-center.css';
 import App from './App';
 import { startScrollbarActivity } from './utils/scrollbarActivity';
 
