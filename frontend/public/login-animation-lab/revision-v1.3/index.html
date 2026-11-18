@@ -1,0 +1,144 @@
+<!-- Standalone Revision v1.3 preview; it does not load application source or backend data. -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="description" content="An isolated MECHA Login design prototype with a cinematic employee preview.">
+  <title>MECHA Login | Design Revision v1.3</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./tokens.css">
+  <link rel="stylesheet" href="./revision.css">
+</head>
+<body data-animation-stage="initial">
+  <div class="dashboard-stack" aria-hidden="true">
+    <section class="dashboard-screen dashboard-screen--soft" data-slot="dashboard-preview">
+      <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+          <strong class="dashboard-wordmark"><span class="dashboard-mark">M</span> MECHA</strong>
+          <nav class="dashboard-nav" aria-label="Dashboard preview navigation">
+            <span>Overview</span><span>Projects</span><span>Tasks</span><span>Workload</span><span>Reports</span>
+          </nav>
+        </aside>
+        <main class="dashboard-main">
+          <header class="dashboard-topbar"><span>Project Management</span><span class="dashboard-avatar"></span></header>
+          <section class="dashboard-heading"><h2>Dashboard</h2><p>Illustrative workspace preview</p></section>
+          <div class="dashboard-preview-grid">
+            <section><h3>Projects</h3><span></span><span></span></section>
+            <section><h3>Tasks</h3><span></span><span></span></section>
+            <section><h3>Workload</h3><span></span><span></span></section>
+          </div>
+          <section class="dashboard-workspace"><h3>Project activity</h3><div class="dashboard-workspace-rule"></div>
+            <div class="dashboard-workspace-row"><span>Production line planning</span><span>In review</span></div>
+            <div class="dashboard-workspace-row"><span>Equipment improvement</span><span>In progress</span></div>
+            <div class="dashboard-workspace-row"><span>Team workload review</span><span>Planned</span></div>
+          </section>
+        </main>
+      </div>
+    </section>
+    <section class="dashboard-screen dashboard-screen--clear" data-slot="dashboard-preview" aria-hidden="true">
+      <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+          <strong class="dashboard-wordmark"><span class="dashboard-mark">M</span> MECHA</strong>
+          <nav class="dashboard-nav" aria-hidden="true">
+            <span>Overview</span><span>Projects</span><span>Tasks</span><span>Workload</span><span>Reports</span>
+          </nav>
+        </aside>
+        <main class="dashboard-main">
+          <header class="dashboard-topbar"><span>Project Management</span><span class="dashboard-avatar"></span></header>
+          <section class="dashboard-heading"><h2>Dashboard</h2><p>Illustrative workspace preview</p></section>
+          <div class="dashboard-preview-grid">
+            <section><h3>Projects</h3><span></span><span></span></section>
+            <section><h3>Tasks</h3><span></span><span></span></section>
+            <section><h3>Workload</h3><span></span><span></span></section>
+          </div>
+          <section class="dashboard-workspace"><h3>Project activity</h3><div class="dashboard-workspace-rule"></div>
+            <div class="dashboard-workspace-row"><span>Production line planning</span><span>In review</span></div>
+            <div class="dashboard-workspace-row"><span>Equipment improvement</span><span>In progress</span></div>
+            <div class="dashboard-workspace-row"><span>Team workload review</span><span>Planned</span></div>
+          </section>
+        </main>
+      </div>
+    </section>
+  </div>
+  <div class="login-scrim" aria-hidden="true"></div>
+
+  <div class="login-modal-wrap" id="modal-wrap">
+    <section class="login-modal" id="login-modal" role="dialog" aria-modal="true" aria-labelledby="login-title">
+      <button class="close-button" id="close-login" type="button" aria-label="Close login preview">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+
+      <section class="form-panel" id="form-panel">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">M</span>
+          <span class="brand-name">MECHA<small>Project Management</small></span>
+        </div>
+        <div class="form-heading">
+          <h1 id="login-title">Welcome back</h1>
+          <p>Sign in with your Employee ID to continue to your projects.</p>
+        </div>
+        <form class="login-form" id="login-form" novalidate>
+          <div class="field">
+            <label for="employee-id">Employee ID</label>
+            <input class="text-input" id="employee-id" name="employeeId" type="text" autocomplete="username" placeholder="e.g. EMP-001" aria-describedby="employee-id-error">
+            <p class="error-text" id="employee-id-error" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <div class="password-wrap">
+              <input class="text-input" id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter your password" aria-describedby="password-error">
+              <button class="password-toggle" id="password-toggle" type="button" aria-controls="password" aria-pressed="false">Show</button>
+            </div>
+            <p class="error-text" id="password-error" role="alert"></p>
+          </div>
+          <div class="form-options">
+            <label class="remember-option"><input id="remember" type="checkbox"> Remember me</label>
+            <button class="text-link" id="forgot-password" type="button">Forgot password?</button>
+          </div>
+          <button class="sign-in-button" id="sign-in" type="submit"><span class="spinner" aria-hidden="true"></span><span id="sign-in-label">Sign in</span></button>
+          <p class="form-status" id="form-status" role="status" aria-live="polite"></p>
+          <p class="demo-note">Visual demo only. Use EMP-001 to EMP-008 and any password. No session is created.</p>
+        </form>
+      </section>
+
+      <aside class="preview-panel" id="preview-panel" aria-label="Cinematic employee preview">
+        <div class="card-wrap" id="card-wrap">
+          <div class="welcome-top" id="welcome-top" aria-hidden="true">
+            <svg width="54" height="54" viewBox="0 0 56 56" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle class="checkmark-circle" cx="28" cy="28" r="22"/><path class="checkmark-path" d="M18 29l7 7 13-14"/>
+            </svg>
+            <h2>Welcome to MECHA</h2>
+          </div>
+          <article class="employee-card empty-head" id="employee-card" data-state="empty" aria-label="Employee ID card preview">
+            <header class="id-card-head"><span class="id-card-mark" aria-hidden="true">M</span><span class="id-card-brand">MECHA</span><span class="id-card-tag">Employee</span></header>
+            <div class="employee-photo" id="employee-photo" aria-hidden="true">?</div>
+            <div class="employee-info" id="employee-info">
+              <div class="employee-details" id="employee-details" hidden>
+                <p class="employee-name" id="employee-name"></p>
+                <p class="employee-position" id="employee-position"></p>
+                <div class="employee-field"><small>Department</small><strong id="employee-department"></strong></div>
+              </div>
+              <div id="empty-skeleton" aria-hidden="true"><div class="skeleton-line skeleton-line--wide"></div><div class="skeleton-line skeleton-line--mid"></div><div class="skeleton-line skeleton-line--short"></div></div>
+              <div class="employee-field employee-id-row" id="employee-id-row" hidden><small>Employee ID</small><strong id="employee-id-value"></strong></div>
+            </div>
+            <p class="card-empty-hint" id="card-empty-hint">Enter an Employee ID</p>
+            <div class="employee-qr" id="employee-qr" hidden aria-hidden="true"></div>
+            <div class="card-message" id="card-message" hidden><strong>Employee not found</strong><span>Check the ID and try again.</span></div>
+            <div class="employee-card-stripe" aria-hidden="true"></div>
+          </article>
+          <div class="password-preview" id="password-preview" aria-hidden="true"><span>Password</span><div class="password-dots" id="password-dots"></div></div>
+          <div class="welcome-bottom" id="welcome-name" aria-hidden="true"></div>
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <p class="demo-complete-note" id="demo-complete-note" hidden>Dashboard reveal demo. No session was created.</p>
+  <div class="screen-reader-only" id="card-announcement" role="status" aria-live="polite" aria-atomic="true"></div>
+  <button class="replay-button" id="replay-demo" type="button" hidden>Replay login demo</button>
+  <script src="./revision.js" defer></script>
+</body>
+</html>

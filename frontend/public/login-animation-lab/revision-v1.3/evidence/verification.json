@@ -1,0 +1,327 @@
+{
+  "browser": "headed system Chromium",
+  "viewportWidths": [
+    320,
+    340,
+    360,
+    375,
+    390,
+    414,
+    767,
+    900,
+    1024,
+    1280,
+    1440
+  ],
+  "requestUrls": [
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/index.html",
+    "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/tokens.css",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/revision.css",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/revision.js",
+    "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "http://localhost:3000/favicon.ico",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/index.html",
+    "https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/tokens.css",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/revision.css",
+    "http://localhost:3000/PROJECT-MANAGEMENT/login-animation-lab/revision-v1.3/revision.js",
+    "https://fonts.gstatic.com/s/outfit/v15/QGYvz_MVcBeNP4NJtEtq.woff2",
+    "http://localhost:3000/favicon.ico"
+  ],
+  "passwordSafety": {
+    "hidden": true,
+    "dots": 11,
+    "exposed": false,
+    "remember": true,
+    "forgot": true
+  },
+  "escapeAndFocus": {
+    "hidden": true,
+    "focused": "replay-demo"
+  },
+  "typingVideo": "realtime-employee-id-typing.mp4",
+  "typingFrames": 15,
+  "mobileAnimation": {
+    "viewport": [
+      390,
+      844
+    ],
+    "cardArrival": {
+      "stage": "card-arrived",
+      "time": 8039.9000000059605,
+      "cardCenterOffset": 0,
+      "cardCenterOffsetY": 0,
+      "cardAspectRatio": 1.589,
+      "previewOverflow": "visible"
+    },
+    "completed": true
+  },
+  "cardArrival": {
+    "stage": "card-arrived",
+    "time": 1245.7000000029802,
+    "cardCenterOffset": 0,
+    "cardCenterOffsetY": 0,
+    "cardAspectRatio": 1.589,
+    "previewOverflow": "visible"
+  },
+  "animationVideo": "concept-a-complete-animation.mp4",
+  "welcomeScreenshot": {
+    "filename": "concept-a-welcome.png",
+    "offsetMs": -3.9,
+    "clock": "Chromium capture timestamp"
+  },
+  "animationFrames": 68,
+  "animationStages": [
+    {
+      "stage": "button-response",
+      "time": 212.1000000089407
+    },
+    {
+      "stage": "form-and-card-motion",
+      "time": 493
+    },
+    {
+      "stage": "card-arrived",
+      "time": 1245.7000000029802,
+      "cardCenterOffset": 0,
+      "cardCenterOffsetY": 0,
+      "cardAspectRatio": 1.589,
+      "previewOverflow": "visible"
+    },
+    {
+      "stage": "preview-expand",
+      "time": 1246.6000000089407
+    },
+    {
+      "stage": "welcome-overlay",
+      "time": 1689.2999999970198
+    },
+    {
+      "stage": "dashboard-reveal",
+      "time": 2389.7999999970198
+    },
+    {
+      "stage": "complete",
+      "time": 3014.2999999970198
+    }
+  ],
+  "replayCompleted": true,
+  "reducedMotion": {
+    "matches": true,
+    "active": 0,
+    "stage": "complete",
+    "viewport": [
+      390,
+      844
+    ]
+  },
+  "reducedMotionStages": [
+    {
+      "stage": "initial",
+      "time": 7745.4000000059605
+    },
+    {
+      "stage": "button-response",
+      "time": 7878.70000000298
+    },
+    {
+      "stage": "form-and-card-motion",
+      "time": 8159.20000000298
+    },
+    {
+      "stage": "card-arrived",
+      "time": 8159.29999999702,
+      "cardCenterOffset": 0,
+      "cardCenterOffsetY": -317.64,
+      "cardAspectRatio": 1.589,
+      "previewOverflow": "visible"
+    },
+    {
+      "stage": "preview-expand",
+      "time": 8161.5
+    },
+    {
+      "stage": "welcome-overlay",
+      "time": 8161.600000008941
+    },
+    {
+      "stage": "dashboard-reveal",
+      "time": 8281.79999999702
+    },
+    {
+      "stage": "complete",
+      "time": 8282
+    }
+  ],
+  "noApiRequests": true,
+  "errors": [],
+  "responsive": [
+    {
+      "width": 320,
+      "cardWidth": 251.59,
+      "cardHeight": 158.36,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 340,
+      "cardWidth": 251.59,
+      "cardHeight": 158.36,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 360,
+      "cardWidth": 289,
+      "cardHeight": 181.89,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 375,
+      "cardWidth": 289,
+      "cardHeight": 181.89,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 390,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 414,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 767,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 900,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 1024,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 1280,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    },
+    {
+      "width": 1440,
+      "cardWidth": 340,
+      "cardHeight": 214,
+      "aspectRatio": 1.589,
+      "centerOffset": 0,
+      "overflow": false,
+      "contained": true
+    }
+  ],
+  "partialStates": [
+    {
+      "input": "E",
+      "cardId": "E",
+      "state": "partial"
+    },
+    {
+      "input": "EM",
+      "cardId": "EM",
+      "state": "partial"
+    },
+    {
+      "input": "EMP-",
+      "cardId": "EMP-",
+      "state": "partial"
+    },
+    {
+      "input": "EMP-0",
+      "cardId": "EMP-0",
+      "state": "partial"
+    },
+    {
+      "input": "EMP-00",
+      "cardId": "EMP-00",
+      "state": "partial"
+    }
+  ],
+  "employeeResults": [
+    {
+      "id": "EMP-001",
+      "name": "Mock Employee 01"
+    },
+    {
+      "id": "EMP-002",
+      "name": "Mock Employee 02"
+    },
+    {
+      "id": "EMP-003",
+      "name": "Mock Employee 03"
+    },
+    {
+      "id": "EMP-004",
+      "name": "Mock Employee 04"
+    },
+    {
+      "id": "EMP-005",
+      "name": "Mock Employee 05"
+    },
+    {
+      "id": "EMP-006",
+      "name": "Mock Employee 06"
+    },
+    {
+      "id": "EMP-007",
+      "name": "Mock Employee 07"
+    },
+    {
+      "id": "EMP-008",
+      "name": "Mock Employee 08"
+    }
+  ],
+  "unknownEmployee": {
+    "state": "not-found",
+    "id": "EMP-999",
+    "name": "",
+    "message": "Employee not found"
+  }
+}
