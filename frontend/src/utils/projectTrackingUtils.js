@@ -91,6 +91,7 @@ export const priorityOf = (relatedTasks, project) => {
     const norm = normalizePriorityKey(project.priority);
     return PRIORITY_BADGES[norm] || { label: 'ต่ำ', variant: 'low' };
   }
+  if (assignedPriorities.length === 0) return { label: '-', variant: 'low' };
 
   // หา priority สูงสุดในงานทั้งหมดที่เกี่ยวข้อง (ป้องกันกรณี reduce คืน task object)
   const topTask = assignedPriorities.reduce((highest, current) => {

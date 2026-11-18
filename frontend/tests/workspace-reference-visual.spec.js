@@ -1,81 +1,48 @@
 // Reference-specific visual regression coverage for Project Workspace.
 import { test, expect } from '@playwright/test';
 
-test('Project Workspace renders the reference project records on every tab', async ({ page }) => {
+test('Project Workspace keeps operational records empty and renders Team controls', async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 1000 });
   await page.goto('/PROJECT-MANAGEMENT/projects/1');
 
-  await expect(page.getByRole('heading', { level: 1, name: 'แดชบอร์ดสถานะสายการผลิต' })).toBeVisible();
-  await expect(page.getByText('แดชบอร์ดรวมสถานะและยอดผลิตของแต่ละสายการผลิต เพื่อให้หัวหน้างานและผู้บริหารติดตามได้แบบเรียลไทม์ พร้อมแจ้งเตือนเมื่อเครื่องจักรหยุด')).toBeVisible();
-  await expect(page.getByText('1 ต.ค. → 15 ธ.ค. 2026', { exact: true })).toBeVisible();
-  await expect(page.getByText('ความสำคัญ: สูง', { exact: true })).toBeVisible();
-  await expect(page.getByText(/^ผ่านไปแล้ว \d+% ของระยะเวลาทั้งหมด$/, { exact: true })).toBeVisible();
-  await expect(page.getByText('38%', { exact: true })).toHaveCount(2);
-  const progressSummary = page.locator('.project-detail-ring-copy > span').first();
-  await expect(progressSummary).toBeVisible();
-  await expect(page.locator('.project-detail-ring-copy > span').first()).toHaveText('คำนวณจากงานที่เสร็จ');
-  await expect(page.locator('.project-detail-ring-copy > span').nth(1)).toHaveText('3 จาก 8 งาน');
-  await expect(page.getByText(/^เหลือ \d+ วัน$/, { exact: true })).toBeVisible();
-
-  const taskTitles = [
-    'ออกแบบโครงสร้างข้อมูลสายการผลิต',
-    'เชื่อมต่อแหล่งข้อมูลเครื่องจักร',
-    'ออกแบบหน้าจอแดชบอร์ด (UI)',
-    'พัฒนาหน้าสรุปยอดผลิตรายวัน',
-    'พัฒนาระบบแจ้งเตือนเครื่องหยุด',
-    'ทดสอบการใช้งานร่วมกับสายการผลิตจริง',
-    'เขียนคู่มือการใช้งาน',
-    'อบรมผู้ใช้งานและส่งมอบ',
-  ];
+  await expect(page.getByRole('heading', { level: 1, name: 'ระบบจัดการและติดตามงาน Trainee' })).toBeVisible();
 
   await page.getByRole('tab', { name: /^งาน/ }).click();
-  await expect(page.locator('.project-tasks-row')).toHaveCount(8);
-  await expect(page.locator('.project-tasks-row-subtitle')).toHaveText([
-    'เช็กลิสต์ 3/3 · ผู้ตรวจ Korn Tawonphon',
-    'เช็กลิสต์ 2/2 · ผู้ตรวจ Korn Tawonphon',
-    'เช็กลิสต์ 3/3 · ผู้ตรวจ Supachai Meesuk',
-    'เช็กลิสต์ 4/4 · ผู้ตรวจ Korn Tawonphon',
-    'เช็กลิสต์ 1/3 · ผู้ตรวจ Korn Tawonphon',
-    'เช็กลิสต์ 0/2 · ผู้ตรวจ Supachai Meesuk',
-    'เช็กลิสต์ 0/2 · ผู้ตรวจ Supachai Meesuk',
-    'เช็กลิสต์ 0/3 · ผู้ตรวจ Korn Tawonphon',
-  ]);
-  for (const title of taskTitles) await expect(page.getByRole('button', { name: title })).toBeVisible();
+  await expect(page.locator('.project-tasks-row')).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^บอร์ด/ }).click();
-  for (const [status, count] of [['not_started', '2'], ['in_progress', '2'], ['pending_review', '1'], ['completed', '3']]) {
+  for (const [status, count] of [['not_started', '0'], ['in_progress', '0'], ['pending_review', '0'], ['completed', '0']]) {
     await expect(page.locator(`.project-board-column[data-status="${status}"] .project-board-count`)).toHaveText(count);
   }
 
+  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
+  await expect(page.locator('.workspace-reference-activity-row')).toHaveCount(0);
+
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
-  await expect(team.getByRole('heading', { name: 'สมาชิกทีม · 3 คน' })).toBeVisible();
-  for (const name of ['Supachai Meesuk', 'Korn Tawonphon', 'Napat Chaiyaphon']) {
-    await expect(team.getByText(name, { exact: true })).toBeVisible();
-  }
-  await expect(team.getByRole('button', { name: 'ล็อก' })).toHaveCount(2);
-  await expect(team.locator('.workspace-member-remove').filter({ hasText: 'นำออก' })).toHaveCount(1);
-  await expect(team.locator('.workspace-member-role.is-owner')).toHaveCSS('background-color', 'rgb(109, 63, 199)');
-  await expect(team.locator('.workspace-member-role.is-leader')).toHaveCSS('background-color', 'rgb(15, 118, 110)');
+  await team.getByLabel('เลือก Team Leader').selectOption('emp-009');
+  const leaderDialog = page.getByRole('dialog').last();
+  await leaderDialog.getByLabel('เหตุผลการเปลี่ยน Team Leader').fill('กำหนดหัวหน้าทีม');
+  await leaderDialog.getByRole('button', { name: 'ยืนยัน' }).click();
+  await expect(team.locator('.workspace-member-remove:disabled')).toHaveCount(2);
+  await expect(team.locator('.workspace-member-remove:disabled').first()).toHaveCSS('height', '38px');
+  await expect(team.locator('.workspace-member-remove:disabled').first()).toHaveCSS('border-radius', '10px');
+  await expect(team.locator('.workspace-member-remove:disabled').first()).toHaveCSS('color', 'rgb(100, 116, 139)');
+  await team.getByLabel('เลือกสมาชิกเพื่อเพิ่ม').selectOption('emp-002');
+  await team.getByLabel('เหตุผลการเพิ่มสมาชิก').fill('เพิ่มสมาชิกสำหรับตรวจการทำงานของทีม');
+  await team.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
+  const addedMember = team.locator('.workspace-member-row').filter({ has: page.locator('[data-person-id="emp-002"]') });
+  await expect(addedMember.locator('.workspace-member-remove')).toHaveText('นำออก');
+  await addedMember.locator('.workspace-member-remove').click();
+  await expect(addedMember).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^สิ่งที่ส่งมอบ/ }).click();
-  await expect(page.locator('.workspace-deliverable-copy strong')).toHaveText([
-    'ซอร์สโค้ดและเอกสารติดตั้ง', 'คู่มือการใช้งาน', 'รายงานผลการทดสอบ',
-  ]);
+  await expect(page.locator('.workspace-deliverable-row')).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^ไทม์ไลน์/ }).click();
-  await expect(page.locator('.workspace-reference-timeline-row')).toHaveCount(8);
-  await expect(page.locator('.workspace-reference-timeline-row > button')).toHaveText(taskTitles);
+  await expect(page.locator('.workspace-reference-timeline-row')).toHaveCount(0);
 
-  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
-  await expect(page.locator('.workspace-reference-activity-row')).toHaveCount(5);
-  await expect(page.locator('.workspace-reference-activity-row > span:nth-child(2)')).toContainText([
-    'ส่งงาน “พัฒนาหน้าสรุปยอดผลิตรายวัน” เข้าตรวจ',
-    'ทำเช็กลิสต์ “กำหนดเงื่อนไขแจ้งเตือน” เสร็จ',
-    'อนุมัติงาน “ออกแบบหน้าจอแดชบอร์ด (UI)”',
-    'ตั้ง Korn Tawonphon เป็น Team Lead',
-    'สร้างโปรเจกต์ และเป็น Project Owner',
-  ]);
 });
 
 test('Project Workspace keeps the reference header and overview proportions', async ({ page }) => {
@@ -110,7 +77,7 @@ test('Project Workspace keeps the reference header and overview proportions', as
   await expect(page.locator('.workspace-reference-empty-note')).toHaveCount(0);
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
   await expect(page.getByRole('button', { name: 'จัดการ' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'ดูทั้งหมด (8)' })).toHaveText('ดูทั้งหมด (8) →');
+  await expect(page.getByRole('button', { name: 'ดูทั้งหมด (0)' })).toHaveText('ดูทั้งหมด (0) →');
 
   const tabs = [
     ['ภาพรวม', 'overview'],
@@ -135,6 +102,13 @@ test('Project Workspace board cards can be dragged through shared task state', a
   await page.goto('/PROJECT-MANAGEMENT/projects/1');
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
 
+  await page.getByRole('tab', { name: /^ทีม/ }).click();
+  const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
+  await team.getByLabel('เลือก Team Leader').selectOption('emp-009');
+  const leaderDialog = page.getByRole('dialog').last();
+  await leaderDialog.getByLabel('เหตุผลการเปลี่ยน Team Leader').fill('กำหนดผู้ตรวจงาน');
+  await leaderDialog.getByRole('button', { name: 'ยืนยัน' }).click();
+
   await page.getByRole('tab', { name: /^งาน/ }).click();
   await page.getByRole('button', { name: 'เพิ่มงาน', exact: true }).click();
   const dialog = page.getByRole('dialog').last();
@@ -149,17 +123,17 @@ test('Project Workspace board cards can be dragged through shared task state', a
   const todo = page.locator('.project-board-column[data-status="not_started"]');
   const inProgress = page.locator('.project-board-column[data-status="in_progress"]');
   await expect(card).toHaveAttribute('draggable', 'true');
-  await expect(todo.locator('.project-board-count')).toHaveText('3');
+  await expect(todo.locator('.project-board-count')).toHaveText('1');
   await card.dragTo(inProgress);
-  await expect(todo.locator('.project-board-count')).toHaveText('2');
-  await expect(inProgress.locator('.project-board-count')).toHaveText('3');
+  await expect(todo.locator('.project-board-count')).toHaveText('0');
+  await expect(inProgress.locator('.project-board-count')).toHaveText('1');
   const activeCard = inProgress.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` });
   await expect(activeCard).toBeVisible();
 
   const review = page.locator('.project-board-column[data-status="pending_review"]');
   await activeCard.dragTo(review);
-  await expect(inProgress.locator('.project-board-count')).toHaveText('2');
-  await expect(review.locator('.project-board-count')).toHaveText('2');
+  await expect(inProgress.locator('.project-board-count')).toHaveText('0');
+  await expect(review.locator('.project-board-count')).toHaveText('1');
 
   const reviewCard = review.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` });
   await reviewCard.dragTo(inProgress);
@@ -170,26 +144,51 @@ test('Project Workspace board cards can be dragged through shared task state', a
   await detail.locator('.workspace-task-action-panel').getByRole('button', { name: 'ยืนยัน' }).click();
   await detail.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
   await page.getByRole('tab', { name: /^บอร์ด/ }).click();
-  await expect(inProgress.locator('.project-board-count')).toHaveText('3');
-  await expect(review.locator('.project-board-count')).toHaveText('1');
+  await expect(inProgress.locator('.project-board-count')).toHaveText('1');
+  await expect(review.locator('.project-board-count')).toHaveText('0');
 
   await inProgress.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` }).dragTo(todo);
-  await expect(inProgress.locator('.project-board-count')).toHaveText('2');
-  await expect(todo.locator('.project-board-count')).toHaveText('3');
+  await expect(inProgress.locator('.project-board-count')).toHaveText('0');
+  await expect(todo.locator('.project-board-count')).toHaveText('1');
 });
 
-test('Project Workspace reference blocks removal while primary work remains open', async ({ page }) => {
+test('Project Workspace blocks member removal inline for unfinished primary tasks', async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 1000 });
   await page.goto('/PROJECT-MANAGEMENT/projects/1');
-  const team = page.getByRole('tab', { name: /^ทีม/ });
-  await team.click();
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
-  const memberRow = page.locator('.workspace-member-row').filter({ has: page.locator('[data-person-id="emp-002"]') });
+  await page.getByRole('tab', { name: /^ทีม/ }).click();
+  const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
+  await team.getByLabel('เลือกสมาชิกเพื่อเพิ่ม').selectOption('emp-002');
+  await team.getByLabel('เหตุผลการเพิ่มสมาชิก').fill('เพิ่มผู้รับผิดชอบงาน');
+  await team.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
+
+  await page.getByRole('tab', { name: /^งาน/ }).click();
+  const taskTitles = ['Primary task one', 'Primary task two'];
+  for (const title of taskTitles) {
+    await page.getByRole('button', { name: 'เพิ่มงาน', exact: true }).click();
+    const dialog = page.getByRole('dialog').last();
+    await dialog.locator('#workspace-task-title').fill(title);
+    await dialog.locator('#workspace-task-assignee').selectOption('emp-002');
+    await dialog.locator('#workspace-task-reviewer').selectOption('emp-008');
+    await dialog.locator('#workspace-task-due').fill('2026-12-20');
+    await dialog.getByRole('button', { name: 'สร้างงาน' }).click();
+  }
+
+  await page.getByRole('tab', { name: /^ทีม/ }).click();
+  const memberRow = team.locator('.workspace-member-row').filter({ has: page.locator('[data-person-id="emp-002"]') });
   await memberRow.getByRole('button', { name: 'นำ Napat Chaiyaphon ออกจากทีม' }).click();
-  const notice = page.getByRole('alert').filter({ hasText: 'ยังนำ Napat Chaiyaphon ออกจากทีมไม่ได้' });
+  const notice = team.getByRole('alert').filter({ hasText: 'ยังนำ Napat Chaiyaphon ออกจากทีมไม่ได้' });
   await expect(notice).toContainText('มีงานที่ยังไม่เสร็จอยู่ในมือ 2 งาน');
-  await expect(notice).toContainText('พัฒนาหน้าสรุปยอดผลิตรายวัน');
-  await expect(notice).toContainText('พัฒนาระบบแจ้งเตือนเครื่องหยุด');
+  await expect(notice).toHaveCSS('background-color', 'rgb(255, 244, 224)');
+  await expect(notice).toHaveCSS('border-radius', '14px');
+  await expect(notice.locator('li')).toHaveCount(2);
+  for (const title of taskTitles) await expect(notice).toContainText(title);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  const tasksTab = page.getByRole('tab', { name: /^งาน/ });
+  await notice.getByRole('button', { name: 'ไปที่หน้างาน' }).click();
+  await expect(tasksTab).toHaveAttribute('aria-selected', 'true');
+  await page.getByRole('tab', { name: /^ทีม/ }).click();
+  await expect(notice).toBeVisible();
   await notice.getByRole('button', { name: 'ปิด' }).click();
   await expect(notice).toHaveCount(0);
 });
@@ -200,15 +199,13 @@ test('Project Workspace preserves reference wrapping on narrow phones', async ({
   await page.evaluate(() => document.fonts.ready);
 
   const attentionRows = page.locator('.project-detail-attention-row');
-  await expect(attentionRows).toHaveCount(3);
-  expect((await attentionRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height))).sort((a, b) => a - b)).toEqual([118, 118, 142]);
+  await expect(attentionRows).toHaveCount(0);
   await expect(page.locator('.project-detail-status-legend > span').first()).toHaveCSS('font-size', '13px');
   await expect(page.locator('.project-detail-status-legend > span').first()).toHaveCSS('gap', '7px');
 
   await page.getByRole('tab', { name: /^งาน/ }).click();
   const taskRows = page.locator('.project-tasks-row');
-  await expect(taskRows).toHaveCount(8);
-  expect(await taskRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height))).toEqual(Array(8).fill(224));
+  await expect(taskRows).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   await expect(page.locator('.workspace-member-metrics').first()).toHaveCSS('margin-left', '0px');
@@ -217,12 +214,7 @@ test('Project Workspace preserves reference wrapping on narrow phones', async ({
 
   await page.getByRole('tab', { name: /^สิ่งที่ส่งมอบ/ }).click();
   const deliverableRows = page.locator('.workspace-deliverable-row');
-  expect(await deliverableRows.evaluateAll((rows) => rows.map((row) => row.getBoundingClientRect().height))).toEqual([151, 129, 151]);
-  expect(await deliverableRows.first().evaluate((row) => {
-    const copy = row.querySelector('.workspace-deliverable-copy');
-    const button = row.querySelector('button');
-    return button.getBoundingClientRect().y >= copy.getBoundingClientRect().bottom;
-  })).toBe(true);
+  await expect(deliverableRows).toHaveCount(0);
 
   await page.getByRole('tab', { name: /^ไทม์ไลน์/ }).click();
   const legend = page.locator('.workspace-timeline-legend > span');
@@ -235,7 +227,5 @@ test('Project Workspace preserves reference wrapping on narrow phones', async ({
 
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
   const activityRows = page.locator('.workspace-reference-activity-row');
-  await expect(activityRows).toHaveCount(5);
-  await expect(activityRows.first()).toHaveCSS('line-height', 'normal');
-  await expect(activityRows.first().locator('.workspace-reference-activity-copy')).toHaveCSS('gap', '3px');
+  await expect(activityRows).toHaveCount(0);
 });

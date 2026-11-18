@@ -2531,6 +2531,9 @@
 .workspace-team-layout.is-reference .workspace-team-rules { display:flex; flex-direction:column; gap:8px; padding:18px 20px; }
 .workspace-team-layout.is-reference .workspace-team-rules strong { margin:0; }
 .workspace-team-layout.is-reference .workspace-team-rules ul { display:block; line-height:1.65; }
+.workspace-team-layout.is-reference .workspace-member-remove { height:38px; min-height:38px; border:1.5px solid #E7A1A9; border-radius:10px; padding:0 14px; background:transparent; color:#B91C1C; font-size:13.5px; font-weight:600; opacity:1; }
+.workspace-team-layout.is-reference .workspace-member-remove:disabled { border-color:#E2E8F0; background:transparent; color:#64748B; opacity:1; }
+.workspace-team-layout.is-reference .workspace-member-remove:not(:disabled):hover { border-color:#B91C1C; background:#FFF5F6; color:#B91C1C; }
 .workspace-team-removal-notice { display:flex; flex-direction:column; gap:8px; border:1.5px solid #E8A34A; border-radius:14px; padding:14px; background:#FFF4E0; }
 .workspace-team-removal-notice > strong { color:#7A3A06; font-size:14.5px; }
 .workspace-team-removal-notice > span,.workspace-team-removal-notice ul { color:#5B3205; font-size:13.5px; line-height:1.55; }

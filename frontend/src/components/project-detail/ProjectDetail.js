@@ -31,10 +31,12 @@ export default function ProjectDetail() {
   const [taskAction, setTaskAction] = useState('');
   const [taskFilter, setTaskFilter] = useState('all');
   const [taskWorkEntries, setTaskWorkEntries] = useState({});
+  const [teamNotice, setTeamNotice] = useState(null);
   useEffect(() => {
     setSelectedTask(null);
     setTaskAction('');
     setTaskFilter('all');
+    setTeamNotice(null);
   }, [projectId]);
   const project = projects.find((item) => String(item.id) === String(projectId));
   if (!project) return <section className="project-detail project-detail-not-found" aria-labelledby="project-not-found-title"><h1 id="project-not-found-title" className="page-title">ไม่พบโปรเจกต์</h1><p className="text-muted">โปรเจกต์นี้อาจถูกลบหรือไม่มีอยู่ในข้อมูลปัจจุบัน</p><Link to="/projects" className="btn btn-primary">กลับไปหน้าโปรเจกต์</Link></section>;
@@ -105,7 +107,7 @@ export default function ProjectDetail() {
       actorId={actorId}
     />}
     {activeSection === 'board' && <ProjectBoard key={String(project.id)} projectId={project.id} onOpenTask={openWorkspaceTask} />}
-    {activeSection === 'team' && <ProjectTeam key={String(project.id)} projectId={project.id} />}
+    {activeSection === 'team' && <ProjectTeam key={String(project.id)} projectId={project.id} notice={teamNotice} onNoticeChange={setTeamNotice} onNavigateTasks={() => setActiveSection('tasks')} />}
     {activeSection === 'deliverables' && <ProjectDeliverables key={String(project.id)} projectId={project.id} />}
     {activeSection === 'timeline' && <ProjectTimeline key={String(project.id)} projectId={project.id} onOpenTask={openWorkspaceTask} />}
     {activeSection === 'activity' && <ProjectActivity key={String(project.id)} projectId={project.id} />}
