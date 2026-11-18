@@ -54,8 +54,12 @@ test('Project Workspace keeps the reference header and overview proportions', as
   await expect(progressCard).toHaveCSS('padding', '18px');
   await expect(progressCard).toHaveCSS('gap', '14px');
   await expect(page.locator('.project-detail-overview-columns')).toHaveCSS('display', 'flex');
+  await expect(page.locator('.project-detail-overview-columns')).toHaveCSS('align-items', 'stretch');
   await expect(page.locator('.project-detail-overview-main')).toHaveCSS('flex', '999 1 520px');
   await expect(page.locator('.project-detail-overview-side')).toHaveCSS('flex', '1 1 340px');
+  const overviewColumnHeights = await page.locator('.project-detail-overview-main, .project-detail-overview-side').evaluateAll((columns) => columns.map((column) => column.getBoundingClientRect().height));
+  expect(Math.abs(overviewColumnHeights[0] - overviewColumnHeights[1])).toBeLessThanOrEqual(1);
+  await expect(page.getByRole('heading', { name: 'ข้อมูลโปรเจกต์' })).toHaveCount(0);
   await expect(page.locator('.project-detail-panel-caption')).toHaveCount(0);
 
   const closure = page.locator('.workspace-closure');
@@ -73,7 +77,7 @@ test('Project Workspace keeps the reference header and overview proportions', as
   await expect(closure.locator('.project-detail-closure-line').first()).toHaveCSS('width', '2px');
 
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
-  await expect(page.locator('.workspace-activity-section')).toHaveCSS('max-width', '860px');
+  await expect(page.locator('.workspace-activity-section')).toHaveCSS('max-width', 'none');
   await expect(page.locator('.workspace-reference-empty-note')).toHaveCount(0);
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
   await expect(page.getByRole('button', { name: 'จัดการ' })).toBeVisible();
@@ -92,6 +96,11 @@ test('Project Workspace keeps the reference header and overview proportions', as
     const tab = page.getByRole('tab', { name: new RegExp(`^${label}`) });
     await tab.click();
     await expect(tab).toHaveAttribute('aria-selected', 'true');
+    if (name === 'team' || name === 'deliverables') {
+      const layout = page.locator(name === 'team' ? '.workspace-team-layout' : '.workspace-deliverables-layout');
+      const heights = await layout.locator('> :first-child, > .workspace-reference-sidebar').evaluateAll((columns) => columns.map((column) => column.getBoundingClientRect().height));
+      expect(Math.abs(heights[0] - heights[1])).toBeLessThanOrEqual(1);
+    }
     await page.screenshot({ path: `/tmp/workspace-react-after-${name}.png`, fullPage: true });
   }
 });

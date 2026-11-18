@@ -1,10 +1,10 @@
 // frontend/src/components/project-detail/ProjectOverview.js — context-backed project overview
-import { Fragment } from 'react';
 import { Badge, Button, ProgressBar } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
-import { daysBetween, ownerOf, initials, shortThaiDate, today } from '../../utils/projectTrackingUtils';
+import { daysBetween, initials, shortThaiDate, today } from '../../utils/projectTrackingUtils';
 import { Plus } from '../common/Icons';
+import { WorkspaceTaskMetadata, WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 import ProjectClosure from './ProjectClosure';
 
 const TASK_STATUSES = [
@@ -200,7 +200,7 @@ function AttentionPanel({ items, onOpenTask }) {
   );
 }
 
-function TaskPreview({ tasks, onOpenTask, onNavigateSection, onCreateTask }) {
+function TaskPreview({ tasks, labels, onOpenTask, onNavigateSection, onCreateTask }) {
   const preview = [...tasks]
     .sort((left, right) => Number(left.status === 'completed') - Number(right.status === 'completed')
       || String(left.dueDate || '9999-12-31').localeCompare(String(right.dueDate || '9999-12-31')))
@@ -224,7 +224,10 @@ function TaskPreview({ tasks, onOpenTask, onNavigateSection, onCreateTask }) {
           {preview.map((task) => (
             <li key={task.id}>
               <button type="button" className="project-detail-task-row" onClick={() => onOpenTask(task)}>
-                <strong>{task.title}</strong>
+                <span className="project-detail-task-row-copy">
+                  <strong>{task.title}</strong>
+                  <WorkspaceTaskMetadata task={task} labels={labels} />
+                </span>
                 <span className={`workspace-status-badge project-detail-task-status status-${task.status}`}>
                   {TASK_STATUS_LABELS[task.status] || 'ไม่ระบุสถานะ'}
                 </span>
@@ -234,30 +237,6 @@ function TaskPreview({ tasks, onOpenTask, onNavigateSection, onCreateTask }) {
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-function ProjectInformation({ project, priority }) {
-  const owner = ownerOf(project) || (project.owner ? { name: project.owner } : null);
-  const teamLead = project.teamLeadId ? employeeById(project.teamLeadId) : null;
-  const rows = [
-    ['หมวดหมู่', project.category],
-    ['ความสำคัญ', priority.label !== '-' ? priority.label : null],
-    ['วันที่เริ่ม', project.startDate ? formatDate(project.startDate) : null],
-    ['กำหนดส่ง', project.dueDate ? formatDate(project.dueDate) : null],
-    ['Project Owner', owner?.name],
-    ['Team Lead', teamLead?.name],
-  ].filter(([, value]) => value);
-
-  return (
-    <section className="project-detail-panel" aria-labelledby="project-information-title">
-      <div className="project-detail-panel-heading"><h2 id="project-information-title">ข้อมูลโปรเจกต์</h2></div>
-      {rows.length > 0 ? (
-        <dl className="project-detail-information mb-0">
-          {rows.map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value}</dd></Fragment>)}
-        </dl>
-      ) : <div className="project-detail-empty">ยังไม่มีข้อมูลโปรเจกต์เพิ่มเติม</div>}
     </section>
   );
 }
@@ -278,7 +257,7 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
         <div className="project-detail-empty">โปรเจกต์นี้ยังไม่มีข้อมูลสมาชิกทีม</div>
       ) : (
         <ul className="project-detail-team-list mb-0">
-          {members.slice(0, 5).map((member) => {
+          {members.slice(0, 5).map((member, index) => {
             const openCount = tasks.filter((task) => String(task.assigneeId) === String(member.id)
               && task.status !== 'completed').length;
             const isOwner = String(project.managerId) === String(member.id);
@@ -286,7 +265,7 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
             const roles = [isOwner && 'Project Owner', isTeamLead && 'Team Lead'].filter(Boolean);
             return (
               <li key={member.id}>
-                <span className="project-detail-avatar" data-person-id={member.id} aria-hidden="true">{initials(member.name)}</span>
+                <span className="project-detail-avatar" data-person-id={member.id} aria-hidden="true" style={{ backgroundColor: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][0], color: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][1] }}>{initials(member.name)}</span>
                 <span className="project-detail-team-person">
                   <strong>{member.name}</strong>
                   <small>{roles.length ? roles.join(' · ') : member.position || 'สมาชิก'}</small>
@@ -301,8 +280,8 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
   );
 }
 
-export default function ProjectOverview({ project, tasks, stats, priority, onNavigateSection, onOpenTask, onCreateTask }) {
-  const { deliverables } = useMockData();
+export default function ProjectOverview({ project, tasks, stats, onNavigateSection, onOpenTask, onCreateTask }) {
+  const { deliverables, labels } = useMockData();
   const currentDay = today();
   const attention = buildAttention(tasks, currentDay);
   const attentionOrder = { เลยกำหนด: 0, รอตรวจ: 1, ใกล้ครบ: 2 };
@@ -331,10 +310,9 @@ export default function ProjectOverview({ project, tasks, stats, priority, onNav
       <div className="project-detail-overview-columns">
         <div className="project-detail-overview-main">
           <AttentionPanel items={attention} onOpenTask={onOpenTask} />
-          <TaskPreview tasks={tasks} onOpenTask={onOpenTask} onNavigateSection={onNavigateSection} onCreateTask={onCreateTask} />
+          <TaskPreview tasks={tasks} labels={labels} onOpenTask={onOpenTask} onNavigateSection={onNavigateSection} onCreateTask={onCreateTask} />
         </div>
         <aside className="project-detail-overview-side">
-          <ProjectInformation project={project} priority={priority} />
           <ProjectTeam project={project} tasks={tasks} onNavigateSection={onNavigateSection} />
           <ProjectClosure projectId={project.id} tasks={tasks} deliverables={projectDeliverables} />
         </aside>

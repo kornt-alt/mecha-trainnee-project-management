@@ -3,13 +3,14 @@ import { useMemo, useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
+import { WORKSPACE_LABEL_PALETTE } from '../TaskBadges';
 
 const CHECKLIST_TEMPLATES = {
   development: ['วิเคราะห์ความต้องการ', 'พัฒนาตามแบบ', 'ทดสอบด้วยตนเอง', 'ตรวจสอบก่อนส่งตรวจ'],
   testing: ['วางแผนการทดสอบ', 'ทดสอบตามแผน', 'บันทึกผลการทดสอบ', 'สรุปปัญหาที่พบ'],
   documentation: ['ร่างเอกสาร', 'ตรวจทานเนื้อหา', 'แก้ไขตามคอมเมนต์', 'เผยแพร่เอกสาร'],
 };
-const LABEL_PALETTE = ['#EF4444', '#FB923C', '#FACC15', '#10B981', '#60A5FA', '#1E3A8A', '#8B5CF6', '#EC4899', '#92400E', '#6B7280', '#14B8A6', '#06B6D4', '#6366F1', '#D946EF', '#F43F5E', '#F59E0B', '#84CC16', '#991B1B', '#166534', '#111827'];
+const LABEL_PALETTE = WORKSPACE_LABEL_PALETTE;
 const PRIORITIES = [
   { value: 'none', label: 'ไม่ระบุ' },
   { value: 'low', label: 'ต่ำ' },
@@ -28,7 +29,7 @@ const makeChecklistItem = (title, actorId, ownerId) => ({
   updatedAt: new Date().toISOString(),
 });
 
-export default function TaskFormModal({ project: initialProject, task, projects: projectOptions, onClose, onSave }) {
+export default function TaskFormModal({ project: initialProject, task, projects: projectOptions, workspaceMode = false, onClose, onSave }) {
   const { projects, actorId, labels, createLabel, updateLabel, deleteLabel } = useMockData();
   const availableProjects = projectOptions || projects;
   const [projectId, setProjectId] = useState(String(initialProject?.id ?? task?.projectId ?? ''));
@@ -52,7 +53,7 @@ export default function TaskFormModal({ project: initialProject, task, projects:
   const [allocations, setAllocations] = useState(() => (task?.plannedAllocations || []).map((item) => ({ ...item })));
   const [checklistTitle, setChecklistTitle] = useState('');
   const [labelName, setLabelName] = useState('');
-  const [labelColor, setLabelColor] = useState('#2F5BD0');
+  const [labelColor, setLabelColor] = useState(() => workspaceMode ? LABEL_PALETTE[labels.length % LABEL_PALETTE.length] : '#2F5BD0');
   const [editingLabelId, setEditingLabelId] = useState('');
   const [error, setError] = useState('');
   const members = useMemo(() => {
@@ -145,7 +146,10 @@ export default function TaskFormModal({ project: initialProject, task, projects:
       ? updateLabel(editingLabelId, { name, color: labelColor })
       : createLabel({ name, color: labelColor });
     if (!label) return;
-    if (!editingLabelId) setForm((previous) => ({ ...previous, labelIds: [...new Set([...previous.labelIds, String(label.id)])] }));
+    if (!editingLabelId) {
+      setForm((previous) => ({ ...previous, labelIds: [...new Set([...previous.labelIds, String(label.id)])] }));
+      if (workspaceMode) setLabelColor(LABEL_PALETTE[(labels.length + 1) % LABEL_PALETTE.length]);
+    }
     setLabelName('');
     setEditingLabelId('');
   };
@@ -204,7 +208,7 @@ export default function TaskFormModal({ project: initialProject, task, projects:
   };
 
   return (
-    <Modal show onHide={onClose} centered size="lg" className="mecha-form-modal project-workspace-modal" backdropClassName="workspace-task-modal-backdrop">
+    <Modal show onHide={onClose} centered size="lg" className={`mecha-form-modal project-workspace-modal${workspaceMode ? ' workspace-task-builder' : ''}`} backdropClassName="workspace-task-modal-backdrop">
       <Form onSubmit={save}>
         <Modal.Header className="workspace-task-modal-header">
           <span className="workspace-task-modal-icon" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="4" width="16" height="16" rx="3.5" /><path d="M12 8.5v7M8.5 12h7" /></svg></span>

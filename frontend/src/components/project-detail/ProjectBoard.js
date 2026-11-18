@@ -2,7 +2,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
-import { daysBetween, shortThaiDate, today } from '../../utils/projectTrackingUtils';
+import { checklistProgressPercent, daysBetween, shortThaiDate, today } from '../../utils/projectTrackingUtils';
+import { WorkspaceTaskMetadata } from '../TaskBadges';
 
 const BOARD_COLUMNS = [
   { key: 'not_started', title: 'ยังไม่เริ่ม' },
@@ -13,11 +14,11 @@ const BOARD_COLUMNS = [
 
 const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
 
-function BoardTaskCard({ task, onOpen, onDragStart, onDragEnd, isDragging, currentDay }) {
+function BoardTaskCard({ task, labels = [], onOpen, onDragStart, onDragEnd, isDragging, currentDay }) {
   const assignee = employeeById(task.assigneeId);
   const checklist = Array.isArray(task.checklist) ? task.checklist : [];
   const completed = checklist.filter((item) => item.completed).length;
-  const progress = checklist.length ? Math.round((completed / checklist.length) * 100) : 0;
+  const progress = checklistProgressPercent(checklist);
   const overdue = task.dueDate && task.dueDate < currentDay && task.status !== 'completed';
 
   return (
@@ -33,6 +34,7 @@ function BoardTaskCard({ task, onOpen, onDragStart, onDragEnd, isDragging, curre
       onDragEnd={onDragEnd}
     >
       <strong className="project-board-task-title">{task.title}</strong>
+      <WorkspaceTaskMetadata task={task} labels={labels} />
       <div className="project-board-task-meta">
         {assignee && (
           <span className="project-board-assignee">
@@ -55,7 +57,7 @@ function BoardTaskCard({ task, onOpen, onDragStart, onDragEnd, isDragging, curre
 }
 
 export default function ProjectBoard({ projectId, onOpenTask }) {
-  const { tasks, projects, actorId, updateTask } = useMockData();
+  const { tasks, projects, labels, actorId, updateTask } = useMockData();
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState('');
   const [boardMessage, setBoardMessage] = useState(null);
@@ -133,7 +135,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
         description: `อนุมัติงาน “${task.title}” เป็นเสร็จแล้ว (ลากบนบอร์ด)`,
       };
     } else if (task.status === 'pending_review' && nextStatus === 'in_progress') {
-      onOpenTask?.(task, { action: primaryAssignee && !reviewer ? 'withdraw' : 'request_changes' });
+      onOpenTask?.(task, { action: reviewer ? 'request_changes' : 'withdraw' });
       return;
     } else if (task.status === 'in_progress' && nextStatus === 'not_started') {
       if (!owner && !teamLead && String(actorId) !== String(task.assigneeId)) {
@@ -218,6 +220,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
                   <BoardTaskCard
                     key={task.id}
                     task={task}
+                    labels={labels}
                     currentDay={currentDay}
                     isDragging={String(draggedTaskId) === String(task.id)}
                     onOpen={(selected) => {

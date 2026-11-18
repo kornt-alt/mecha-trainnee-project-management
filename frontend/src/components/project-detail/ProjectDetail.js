@@ -88,7 +88,7 @@ export default function ProjectDetail() {
     <nav className="project-detail-breadcrumb" aria-label="เส้นทางนำทาง"><Link to="/projects"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>โปรเจกต์</Link><span aria-hidden="true">/</span><span aria-current="page">{project.name}</span></nav>
     <ProjectHeader project={project} stats={stats} priority={priority} actorId={actorId} onActorChange={setActorId} onOpenClosure={openClosure} />
     <ProjectNavigation activeSection={activeSection} onSelect={setActiveSection} sections={sections} />
-    {activeSection === 'overview' && <ProjectOverview project={project} tasks={relatedTasks} stats={stats} priority={priority} onNavigateSection={setActiveSection} onOpenTask={openWorkspaceTask} onCreateTask={openTaskComposer} />}
+    {activeSection === 'overview' && <ProjectOverview project={project} tasks={relatedTasks} stats={stats} onNavigateSection={setActiveSection} onOpenTask={openWorkspaceTask} onCreateTask={openTaskComposer} />}
     {activeSection === 'tasks' && <ProjectTasks
       key={String(project.id)}
       projectId={project.id}

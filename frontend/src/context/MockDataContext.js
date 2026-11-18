@@ -1,6 +1,7 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 
 export const MockDataContext = createContext(null);
 
@@ -272,6 +273,26 @@ export function MockDataProvider({ children }) {
     const eventType = String(event?.type || '');
     if (current.status === 'pending_review' && !['task_review_approved', 'task_changes_requested', 'task_review_withdrawn'].includes(eventType)) return null;
     const nextTask = { ...current, ...patch };
+    let checklistStatusEvent = null;
+    if (!Object.prototype.hasOwnProperty.call(patch, 'status')) {
+      const currentProgress = checklistProgressPercent(current.checklist);
+      const nextProgress = checklistProgressPercent(nextTask.checklist);
+      if (current.status === 'not_started' && currentProgress === 0 && nextProgress > 0) {
+        nextTask.status = 'in_progress';
+        nextTask.statusLabel = 'กำลังทำ';
+        checklistStatusEvent = {
+          type: 'task_started_from_checklist',
+          description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นกำลังทำโดยอัตโนมัติตามเช็กลิสต์`,
+        };
+      } else if (current.status === 'in_progress' && currentProgress > 0 && nextProgress === 0) {
+        nextTask.status = 'not_started';
+        nextTask.statusLabel = 'ยังไม่เริ่ม';
+        checklistStatusEvent = {
+          type: 'task_reopened_from_checklist',
+          description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นยังไม่เริ่มโดยอัตโนมัติตามเช็กลิสต์`,
+        };
+      }
+    }
     const assignmentChanged = String(current.assigneeId) !== String(nextTask.assigneeId);
     if (assignmentChanged) {
       nextTask.collaborators = (nextTask.collaborators || []).filter((id) => String(id) !== String(nextTask.assigneeId));
@@ -317,6 +338,9 @@ export function MockDataProvider({ children }) {
       || actor === String(current.reviewerId) || (current.collaborators || []).some((id) => String(id) === actor);
     const checklistEvent = eventType.startsWith('checklist_');
     if (checklistEvent && (!isProjectParticipant || Object.keys(patch).some((key) => key !== 'checklist'))) return null;
+    if (eventType === 'workspace_task_details_updated'
+      && (['pending_review', 'completed'].includes(current.status)
+        || (!isProjectOwner && !isTeamLeader && actor !== String(current.assigneeId)))) return null;
     if (eventType === 'task_updated' && !isProjectOwner && !isTeamLeader
       && actor !== String(current.assigneeId)
       && !(current.collaborators || []).some((id) => String(id) === actor)) return null;
@@ -355,6 +379,8 @@ export function MockDataProvider({ children }) {
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
         && String(historyEntry.reason || '').trim() && Boolean(historyEntry.timestamp)) {
         // Return or withdrawal requires an authorized actor and a reason.
+      } else if (checklistStatusEvent) {
+        // An authorized checklist change may move only between the two work states.
       } else return null;
     }
     if (assignmentChanged) {
@@ -379,6 +405,7 @@ export function MockDataProvider({ children }) {
     }
     updateTasksAndSyncProjects((tasks) => tasks.map((task) => String(task.id) === String(taskId) ? nextTask : task), [current.projectId], { recordEvents: false });
     if (event) recordActivity({ projectId: current.projectId, taskId: current.id, ...event });
+    if (checklistStatusEvent) recordActivity({ projectId: current.projectId, taskId: current.id, ...checklistStatusEvent });
     const oldCollaborators = new Set((current.collaborators || []).map(String));
     const nextCollaborators = new Set((nextTask.collaborators || []).map(String));
     nextCollaborators.forEach((id) => {

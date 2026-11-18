@@ -3,8 +3,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Form, Modal, ProgressBar } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
-import { TaskPriorityBadge, TaskStatusBadge } from './TaskBadges';
+import { TaskPriorityBadge, TaskStatusBadge, WORKSPACE_AVATAR_COLORS, WORKSPACE_LABEL_PALETTE, workspaceLabelColor as getWorkspaceLabelColor } from './TaskBadges';
 import { Folder, Plus, Trash2 } from './common/Icons';
+import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 
 const employee = (id) => MOCK_EMPLOYEES.find((item) => String(item.id) === String(id));
 const labelForStatus = { not_started: 'รอเริ่มทำ', in_progress: 'กำลังดำเนินการ', pending_review: 'รอการตรวจสอบ', completed: 'เสร็จสิ้น' };
@@ -32,7 +33,7 @@ export default function TaskDetailModal({
   actorId: workspaceActorId,
 }) {
   const {
-    projects, tasks, labels, activity, actorId: contextActorId, updateTask, deleteTask,
+    projects, tasks, labels, activity, actorId: contextActorId, updateTask, deleteTask, createLabel,
   } = useMockData();
   const actorId = workspaceActorId ?? contextActorId;
   const [checklistTitle, setChecklistTitle] = useState('');
@@ -46,6 +47,17 @@ export default function TaskDetailModal({
   const [commentText, setCommentText] = useState('');
   const [timeHours, setTimeHours] = useState('');
   const [timeNote, setTimeNote] = useState('');
+  const [workspaceDetails, setWorkspaceDetails] = useState(() => ({
+    priority: selectedTask?.priority === 'normal' ? 'medium' : selectedTask?.priority || 'none',
+    startDate: selectedTask?.startDate || '',
+    dueDate: selectedTask?.dueDate || '',
+    collaborators: [...new Set((selectedTask?.collaborators || []).map(String))],
+    labelIds: [...new Set((selectedTask?.labelIds || []).map(String))],
+    attachments: (selectedTask?.attachments || []).map((item) => ({ ...item })),
+  }));
+  const [workspaceLabelName, setWorkspaceLabelName] = useState('');
+  const [workspaceLabelColor, setWorkspaceLabelColor] = useState(() => WORKSPACE_LABEL_PALETTE[labels.length % WORKSPACE_LABEL_PALETTE.length]);
+  const [workspaceDetailsError, setWorkspaceDetailsError] = useState('');
   const task = selectedTask ? tasks.find((item) => String(item.id) === String(selectedTask.id)
     && (!workspaceMode || projectId == null || String(item.projectId) === String(projectId))) : null;
   const resolvedProjectId = projectId ?? task?.projectId;
@@ -59,7 +71,7 @@ export default function TaskDetailModal({
   const canManageAssignment = Boolean(resolvedProjectId && (isOwner || isTeamLead) && !isReviewLocked && task?.status !== 'completed');
   const canEditTask = Boolean(resolvedProjectId && !isReviewLocked && task?.status !== 'completed' && (
     isOwner || isTeamLead || String(actorId) === String(task?.assigneeId)
-    || (task?.collaborators || []).some((id) => String(id) === String(actorId))
+    || (!workspaceMode && (task?.collaborators || []).some((id) => String(id) === String(actorId)))
   ));
   const canDeleteTask = Boolean(resolvedProjectId && !isReviewLocked && (
     isOwner || isTeamLead || String(actorId) === String(task?.createdBy)
@@ -240,6 +252,120 @@ export default function TaskDetailModal({
     setTimeNote('');
   };
 
+  const toggleWorkspaceCollaborator = (employeeId) => {
+    setWorkspaceDetails((previous) => {
+      const selected = previous.collaborators.includes(String(employeeId));
+      const collaborators = selected
+        ? previous.collaborators.filter((id) => id !== String(employeeId))
+        : [...new Set([...previous.collaborators, String(employeeId)])];
+      return { ...previous, collaborators };
+    });
+  };
+
+  const toggleWorkspaceLabel = (labelId) => {
+    setWorkspaceDetails((previous) => {
+      const selected = previous.labelIds.includes(String(labelId));
+      const labelIds = selected
+        ? previous.labelIds.filter((id) => id !== String(labelId))
+        : [...new Set([...previous.labelIds, String(labelId)])];
+      return { ...previous, labelIds };
+    });
+  };
+
+  const createAndAttachWorkspaceLabel = () => {
+    const name = workspaceLabelName.trim();
+    if (!name || !canEditTask || isTaskLocked) return;
+    const existing = labels.find((label) => label.name.trim().toLocaleLowerCase() === name.toLocaleLowerCase());
+    const label = existing || createLabel({ name, color: workspaceLabelColor });
+    if (!label) return setWorkspaceDetailsError('สร้างป้ายกำกับไม่สำเร็จ');
+    setWorkspaceDetails((previous) => ({ ...previous, labelIds: [...new Set([...previous.labelIds, String(label.id)])] }));
+    setWorkspaceLabelName('');
+    if (!existing) setWorkspaceLabelColor(WORKSPACE_LABEL_PALETTE[(labels.length + 1) % WORKSPACE_LABEL_PALETTE.length]);
+    setWorkspaceDetailsError('');
+  };
+
+  const addWorkspaceQuickAttachment = (name) => {
+    setWorkspaceDetails((previous) => ({
+      ...previous,
+      attachments: [...previous.attachments, {
+        id: `attachment-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        name,
+        type: 'text/uri-list',
+        size: 0,
+        category: 'ลิงก์เอกสาร',
+        addedAt: new Date().toISOString(),
+      }],
+    }));
+  };
+
+  const addWorkspaceFiles = (event) => {
+    const files = Array.from(event.target.files || []).map((file) => ({
+      id: `attachment-${Date.now()}-${file.lastModified}-${file.name}`,
+      name: file.name,
+      type: file.type || 'application/octet-stream',
+      size: file.size,
+      category: 'ไฟล์',
+      addedAt: new Date().toISOString(),
+    }));
+    if (files.length) setWorkspaceDetails((previous) => ({ ...previous, attachments: [...previous.attachments, ...files] }));
+    event.target.value = '';
+  };
+
+  const workspaceDetailsDateInvalid = !workspaceDetails.dueDate || Boolean(workspaceDetails.startDate
+    && workspaceDetails.dueDate < workspaceDetails.startDate);
+  const normalizedTaskDetails = {
+    priority: task?.priority === 'normal' ? 'medium' : task?.priority || 'none',
+    startDate: task?.startDate || '',
+    dueDate: task?.dueDate || '',
+    collaborators: [...new Set((task?.collaborators || []).map(String))],
+    labelIds: [...new Set((task?.labelIds || []).map(String))],
+    attachments: task?.attachments || [],
+  };
+  const workspaceDetailsChanged = Boolean(task && (
+    workspaceDetails.priority !== normalizedTaskDetails.priority
+    || workspaceDetails.startDate !== normalizedTaskDetails.startDate
+    || workspaceDetails.dueDate !== normalizedTaskDetails.dueDate
+    || JSON.stringify([...workspaceDetails.collaborators].sort()) !== JSON.stringify([...normalizedTaskDetails.collaborators].sort())
+    || JSON.stringify([...workspaceDetails.labelIds].sort()) !== JSON.stringify([...normalizedTaskDetails.labelIds].sort())
+    || JSON.stringify(workspaceDetails.attachments) !== JSON.stringify(normalizedTaskDetails.attachments)
+  ));
+  const saveWorkspaceTaskDetails = () => {
+    if (!task || !canEditTask || isTaskLocked) return;
+    if (workspaceDetailsDateInvalid) {
+      setWorkspaceDetailsError(workspaceDetails.dueDate ? 'วันกำหนดส่งต้องไม่อยู่ก่อนวันเริ่ม' : 'กรุณากำหนดวันส่ง');
+      return;
+    }
+    const collaborators = [...new Set(workspaceDetails.collaborators.map(String))]
+      .filter((id) => id !== String(task.assigneeId));
+    const contributorIds = new Set([String(task.assigneeId), ...collaborators]);
+    const patch = {
+      priority: workspaceDetails.priority,
+      startDate: workspaceDetails.startDate,
+      dueDate: workspaceDetails.dueDate,
+      collaborators,
+      plannedAllocations: (task.plannedAllocations || []).filter((item) => contributorIds.has(String(item.employeeId))),
+      labelIds: [...new Set(workspaceDetails.labelIds.map(String))],
+      attachments: workspaceDetails.attachments.map((item) => ({ ...item })),
+    };
+    const result = update(patch, {
+      type: 'workspace_task_details_updated',
+      description: `แก้ไขรายละเอียดงาน “${task.title}”`,
+    });
+    if (!result) {
+      setWorkspaceDetailsError('บันทึกรายละเอียดไม่สำเร็จ กรุณาตรวจสอบสิทธิ์และข้อมูล');
+      return;
+    }
+    setWorkspaceDetails({
+      priority: result.priority === 'normal' ? 'medium' : result.priority || 'none',
+      startDate: result.startDate || '',
+      dueDate: result.dueDate || '',
+      collaborators: [...new Set((result.collaborators || []).map(String))],
+      labelIds: [...new Set((result.labelIds || []).map(String))],
+      attachments: (result.attachments || []).map((item) => ({ ...item })),
+    });
+    setWorkspaceDetailsError('');
+  };
+
   const actionDescription = {
     start: 'เปลี่ยนสถานะงานเป็นกำลังดำเนินการ',
     submit: 'ส่งงานให้ผู้ตรวจที่ระบุไว้ และล็อกการแก้ไขระหว่างรอตรวจ',
@@ -253,7 +379,7 @@ export default function TaskDetailModal({
 
   const checklistItems = Array.isArray(task.checklist) ? task.checklist : [];
   const checklistDone = checklistItems.filter((item) => item.completed).length;
-  const checklistPercent = checklistItems.length ? Math.round((checklistDone / checklistItems.length) * 100) : 0;
+  const checklistPercent = checklistProgressPercent(checklistItems);
   const workComments = workEntries.comments || [];
   const workTimeLogs = workEntries.timeLogs || [];
   const totalLoggedHours = workTimeLogs.reduce((total, item) => total + Number(item.hours || 0), 0);
@@ -335,10 +461,64 @@ export default function TaskDetailModal({
       <p className="workspace-muted-copy">{isTaskLocked ? 'เช็กลิสต์ถูกล็อก' : isOwner ? 'คุณเป็น Project Owner จัดการเช็กลิสต์ได้ทุกรายการ' : 'สมาชิกแก้ไขได้เฉพาะรายการที่ตนสร้างหรือเป็นเจ้าของ'} · Checklist เสร็จครบแล้วก็ยังต้องส่งงานตรวจด้วยตนเอง</p>
     </section>
   );
-  const workspaceAttachments = (task.attachments || []).length > 0 && (
-    <section className="workspace-task-work-panel" aria-labelledby="workspace-task-attachments-heading">
-      <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-attachments-heading">ไฟล์แนบ</h2><span>{(task.attachments || []).length}</span></div>
-      <ul className="workspace-attachment-list">{task.attachments.map((attachment) => <li key={attachment.id}><strong>{attachment.name}</strong><span>{attachment.category} · {attachment.type || 'ไฟล์'} · {Math.max(1, Math.round(Number(attachment.size || 0) / 1024))} KB</span></li>)}</ul>
+  const workspaceTaskDetailsPanel = workPage && (
+    <section className="workspace-task-work-panel workspace-task-details-panel" aria-labelledby="workspace-task-details-heading">
+      <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-details-heading">รายละเอียดงาน</h2><span>{workspaceDetails.attachments.length} ไฟล์แนบ</span></div>
+      {!canEditTask && <p className="workspace-task-details-readonly" role="note">{isTaskLocked ? taskLockMessage : 'แก้ไขได้เฉพาะผู้รับผิดชอบหลัก, Project Owner หรือ Team Lead'}</p>}
+      <div className="workspace-task-details-grid">
+        <Form.Group>
+          <Form.Label htmlFor="workspace-task-details-priority">ระดับความสำคัญ</Form.Label>
+          <Form.Select id="workspace-task-details-priority" value={workspaceDetails.priority} disabled={!canEditTask || isTaskLocked} onChange={(event) => setWorkspaceDetails((previous) => ({ ...previous, priority: event.target.value }))}>
+            <option value="none">ไม่ระบุ</option><option value="low">ต่ำ</option><option value="medium">ปกติ</option><option value="high">สูง</option><option value="urgent">เร่งด่วน</option>
+          </Form.Select>
+        </Form.Group>
+        <Form.Group>
+          <Form.Label htmlFor="workspace-task-details-start">วันที่เริ่ม</Form.Label>
+          <Form.Control id="workspace-task-details-start" type="date" value={workspaceDetails.startDate} disabled={!canEditTask || isTaskLocked} onChange={(event) => setWorkspaceDetails((previous) => ({ ...previous, startDate: event.target.value }))} />
+        </Form.Group>
+        <Form.Group>
+          <Form.Label htmlFor="workspace-task-details-due">กำหนดส่ง</Form.Label>
+          <Form.Control id="workspace-task-details-due" type="date" required value={workspaceDetails.dueDate} disabled={!canEditTask || isTaskLocked} isInvalid={workspaceDetailsDateInvalid} onChange={(event) => setWorkspaceDetails((previous) => ({ ...previous, dueDate: event.target.value }))} />
+          {workspaceDetailsDateInvalid && <Form.Control.Feedback type="invalid">{workspaceDetails.dueDate ? 'กำหนดส่งต้องไม่อยู่ก่อนวันเริ่ม' : 'กรุณากำหนดวันส่ง'}</Form.Control.Feedback>}
+        </Form.Group>
+      </div>
+      <section className="workspace-task-details-section" aria-labelledby="workspace-task-details-collaborators-heading">
+        <h3 id="workspace-task-details-collaborators-heading">ผู้ร่วมงาน</h3>
+        <div className="workspace-task-details-options" role="group" aria-label="เลือกผู้ร่วมงาน">
+          {projectMembers.filter((person) => String(person.id) !== String(task.assigneeId)).map((person, index) => {
+            const selected = workspaceDetails.collaborators.includes(String(person.id));
+            const [background, color] = WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length];
+            return <button type="button" key={person.id} className={selected ? 'is-selected' : ''} aria-pressed={selected} disabled={!canEditTask || isTaskLocked} onClick={() => toggleWorkspaceCollaborator(person.id)}>
+              <span className="workspace-task-details-person-avatar" style={{ backgroundColor: background, color }}>{person.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span>{person.name}
+            </button>;
+          })}
+          {projectMembers.filter((person) => String(person.id) !== String(task.assigneeId)).length === 0 && <span className="workspace-task-details-empty">ไม่มีสมาชิกอื่นในโปรเจกต์</span>}
+        </div>
+      </section>
+      <section className="workspace-task-details-section" aria-labelledby="workspace-task-details-labels-heading">
+        <h3 id="workspace-task-details-labels-heading">ป้ายกำกับ</h3>
+        {labels.length ? <div className="workspace-task-details-labels">
+          {labels.map((label) => {
+            const selected = workspaceDetails.labelIds.includes(String(label.id));
+            const color = getWorkspaceLabelColor(label);
+            return <button type="button" key={label.id} className={selected ? 'is-selected' : ''} aria-pressed={selected} disabled={!canEditTask || isTaskLocked} onClick={() => toggleWorkspaceLabel(label.id)} style={{ borderColor: color, color, backgroundColor: selected ? `${color}26` : '#fff' }}>{label.name}</button>;
+          })}
+        </div> : <p className="workspace-task-details-empty">ยังไม่มีป้ายกำกับ</p>}
+        <div className="workspace-task-details-label-editor">
+          <Form.Control id="workspace-task-details-label-name" aria-label="ชื่อป้ายใหม่" value={workspaceLabelName} disabled={!canEditTask || isTaskLocked} onChange={(event) => setWorkspaceLabelName(event.target.value)} placeholder="สร้างป้ายใหม่..." onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); createAndAttachWorkspaceLabel(); } }} />
+          <Button type="button" disabled={!workspaceLabelName.trim() || !canEditTask || isTaskLocked} onClick={createAndAttachWorkspaceLabel}>สร้างป้ายและเพิ่ม</Button>
+        </div>
+        <div className="workspace-task-details-palette" role="group" aria-label="เลือกสีป้าย">
+          {WORKSPACE_LABEL_PALETTE.map((color) => <button type="button" key={color} aria-label={`สี ${color}`} aria-pressed={workspaceLabelColor === color} disabled={!canEditTask || isTaskLocked} onClick={() => setWorkspaceLabelColor(color)} style={{ backgroundColor: color, outline: workspaceLabelColor === color ? `2px solid ${color}` : undefined }} />)}
+        </div>
+      </section>
+      <section className="workspace-task-details-section" aria-labelledby="workspace-task-details-attachments-heading">
+        <div className="workspace-task-details-section-heading"><h3 id="workspace-task-details-attachments-heading">ไฟล์แนบ</h3><div className="workspace-task-attachment-quick"><button type="button" disabled={!canEditTask || isTaskLocked} onClick={() => addWorkspaceQuickAttachment('Production Plan')}>+ Production Plan</button><button type="button" disabled={!canEditTask || isTaskLocked} onClick={() => addWorkspaceQuickAttachment('E-SOP')}>+ E-SOP</button></div></div>
+        <Form.Control id="workspace-task-details-attachment-file" type="file" multiple aria-label="เลือกไฟล์แนบ" disabled={!canEditTask || isTaskLocked} onChange={addWorkspaceFiles} />
+        {workspaceDetails.attachments.length ? <ul className="workspace-task-details-attachments-list">{workspaceDetails.attachments.map((attachment) => <li key={attachment.id}><span><strong>{attachment.name}</strong><small>{attachment.category || 'ไฟล์'} · {Math.max(1, Math.round(Number(attachment.size || 0) / 1024))} KB</small></span><button type="button" aria-label={`ลบไฟล์ ${attachment.name}`} disabled={!canEditTask || isTaskLocked} onClick={() => setWorkspaceDetails((previous) => ({ ...previous, attachments: previous.attachments.filter((item) => item.id !== attachment.id) }))}><Trash2 size={15} /></button></li>)}</ul> : <p className="workspace-task-details-empty">ยังไม่มีไฟล์แนบ</p>}
+      </section>
+      {workspaceDetailsError && <Alert variant="danger" role="alert" className="workspace-task-details-error">{workspaceDetailsError}</Alert>}
+      <div className="workspace-task-details-footer"><span>{workspaceDetailsDateInvalid ? 'แก้วันที่ให้ถูกต้องก่อนบันทึก' : 'การแก้ไขจะปรากฏในประวัติงานและประวัติโปรเจกต์'}</span><Button type="button" disabled={!canEditTask || isTaskLocked || workspaceDetailsDateInvalid || !workspaceDetailsChanged} onClick={saveWorkspaceTaskDetails}>บันทึกรายละเอียด</Button></div>
     </section>
   );
 
@@ -352,7 +532,7 @@ export default function TaskDetailModal({
           </div>
           <section className="workspace-task-work-hero">
             <div className="workspace-task-work-summary">
-              <div className="workspace-task-work-tags"><TaskStatusBadge task={task} className="task-detail-status" />{task.priority && <span className="workspace-task-work-priority">ความสำคัญ: <TaskPriorityBadge priority={task.priority} /></span>}{(task.labelIds || []).map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => <span className="workspace-task-label" key={label.id} style={{ borderColor: label.color, color: label.color, backgroundColor: `${label.color}18` }}>{label.name}</span>)}</div>
+              <div className="workspace-task-work-tags"><TaskStatusBadge task={task} className="task-detail-status" />{task.priority && <span className="workspace-task-work-priority">ความสำคัญ: <TaskPriorityBadge priority={task.priority} workspaceMode /></span>}{(task.labelIds || []).map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>
               <h2>{task.title}</h2>
               <p>{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
               <div className="workspace-task-work-meta">
@@ -368,6 +548,7 @@ export default function TaskDetailModal({
             </aside>
           </section>
           {workspaceActionPanel}
+          {workspaceTaskDetailsPanel}
           <div className="workspace-task-work-grid">
             <div className="workspace-task-work-main">
               {workspaceChecklist}
@@ -385,9 +566,8 @@ export default function TaskDetailModal({
               </section>
               <section className="workspace-task-work-panel" aria-labelledby="workspace-task-history-heading">
                 <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-history-heading">ประวัติของงานนี้</h2></div>
-                {taskHistory.length ? <ul className="workspace-task-history">{taskHistory.map((entry, index) => <li key={`${entry.type || entry.action || 'event'}-${entry.timestamp || index}-${index}`}><span className="project-detail-avatar" data-person-id={entry.actorId} aria-hidden="true">{employee(entry.actorId)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?'}</span><span><strong>{entry.description || entry.action || 'อัปเดตงาน'}</strong><small>{employee(entry.actorId)?.name || entry.actorId || 'ผู้ใช้งาน'} · {checklistDate(entry.timestamp)}{entry.reason ? ` · ${entry.reason}` : ''}</small></span></li>)}</ul> : <p className="workspace-task-work-empty">ยังไม่มีประวัติ</p>}
+                {taskHistory.length ? <ul className="workspace-task-history workspace-history-scroll">{taskHistory.map((entry, index) => <li key={`${entry.type || entry.action || 'event'}-${entry.timestamp || index}-${index}`}><span className="project-detail-avatar" data-person-id={entry.actorId} aria-hidden="true">{employee(entry.actorId)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?'}</span><span><strong>{entry.description || entry.action || 'อัปเดตงาน'}</strong><small>{employee(entry.actorId)?.name || entry.actorId || 'ผู้ใช้งาน'} · {checklistDate(entry.timestamp)}{entry.reason ? ` · ${entry.reason}` : ''}</small></span></li>)}</ul> : <p className="workspace-task-work-empty">ยังไม่มีประวัติ</p>}
               </section>
-              {workspaceAttachments}
             </aside>
           </div>
         </section>
@@ -407,9 +587,9 @@ export default function TaskDetailModal({
           <dt>ผู้ร่วมงาน</dt><dd>{(task.collaborators || []).map((id) => employee(id)?.name).filter(Boolean).join(', ') || 'ไม่มี'}</dd>
           <dt>ผู้ตรวจ (Reviewer)</dt><dd>{reviewer?.name || 'ยังไม่ได้กำหนด'}</dd>
           <dt>กำหนด</dt><dd>{task.startDate || '—'}{task.dueDate ? ` – ${task.dueDate}` : ''}</dd>
-          {task.priority && <><dt>ความสำคัญ</dt><dd><TaskPriorityBadge priority={task.priority} /></dd></>}
+          {task.priority && <><dt>ความสำคัญ</dt><dd><TaskPriorityBadge priority={task.priority} workspaceMode /></dd></>}
         </dl>
-        {(task.labelIds || []).length > 0 && <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => <span className="workspace-task-label" key={label.id} style={{ borderColor: label.color, color: label.color, backgroundColor: `${label.color}18` }}>{label.name}</span>)}</div>}
+        {(task.labelIds || []).length > 0 && <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>}
         {task.attachments?.length > 0 && <div className="workspace-task-detail-files"><strong>ไฟล์แนบ</strong>{task.attachments.map((attachment) => <span key={attachment.id}><span aria-hidden="true">⌁</span><b>{attachment.name}</b><small>{attachment.category || attachment.type || 'ไฟล์'}</small></span>)}</div>}
         {isTaskLocked && <div className="workspace-task-work-lock">{taskLockMessage}</div>}
         {workspaceChecklist}

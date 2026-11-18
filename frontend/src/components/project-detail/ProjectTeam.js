@@ -4,6 +4,7 @@ import { Alert, Badge, Button, Card, Form, Modal } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
 import { initials } from '../../utils/projectTrackingUtils';
+import { WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 
 const findEmployee = (id) => MOCK_EMPLOYEES.find((person) => String(person.id) === String(id));
 
@@ -86,7 +87,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
         </div>}
         {members.length === 0 ? <div className="workspace-empty-state"><strong>ยังไม่มีสมาชิกในโปรเจกต์</strong></div> : (
           <div className="workspace-member-list">
-            {members.map((person) => {
+            {members.map((person, index) => {
               const assigned = projectTasks.filter((task) => String(task.assigneeId) === String(person.id));
               const openCount = assigned.filter((task) => task.status !== 'completed').length;
               const doneCount = assigned.length - openCount;
@@ -95,7 +96,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
               const isLocked = isOwner || isLead;
               const progress = assigned.length ? Math.round((doneCount / assigned.length) * 100) : 0;
               return <article className="workspace-member-row" key={person.id}>
-                <span className="project-detail-avatar" data-person-id={person.id} aria-hidden="true">{initials(person.name)}</span>
+                <span className="project-detail-avatar" data-person-id={person.id} aria-hidden="true" style={{ backgroundColor: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][0], color: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][1] }}>{initials(person.name)}</span>
                 <span className="workspace-member-name">
                   <span className="workspace-member-title"><strong>{person.name}</strong>
                     {isOwner && <Badge bg="" className="workspace-member-role is-owner">Owner</Badge>}

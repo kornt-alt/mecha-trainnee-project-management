@@ -769,6 +769,55 @@ test('Project Workspace: Task form shows one modal body and limits reviewers to 
     options.map((option) => option.value).filter(Boolean)
   ));
   expect(reviewerIds).toEqual(['emp-002', 'emp-009']);
+
+  await dialog.locator('.workspace-checklist-template-actions').getByRole('button', { name: '+ พัฒนา' }).click();
+  const checklistRows = dialog.locator('.workspace-checklist-builder-row');
+  await expect(checklistRows).toHaveCount(4);
+  const checklistTitles = await checklistRows.locator('.workspace-task-checklist-item-title').allTextContents();
+  const firstChecklistTitle = checklistTitles[0];
+  const secondChecklistTitle = checklistTitles[1];
+  const firstChecklistRow = checklistRows.first();
+  const firstMoveUp = firstChecklistRow.getByRole('button', { name: `เลื่อน ${firstChecklistTitle} ขึ้น` });
+  const firstMoveDown = firstChecklistRow.getByRole('button', { name: `เลื่อน ${firstChecklistTitle} ลง` });
+  const lastMoveDown = checklistRows.last().getByRole('button', { name: `เลื่อน ${checklistTitles[3]} ลง` });
+  await expect(firstMoveUp).toBeDisabled();
+  await expect(firstMoveDown).toBeEnabled();
+  await expect(lastMoveDown).toBeDisabled();
+
+  const controlStyles = await firstChecklistRow.locator('button[aria-label]').evaluateAll((buttons) => (
+    buttons.map((button) => {
+      const style = getComputedStyle(button);
+      return {
+        background: style.backgroundColor,
+        borderWidth: style.borderTopWidth,
+        borderRadius: style.borderRadius,
+        boxShadow: style.boxShadow,
+        width: style.width,
+        height: style.height,
+        color: style.color,
+      };
+    })
+  ));
+  expect(controlStyles).toHaveLength(3);
+  for (const style of controlStyles) {
+    expect(style).toMatchObject({
+      background: 'rgba(0, 0, 0, 0)',
+      borderWidth: '0px',
+      borderRadius: '0px',
+      boxShadow: 'none',
+      width: '32px',
+      height: '44px',
+    });
+  }
+  expect(controlStyles[2].color).toBe('rgb(185, 28, 28)');
+
+  await firstMoveDown.click();
+  await expect(checklistRows.nth(0).locator('.workspace-task-checklist-item-title')).toHaveText(secondChecklistTitle);
+  await expect(checklistRows.nth(1).locator('.workspace-task-checklist-item-title')).toHaveText(firstChecklistTitle);
+  await checklistRows.first().getByRole('button', { name: `ลบ ${secondChecklistTitle}` }).click();
+  await expect(checklistRows).toHaveCount(3);
+  await expect(checklistRows.first().locator('.workspace-task-checklist-item-title')).toHaveText(firstChecklistTitle);
+
   await dialog.locator('#workspace-task-title').fill('Eligible reviewer validation');
   await dialog.locator('#workspace-task-due').fill('2026-12-20');
   await dialog.locator('#workspace-task-reviewer').evaluate((select) => select.add(new Option('Outside Project Team', 'emp-020')));
@@ -1178,10 +1227,9 @@ test('Project Workspace: reference text colors and interface contrast targets', 
     { selector: '.project-detail-kpi h2' },
     { selector: '.project-detail-kpi-subtitle' },
     { selector: '.project-detail-status-legend > span' },
-    { selector: '.project-detail-task-row > strong' },
+    { selector: '.project-detail-task-row-copy > strong' },
     { selector: '.project-detail-task-status' },
-    { selector: '.project-detail-information dt' },
-    { selector: '.project-detail-information dd' },
+    { selector: '.project-detail-task-row .workspace-task-metadata-priority' },
   ]);
   await expect(page.locator('.project-detail-status-legend i').first()).toHaveCSS('background-color', 'rgb(148, 163, 184)');
   const activeTabStyle = await page.locator('.project-detail-navigation .project-detail-nav-button.active').evaluate((element) => ({
@@ -1654,4 +1702,311 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   await expect(page.locator('.project-detail-status')).toHaveClass(/status-done/);
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
   await expect(page.locator('.workspace-reference-activity-list')).toContainText('ปิดโปรเจกต์');
+});
+
+test('Project Workspace: task metadata edits appear in all views and support filters', async ({ page }) => {
+  await addWorkspaceMember(page, 1, 'emp-001');
+  await addWorkspaceMember(page, 1, 'emp-002');
+  const title = `Workspace metadata ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, {
+    title,
+    assigneeId: 'emp-002',
+    collaborators: ['emp-001'],
+    priority: 'urgent',
+  });
+  await expect(taskRow.locator('.workspace-task-metadata')).toContainText('เร่งด่วน');
+  await expect(taskRow.locator('.workspace-task-metadata-priority')).toHaveCSS('background-color', 'rgb(255, 228, 230)');
+  await expect(taskRow.locator('.workspace-task-metadata-priority')).toHaveCSS('color', 'rgb(138, 16, 48)');
+
+  await taskRow.click();
+  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  const workPage = page.locator('.workspace-task-work-page');
+  const details = workPage.locator('.workspace-task-details-panel');
+  await expect(details).toBeVisible();
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-003');
+  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
+  await expect(details.locator('#workspace-task-details-priority')).toBeEnabled();
+  await details.locator('#workspace-task-details-priority').selectOption('high');
+  await details.locator('#workspace-task-details-start').fill('2026-12-01');
+  await details.locator('#workspace-task-details-due').fill('2026-11-30');
+  await expect(details.locator('.workspace-task-details-footer').getByRole('button', { name: 'บันทึกรายละเอียด' })).toBeDisabled();
+  await expect(details.locator('.invalid-feedback')).toContainText('กำหนดส่งต้องไม่อยู่ก่อนวันเริ่ม');
+  await details.locator('#workspace-task-details-due').fill('2026-12-18');
+  await details.locator('.workspace-task-details-options').getByRole('button', { name: 'Korn Tawonphon' }).click();
+  await details.locator('#workspace-task-details-label-name').fill('Workspace review label');
+  await details.getByRole('button', { name: 'สร้างป้ายและเพิ่ม' }).click();
+  await details.getByRole('button', { name: '+ Production Plan' }).click();
+  await details.locator('#workspace-task-details-attachment-file').setInputFiles({
+    name: 'workspace-attachment.txt',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('workspace attachment'),
+  });
+  await details.getByRole('button', { name: 'ลบไฟล์ Production Plan' }).click();
+  await details.getByRole('button', { name: 'บันทึกรายละเอียด' }).click();
+
+  await expect(details.locator('#workspace-task-details-priority')).toHaveValue('high');
+  await expect(details.locator('.workspace-priority-badge.priority-high')).toHaveCSS('background-color', 'rgb(255, 235, 200)');
+  await expect(details.locator('.workspace-priority-badge.priority-high')).toHaveCSS('color', 'rgb(122, 58, 6)');
+  await expect(workPage.locator('.workspace-task-history')).toContainText('แก้ไขรายละเอียดงาน');
+  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
+
+  const metadata = taskRow.locator('.workspace-task-metadata');
+  await expect(metadata).toContainText('สูง');
+  await expect(metadata).toContainText('Workspace review label');
+  await expect(metadata.locator('.workspace-task-metadata-collaborators [data-person-id="emp-001"]')).toHaveCount(1);
+  await expect(metadata.locator('.workspace-task-metadata-attachments')).toContainText('1');
+
+  await page.locator('#workspace-task-search').fill('does not match');
+  await expect(page.locator('.project-tasks-row')).toHaveCount(0);
+  await page.locator('#workspace-task-search').fill(title);
+  await page.locator('#workspace-task-priority-filter').selectOption('high');
+  const labelFilter = page.locator('#workspace-task-label-filter');
+  await labelFilter.selectOption({ label: 'Workspace review label' });
+  await expect(taskRow).toBeVisible();
+  await page.getByRole('button', { name: 'ล้างตัวกรอง' }).click();
+  await expect(page.locator('#workspace-task-search')).toHaveValue('');
+  await expect(page.locator('#workspace-task-priority-filter')).toHaveValue('all');
+  await expect(labelFilter).toHaveValue('all');
+
+  await page.getByRole('tab', { name: /^บอร์ด/ }).click();
+  const boardCard = page.locator('.project-board-task').filter({ hasText: title });
+  await expect(boardCard.locator('.workspace-task-metadata')).toContainText('Workspace review label');
+  await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
+  const previewRow = page.locator('.project-detail-task-row').filter({ hasText: title });
+  await expect(previewRow.locator('.workspace-task-metadata')).toContainText('Workspace review label');
+  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
+  await expect(page.locator('.workspace-reference-activity-list')).toContainText(title);
+  await expect(page.locator('.workspace-reference-activity-list')).toContainText('แก้ไขรายละเอียดงาน');
+});
+
+test('Project Workspace: owner returns a reviewed task with a reason from the board', async ({ page }) => {
+  const title = `Owner review return ${Date.now()}`;
+  await addWorkspaceMember(page, 1, 'emp-002', 'emp-008');
+  await addWorkspaceMember(page, 1, 'emp-009', 'emp-008');
+  await createWorkspaceTask(page, {
+    projectId: 1,
+    title,
+    assigneeId: 'emp-002',
+    reviewerId: 'emp-009',
+  });
+
+  await page.getByRole('tab', { name: /^บอร์ด/ }).click();
+  const review = page.locator('.project-board-column[data-status="pending_review"]');
+  const inProgress = page.locator('.project-board-column[data-status="in_progress"]');
+  const todo = page.locator('.project-board-column[data-status="not_started"]');
+  await todo.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` }).dragTo(inProgress);
+  await inProgress.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` }).dragTo(review);
+  await review.getByRole('button', { name: `เปิดรายละเอียดงาน ${title}` }).dragTo(inProgress);
+
+  const action = getWorkspaceTaskAction(page);
+  await expect(action).toContainText('ถอนงาน');
+  await expect(action.locator('#workspace-task-action-reason')).toBeVisible();
+  await action.locator('#workspace-task-action-reason').fill('Owner returns task for more work');
+  await action.getByRole('button', { name: 'ยืนยัน' }).click();
+  await expect(getWorkspaceTaskDetail(page).locator('.task-detail-status')).toContainText('กำลัง');
+});
+
+test('Project Workspace: Work Page editing follows assignee permissions and task locks', async ({ page }) => {
+  await addWorkspaceMember(page, 1, 'emp-002');
+  const title = `Workspace detail permissions ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { title, assigneeId: 'emp-002', reviewerId: 'emp-009' });
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-003');
+  await taskRow.click();
+  let detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  let workPage = page.locator('.workspace-task-work-page');
+  let details = workPage.locator('.workspace-task-details-panel');
+  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+  await expect(details.getByRole('button', { name: 'บันทึกรายละเอียด' })).toBeDisabled();
+  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
+  detail = getWorkspaceTaskDetail(page);
+  await expect(detail.getByRole('button', { name: 'เริ่มงาน' })).toBeVisible();
+  await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  workPage = page.locator('.workspace-task-work-page');
+  details = workPage.locator('.workspace-task-details-panel');
+  await expect(details).toContainText('งานถูกล็อกระหว่างรอตรวจ');
+  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'อนุมัติ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  workPage = page.locator('.workspace-task-work-page');
+  details = workPage.locator('.workspace-task-details-panel');
+  await expect(details).toContainText('งานเสร็จแล้ว');
+  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+});
+
+test('Project Workspace: selected task details and Work Page fit desktop, tablet, and mobile', async ({ page }) => {
+  const title = `Workspace responsive details ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { title });
+  await taskRow.click();
+
+  for (const width of [1360, 768, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const detail = getWorkspaceTaskDetail(page);
+    await expect(detail.getByRole('heading', { name: title })).toBeVisible();
+    const layout = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      scroll: document.documentElement.scrollWidth,
+      main: document.querySelector('.project-tasks-main').getBoundingClientRect().toJSON(),
+      detail: document.querySelector('.workspace-task-detail').getBoundingClientRect().toJSON(),
+    }));
+    expect(layout.scroll).toBeLessThanOrEqual(layout.viewport);
+    expect(layout.detail.right).toBeLessThanOrEqual(layout.viewport + 1);
+    if (width <= 991) expect(layout.detail.top).toBeGreaterThanOrEqual(layout.main.bottom - 1);
+
+    await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+    const workPage = page.locator('.workspace-task-work-page');
+    await expect(workPage.locator('.workspace-task-details-panel')).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
+    await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+    await expect(getWorkspaceTaskDetail(page).getByRole('heading', { name: title })).toBeVisible();
+  }
+});
+
+test('Project Workspace: Checklist progress transitions status without duplicate history', async ({ page }) => {
+  const title = `Checklist status ${Date.now()}`;
+  const firstItem = `Checklist first ${Date.now()}`;
+  const secondItem = `Checklist second ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { title });
+  await taskRow.click();
+  let detail = getWorkspaceTaskDetail(page);
+
+  for (const itemTitle of [firstItem, secondItem]) {
+    await detail.getByLabel('เพิ่มรายการ Checklist').fill(itemTitle);
+    await detail.getByRole('button', { name: 'เพิ่ม Checklist' }).click();
+  }
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-not_started/);
+
+  const firstCheckbox = detail.locator('.workspace-checklist li').filter({ hasText: firstItem }).getByRole('checkbox');
+  const secondCheckbox = detail.locator('.workspace-checklist li').filter({ hasText: secondItem }).getByRole('checkbox');
+  await firstCheckbox.check();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
+  await expect(taskRow.locator('.project-tasks-status')).toHaveClass(/status-in_progress/);
+
+  await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
+  let overviewRow = page.locator('.project-detail-task-row').filter({ hasText: title });
+  await expect(overviewRow.locator('.project-detail-task-status')).toHaveClass(/status-in_progress/);
+  await page.getByRole('tab', { name: /^บอร์ด/ }).click();
+  await expect(page.locator('.project-board-column[data-status="in_progress"] .project-board-task').filter({ hasText: title })).toBeVisible();
+  await page.getByRole('tab', { name: /^งาน/ }).click();
+  detail = getWorkspaceTaskDetail(page);
+
+  await detail.locator('.workspace-checklist li').filter({ hasText: secondItem }).getByRole('checkbox').check();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
+  await detail.locator('.workspace-checklist li').filter({ hasText: firstItem }).getByRole('checkbox').uncheck();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
+  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
+  const startEventText = `เปลี่ยนสถานะงาน “${title}” เป็นกำลังทำโดยอัตโนมัติตามเช็กลิสต์`;
+  const startEvents = page.locator('.workspace-reference-activity-row').filter({ hasText: startEventText });
+  await expect(startEvents).toHaveCount(1);
+
+  await page.getByRole('tab', { name: /^งาน/ }).click();
+  detail = getWorkspaceTaskDetail(page);
+  await detail.locator('.workspace-checklist li').filter({ hasText: secondItem }).getByRole('checkbox').uncheck();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-not_started/);
+  await expect(taskRow.locator('.project-tasks-status')).toHaveClass(/status-not_started/);
+
+  await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
+  overviewRow = page.locator('.project-detail-task-row').filter({ hasText: title });
+  await expect(overviewRow.locator('.project-detail-task-status')).toHaveClass(/status-not_started/);
+  await page.getByRole('tab', { name: /^บอร์ด/ }).click();
+  await expect(page.locator('.project-board-column[data-status="not_started"] .project-board-task').filter({ hasText: title })).toBeVisible();
+  await page.getByRole('tab', { name: /^งาน/ }).click();
+  detail = getWorkspaceTaskDetail(page);
+  await detail.locator('.workspace-checklist li').filter({ hasText: firstItem }).getByRole('checkbox').check();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
+
+  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
+  await expect(startEvents).toHaveCount(2);
+  await expect(page.locator('.workspace-reference-activity-row').filter({ hasText: `เปลี่ยนสถานะงาน “${title}” เป็นยังไม่เริ่มโดยอัตโนมัติตามเช็กลิสต์` })).toHaveCount(1);
+});
+
+test('Project Workspace: Checklist progress never overrides review or completed status', async ({ page }) => {
+  const title = `Checklist locked status ${Date.now()}`;
+  const checklistTitle = `Checklist locked item ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { title });
+  await taskRow.click();
+  let detail = getWorkspaceTaskDetail(page);
+  await detail.getByLabel('เพิ่มรายการ Checklist').fill(checklistTitle);
+  await detail.getByRole('button', { name: 'เพิ่ม Checklist' }).click();
+  await detail.locator('.workspace-checklist li').filter({ hasText: checklistTitle }).getByRole('checkbox').check();
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
+
+  await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-pending_review/);
+  await expect(detail.locator('.workspace-checklist li').filter({ hasText: checklistTitle }).getByRole('checkbox')).toBeDisabled();
+
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'อนุมัติ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await expect(detail.locator('.task-detail-status')).toHaveClass(/status-completed/);
+  await expect(detail.locator('.workspace-checklist li').filter({ hasText: checklistTitle }).getByRole('checkbox')).toBeDisabled();
+  await expect(taskRow.locator('.project-tasks-status')).toHaveClass(/status-completed/);
+});
+
+test('Project Workspace and Task Work Page history lists scroll within bounded sections', async ({ page }) => {
+  await page.setViewportSize({ width: 1360, height: 900 });
+  const title = `Scrollable history ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { title });
+  await taskRow.click();
+  const detail = getWorkspaceTaskDetail(page);
+  for (let index = 0; index < 12; index += 1) {
+    await detail.getByLabel('เพิ่มรายการ Checklist').fill(`History checklist ${index}`);
+    await detail.getByRole('button', { name: 'เพิ่ม Checklist' }).click();
+  }
+
+  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  const workHistory = page.locator('.workspace-task-work-page .workspace-task-history');
+  const workMetrics = await workHistory.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+  }));
+  expect(workMetrics.scrollHeight).toBeGreaterThan(workMetrics.clientHeight);
+  expect(workMetrics.clientHeight).toBeLessThanOrEqual(420);
+  const workHeading = page.getByRole('heading', { name: 'ประวัติของงานนี้' });
+  const workHeadingTop = await workHeading.evaluate((element) => element.getBoundingClientRect().top);
+  await workHistory.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  expect(await workHistory.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await workHeading.evaluate((element) => element.getBoundingClientRect().top)).toBe(workHeadingTop);
+
+  await page.setViewportSize({ width: 390, height: 640 });
+  const narrowWorkMetrics = await workHistory.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  expect(narrowWorkMetrics.scrollHeight).toBeGreaterThan(narrowWorkMetrics.clientHeight);
+  expect(narrowWorkMetrics.clientHeight).toBeLessThanOrEqual(360);
+  expect(narrowWorkMetrics.overflowY).toBe('auto');
+
+  await page.locator('.workspace-task-work-toolbar').getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+  await page.getByRole('tab', { name: /^ประวัติ/ }).click();
+  const projectHistory = page.locator('.workspace-reference-activity-list');
+  const projectMetrics = await projectHistory.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  expect(projectMetrics.scrollHeight).toBeGreaterThan(projectMetrics.clientHeight);
+  expect(projectMetrics.clientHeight).toBeLessThanOrEqual(360);
+  expect(projectMetrics.overflowY).toBe('auto');
+  const projectHeading = page.getByRole('heading', { name: 'ประวัติการดำเนินการ' });
+  const projectHeadingTop = await projectHeading.evaluate((element) => element.getBoundingClientRect().top);
+  await projectHistory.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+  expect(await projectHistory.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+  expect(await projectHeading.evaluate((element) => element.getBoundingClientRect().top)).toBe(projectHeadingTop);
 });

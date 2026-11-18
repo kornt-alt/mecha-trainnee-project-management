@@ -18,6 +18,11 @@ export const shortThaiDate = (value) => {
 
 export const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
 
+export const checklistProgressPercent = (checklist) => {
+  const items = Array.isArray(checklist) ? checklist : [];
+  return items.length ? Math.round((items.filter((item) => item.completed).length / items.length) * 100) : 0;
+};
+
 // แสดงวันที่เป็น yyyy/mm/dd — รูปแบบเดิมของแอป
 export const ymd = (v) => (v ? v.replace(/-/g, '/') : '-');
 
