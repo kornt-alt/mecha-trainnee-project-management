@@ -850,7 +850,7 @@ test('Project Workspace: Tasks tab fits mobile screens without browser errors', 
   expect(browserErrors).toEqual([]);
 });
 
-test('Workload: no sample allocations are shown while Employees remain available', async ({ page }) => {
+test('Workload: Team cards show their assigned members independently of Employee filters', async ({ page }) => {
   await page.goto('/PROJECT-MANAGEMENT/workload');
   await expect(page.getByRole('heading', { name: 'Workload Dashboard' })).toBeVisible();
 
@@ -860,6 +860,28 @@ test('Workload: no sample allocations are shown while Employees remain available
   await expect(utilization.locator('.workload-kpi-value')).toHaveText('0.0%');
   await expect(page.locator('.workload-employee-row')).toHaveCount(20);
   await expect(page.locator('.workload-employee-number').first()).toContainText('0.0');
+
+  const expectedTeams = [
+    { name: 'IT', members: ['Kittipat Samran', 'Napat Chaiyaphon', 'Sarin Numnonda', 'Supachai Meesuk', 'Korn Tawonphon', 'Nattapong Vejjakiva', 'Thitikan Bunserm'] },
+    { name: 'AI', members: ['Thanakorn Wiset', 'Jirayu Phuangmalai', 'Prapat Suriyawong', 'Ekkachai Rompho', 'Goragod Wannasiri', 'Sarawut Phutthinat', 'New AI Engineer'] },
+    { name: 'Electrical', members: ['Wichai Prasertkul', 'Bodin Kittikorn', 'Veerapat Chokchai', 'Rattanakorn Phusit', 'Phumin Jareonsuk', 'New Electrical Trainee'] },
+  ];
+  await page.getByRole('tab', { name: 'Teams' }).click();
+  const teamCards = page.locator('.workload-team-card');
+  await expect(teamCards).toHaveCount(expectedTeams.length);
+  for (const [index, expectedTeam] of expectedTeams.entries()) {
+    const teamCard = teamCards.nth(index);
+    await expect(teamCard.locator('.workload-team-card-name')).toHaveText(expectedTeam.name);
+    await expect(teamCard.locator('.workload-team-card-emp')).toHaveText(`${expectedTeam.members.length} คน`);
+    await expect(teamCard.locator('.workload-team-member')).toHaveText(expectedTeam.members);
+  }
+
+  await page.getByLabel('กรอง Section (แผนก)').selectOption('dept-3');
+  await page.getByRole('tab', { name: 'Employees' }).click();
+  await expect(page.locator('.workload-employee-row')).toHaveCount(7);
+  await page.getByRole('tab', { name: 'Teams' }).click();
+  await expect(teamCards.nth(0).locator('.workload-team-card-emp')).toHaveText('7 คน');
+  await expect(teamCards.nth(0).locator('.workload-team-member')).toHaveText(expectedTeams[0].members);
 });
 
 test('Project Workspace: task selection opens inline detail from every tab and preserves the Work Page return state', async ({ page }) => {

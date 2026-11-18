@@ -106,10 +106,9 @@ export default function Projects() {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate, projects]);
 
-  // API Mode = คำขอล่าสุด "สำเร็จ" (data ไม่ใช่ null) · ห้ามใช้ data.length ตัดสินการเชื่อมต่อ
-  // เพราะ backend ตอบ array ว่าง [] เมื่อ DB ยังไม่มีโปรเจกต์ — ยังเป็นคำตอบที่สำเร็จเสมอ
-  // ตอนโหลดครั้งแรก/คำขอล้มเหลว data = null → ใช้ mockData กลาง (ระหว่าง reload คง data เดิมไว้)
-  const isApiConnected = data !== null;
+  // Empty API responses do not replace the existing mock records in frontend-only mode.
+  // A non-empty array is the only API result that can become the current project source.
+  const isApiConnected = Array.isArray(data) && data.length > 0;
   const baseProjects = isApiConnected ? data : projects.filter((p) => !filter || p.status === filter);
 
   // ค้นหา (ชื่อและผู้รับผิดชอบ) — ค้นหาแบบ client-side ทับทั้งแถวที่มาจาก API และ mock

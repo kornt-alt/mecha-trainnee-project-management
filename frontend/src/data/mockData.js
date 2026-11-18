@@ -1,6 +1,6 @@
 // frontend/src/data/mockData.js — ข้อมูลจำลองระบบ MECHA Project Management (Single Source of Truth)
 // ⚠️ ทุก Entity ถูกนิยามครั้งเดียวและเชื่อมโยงกันด้วย stable ID
-// ข้อมูลปฏิบัติงานเริ่มว่าง; Project ด้านล่างใช้แสดงหน้าจอเท่านั้น
+// Project 1 carries the supplied Workspace reference records; other projects stay empty.
 
 // ── 1. ผู้ใช้งานปัจจุบัน (Current User) ─────────────────────────────────
 export const CURRENT_USER = {
@@ -25,6 +25,14 @@ export const MOCK_DEPARTMENTS = [
   { id: 'dept-3', name: 'Mechanical', code: 'MECH' },
   { id: 'dept-4', name: 'Quality Assurance', code: 'QA' },
   { id: 'dept-5', name: 'Documentation & Training', code: 'DOC' },
+];
+
+// ── 3.1 ทีม (Teams) ─────────────────────────────────────────────────────
+// Membership is independent of department and references employees by stable ID.
+export const MOCK_TEAMS = [
+  { id: 'team-001', name: 'IT', memberEmployeeIds: ['emp-001', 'emp-002', 'emp-003', 'emp-008', 'emp-009', 'emp-015', 'emp-020'] },
+  { id: 'team-002', name: 'AI', memberEmployeeIds: ['emp-005', 'emp-011', 'emp-017', 'emp-021', 'emp-026', 'emp-032', 'emp-033'] },
+  { id: 'team-003', name: 'Electrical', memberEmployeeIds: ['emp-007', 'emp-013', 'emp-028', 'emp-019', 'emp-024', 'emp-034'] },
 ];
 
 // ── 4. พนักงาน (Employees) ───────────────────────────────────────────────
@@ -58,20 +66,27 @@ export const MOCK_EMPLOYEES = [
 ];
 
 // ── 5. ข้อมูลโปรเจกต์ดิบ (Raw Projects) ──────────────────────────────────
-// 3 โปรเจกต์เดิมสำหรับแสดง UI โดยไม่มีข้อมูลปฏิบัติงานตั้งต้น
+// Keep the reference fixture scoped to project 1; unrelated projects remain unchanged.
 const RAW_PROJECTS = [
   {
     id: 1,
-    name: 'ระบบจัดการและติดตามงาน Trainee',
-    category: 'ระบบซอฟต์แวร์',
+    name: 'แดชบอร์ดสถานะสายการผลิต',
+    category: 'ระบบองค์กร',
+    displayStatusLabel: 'กำลังดำเนินการ',
     departmentId: 'dept-1',
     managerId: 'emp-008',
-    owner: 'Kittipat / Supachai',
+    teamLeadId: 'emp-009',
+    teamMemberIds: ['emp-008', 'emp-009', 'emp-002'],
+    owner: 'Supachai Meesuk',
     status: 'in_progress',
-    plannedBudget: 180000,
+    priority: 'high',
     startDate: '2026-10-01',
-    dueDate: '2026-11-15',
-    description: 'ระบบ Dashboard และติดตามงานที่ได้รับมอบหมายสำหรับ Mecha Trainee',
+    dueDate: '2026-12-15',
+    description: 'แดชบอร์ดรวมสถานะและยอดผลิตของแต่ละสายการผลิต เพื่อให้หัวหน้างานและผู้บริหารติดตามได้แบบเรียลไทม์ พร้อมแจ้งเตือนเมื่อเครื่องจักรหยุด',
+    requiresDeliverables: true,
+    referenceAsOfDate: '2026-11-12',
+    sampleLabel: 'ข้อมูลตัวอย่าง',
+    memberPoolIds: ['emp-008', 'emp-009', 'emp-002', 'emp-001'],
   },
   {
     id: 3,
@@ -100,11 +115,112 @@ const RAW_PROJECTS = [
     description: 'เว็บไซต์แนะนำองค์กรและบริการ พร้อมระบบจัดการเนื้อหา',
   },
 ];
-// ไม่มี Task ตั้งต้น; ผู้ใช้สร้างงานผ่านหน้าเว็บ
-const RAW_TASKS = [];
+// Project 1 uses the exact task records supplied with the Workspace reference.
+const RAW_TASKS = [
+  {
+    id: 1, projectId: 1, title: 'ออกแบบโครงสร้างข้อมูลสายการผลิต',
+    description: 'กำหนดตารางและความสัมพันธ์ของข้อมูลที่แดชบอร์ดต้องใช้',
+    status: 'completed', statusLabel: 'เสร็จแล้ว', assigneeId: 'emp-002', collaborators: [], reviewerId: 'emp-009',
+    startDate: '2026-10-01', dueDate: '2026-10-10', priority: 'none', progress: 100,
+    checklist: [
+      { id: '1-1', title: 'กำหนดตารางข้อมูล', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '1-2', title: 'ตรวจสอบกับฝ่ายผลิต', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '1-3', title: 'จัดทำเอกสารโครงสร้าง', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+    ],
+  },
+  {
+    id: 2, projectId: 1, title: 'เชื่อมต่อแหล่งข้อมูลเครื่องจักร',
+    description: 'ดึงข้อมูลจำนวนผลิตและสถานะเครื่องจักรเข้าระบบ',
+    status: 'completed', statusLabel: 'เสร็จแล้ว', assigneeId: 'emp-002', collaborators: [], reviewerId: 'emp-009',
+    startDate: '2026-10-08', dueDate: '2026-10-24', priority: 'none', progress: 100,
+    checklist: [
+      { id: '2-1', title: 'เชื่อมต่อเครื่องจักรสายที่ 1', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '2-2', title: 'เชื่อมต่อเครื่องจักรสายที่ 2', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+    ],
+  },
+  {
+    id: 3, projectId: 1, title: 'ออกแบบหน้าจอแดชบอร์ด (UI)',
+    description: 'ออกแบบหน้าจอสำหรับหัวหน้างานและผู้บริหาร',
+    status: 'completed', statusLabel: 'เสร็จแล้ว', assigneeId: 'emp-009', collaborators: ['emp-002'], reviewerId: 'emp-008',
+    startDate: '2026-10-12', dueDate: '2026-10-30', priority: 'none', progress: 100,
+    checklist: [
+      { id: '3-1', title: 'ร่างหน้าจอ', completed: true, createdBy: 'emp-009', ownerId: 'emp-009' },
+      { id: '3-2', title: 'รับคอมเมนต์จากผู้ใช้', completed: true, createdBy: 'emp-009', ownerId: 'emp-009' },
+      { id: '3-3', title: 'ปรับแก้ตามคอมเมนต์', completed: true, createdBy: 'emp-009', ownerId: 'emp-009' },
+    ],
+    reviewHistory: [{ action: 'approved', actorId: 'emp-009', reviewerId: 'emp-008', timestamp: '2026-10-30T16:05:00+07:00' }],
+  },
+  {
+    id: 4, projectId: 1, title: 'พัฒนาหน้าสรุปยอดผลิตรายวัน',
+    description: 'หน้ารวมยอดผลิตรายวันเทียบเป้าหมาย พร้อมตัวกรองตามสาย',
+    status: 'pending_review', statusLabel: 'รอตรวจ', assigneeId: 'emp-002', collaborators: [], reviewerId: 'emp-009',
+    startDate: '2026-10-25', dueDate: '2026-11-12', priority: 'none', progress: 0,
+    reviewSubmittedBy: 'emp-002', reviewSubmittedAt: '2026-11-12T09:40:00+07:00',
+    reviewHistory: [{ action: 'submitted', actorId: 'emp-002', reviewerId: 'emp-009', timestamp: '2026-11-12T09:40:00+07:00' }],
+    checklist: [
+      { id: '4-1', title: 'หน้ารายงานหลัก', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '4-2', title: 'ตัวกรองตามสาย', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '4-3', title: 'ส่งออกเป็นไฟล์', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '4-4', title: 'ทดสอบกับข้อมูลจริง', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+    ],
+  },
+  {
+    id: 5, projectId: 1, title: 'พัฒนาระบบแจ้งเตือนเครื่องหยุด',
+    description: 'แจ้งเตือนผู้เกี่ยวข้องเมื่อเครื่องจักรหยุดเกินเวลาที่กำหนด',
+    status: 'in_progress', statusLabel: 'กำลังทำ', assigneeId: 'emp-002', collaborators: ['emp-009'], reviewerId: 'emp-009',
+    startDate: '2026-11-02', dueDate: '2026-11-20', priority: 'none', progress: 0,
+    checklist: [
+      { id: '5-1', title: 'กำหนดเงื่อนไขแจ้งเตือน', completed: true, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '5-2', title: 'ส่งการแจ้งเตือน', completed: false, createdBy: 'emp-002', ownerId: 'emp-002' },
+      { id: '5-3', title: 'หน้าตั้งค่าผู้รับ', completed: false, createdBy: 'emp-002', ownerId: 'emp-002' },
+    ],
+  },
+  {
+    id: 6, projectId: 1, title: 'ทดสอบการใช้งานร่วมกับสายการผลิตจริง',
+    description: 'ทดลองใช้งานบนสายการผลิตจริงและเก็บปัญหา',
+    status: 'in_progress', statusLabel: 'กำลังทำ', assigneeId: 'emp-009', collaborators: [], reviewerId: 'emp-008',
+    startDate: '2026-11-05', dueDate: '2026-11-10', priority: 'none', progress: 0,
+    checklist: [
+      { id: '6-1', title: 'วางแผนการทดสอบ', completed: false, createdBy: 'emp-009', ownerId: 'emp-009' },
+      { id: '6-2', title: 'บันทึกผลทดสอบ', completed: false, createdBy: 'emp-009', ownerId: 'emp-009' },
+    ],
+  },
+  {
+    id: 7, projectId: 1, title: 'เขียนคู่มือการใช้งาน',
+    description: 'คู่มือสำหรับผู้ใช้งานทั่วไปและผู้ดูแลระบบ',
+    status: 'not_started', statusLabel: 'ยังไม่เริ่ม', assigneeId: 'emp-009', collaborators: [], reviewerId: 'emp-008',
+    startDate: '2026-11-25', dueDate: '2026-12-05', priority: 'none', progress: 0,
+    checklist: [
+      { id: '7-1', title: 'คู่มือผู้ใช้', completed: false, createdBy: 'emp-009', ownerId: 'emp-009' },
+      { id: '7-2', title: 'คู่มือผู้ดูแลระบบ', completed: false, createdBy: 'emp-009', ownerId: 'emp-009' },
+    ],
+  },
+  {
+    id: 8, projectId: 1, title: 'อบรมผู้ใช้งานและส่งมอบ',
+    description: 'จัดอบรมและส่งมอบระบบให้ฝ่ายผลิต',
+    status: 'not_started', statusLabel: 'ยังไม่เริ่ม', assigneeId: 'emp-008', collaborators: ['emp-009'], reviewerId: 'emp-009',
+    startDate: '2026-12-01', dueDate: '2026-12-15', priority: 'none', progress: 0,
+    checklist: [
+      { id: '8-1', title: 'นัดวันอบรม', completed: false, createdBy: 'emp-008', ownerId: 'emp-008' },
+      { id: '8-2', title: 'จัดอบรม', completed: false, createdBy: 'emp-008', ownerId: 'emp-008' },
+      { id: '8-3', title: 'เก็บแบบประเมิน', completed: false, createdBy: 'emp-008', ownerId: 'emp-008' },
+    ],
+  },
+];
 
-export const MOCK_DELIVERABLES = [];
-export const MOCK_ACTIVITIES = [];
+export const MOCK_DELIVERABLES = [
+  { id: 'deliverable-reference-1', projectId: 1, title: 'ซอร์สโค้ดและเอกสารติดตั้ง', relatedTaskId: 5, status: 'pending' },
+  { id: 'deliverable-reference-2', projectId: 1, title: 'คู่มือการใช้งาน', relatedTaskId: 7, status: 'pending' },
+  { id: 'deliverable-reference-3', projectId: 1, title: 'รายงานผลการทดสอบ', relatedTaskId: 6, status: 'pending' },
+];
+
+export const MOCK_ACTIVITIES = [
+  { id: 'activity-reference-1', projectId: 1, taskId: 4, actorId: 'emp-002', type: 'task_review_submitted', timestamp: '2026-11-12T09:40:00+07:00', description: 'ส่งงาน “พัฒนาหน้าสรุปยอดผลิตรายวัน” เข้าตรวจ' },
+  { id: 'activity-reference-2', projectId: 1, taskId: 5, actorId: 'emp-002', type: 'checklist_item_completed', timestamp: '2026-11-08T15:12:00+07:00', description: 'ทำเช็กลิสต์ “กำหนดเงื่อนไขแจ้งเตือน” เสร็จ' },
+  { id: 'activity-reference-3', projectId: 1, taskId: 3, actorId: 'emp-009', type: 'task_review_approved', timestamp: '2026-10-30T16:05:00+07:00', description: 'อนุมัติงาน “ออกแบบหน้าจอแดชบอร์ด (UI)”' },
+  { id: 'activity-reference-4', projectId: 1, actorId: 'emp-008', type: 'project_team_leader_changed', timestamp: '2026-10-01T09:45:00+07:00', description: 'ตั้ง Korn Tawonphon เป็น Team Lead' },
+  { id: 'activity-reference-5', projectId: 1, actorId: 'emp-008', type: 'project_created', timestamp: '2026-10-01T09:30:00+07:00', description: 'สร้างโปรเจกต์ และเป็น Project Owner' },
+];
 
 // เชื่อมโยง projectName ให้ Tasks อัตโนมัติจาก RAW_PROJECTS (ป้องกันความขัดแย้งของชื่อ)
 const projectLookup = new Map(RAW_PROJECTS.map((p) => [p.id, p]));
@@ -167,6 +283,68 @@ export const MOCK_PROJECTS_FALLBACK = MOCK_PROJECTS;
 
 // Workload starts without planned entries or employee/task assignments.
 export const MOCK_WORK_ENTRIES = [];
+
+// Validate cross-entity references without changing or repairing the source records.
+export function validateMockDataRelationships() {
+  const errors = [];
+  const ids = (records) => new Set(records.map((record) => String(record.id)));
+  const employeeIds = ids(MOCK_EMPLOYEES);
+  const departmentIds = ids(MOCK_DEPARTMENTS);
+  const projectIds = ids(MOCK_PROJECTS);
+  const taskIds = ids(MOCK_TASKS);
+  const teamIds = ids(MOCK_TEAMS);
+  const checkReference = (condition, message) => { if (!condition) errors.push(message); };
+
+  MOCK_EMPLOYEES.forEach((employee) => {
+    checkReference(departmentIds.has(String(employee.departmentId)), `Employee ${employee.id} references an unknown department`);
+  });
+  MOCK_TEAMS.forEach((team) => {
+    checkReference(teamIds.has(String(team.id)), `Team ${team.id} has an invalid id`);
+    const memberIds = (team.memberEmployeeIds || []).map(String);
+    checkReference(new Set(memberIds).size === memberIds.length, `Team ${team.id} contains duplicate members`);
+    memberIds.forEach((employeeId) => checkReference(employeeIds.has(employeeId), `Team ${team.id} references unknown employee ${employeeId}`));
+  });
+  MOCK_PROJECTS.forEach((project) => {
+    checkReference(employeeIds.has(String(project.managerId)), `Project ${project.id} references unknown owner ${project.managerId}`);
+    checkReference(!project.teamLeadId || employeeIds.has(String(project.teamLeadId)), `Project ${project.id} references unknown team lead ${project.teamLeadId}`);
+    (project.teamMemberIds || []).map(String).forEach((employeeId) => checkReference(employeeIds.has(employeeId), `Project ${project.id} references unknown member ${employeeId}`));
+  });
+  MOCK_TASKS.forEach((task) => {
+    checkReference(projectIds.has(String(task.projectId)), `Task ${task.id} references unknown project ${task.projectId}`);
+    checkReference(employeeIds.has(String(task.assigneeId)), `Task ${task.id} references unknown assignee ${task.assigneeId}`);
+    checkReference(employeeIds.has(String(task.reviewerId)), `Task ${task.id} references unknown reviewer ${task.reviewerId}`);
+    (task.collaborators || []).map(String).forEach((employeeId) => checkReference(employeeIds.has(employeeId), `Task ${task.id} references unknown collaborator ${employeeId}`));
+    const checklistIds = (task.checklist || []).map((item) => String(item.id));
+    checkReference(new Set(checklistIds).size === checklistIds.length, `Task ${task.id} contains duplicate checklist ids`);
+    (task.checklist || []).forEach((item) => {
+      checkReference(employeeIds.has(String(item.createdBy)), `Checklist ${item.id} references unknown creator ${item.createdBy}`);
+      checkReference(employeeIds.has(String(item.ownerId || item.createdBy)), `Checklist ${item.id} references unknown owner ${item.ownerId || item.createdBy}`);
+    });
+  });
+  MOCK_DELIVERABLES.forEach((item) => {
+    checkReference(projectIds.has(String(item.projectId)), `Deliverable ${item.id} references unknown project ${item.projectId}`);
+    if (item.relatedTaskId !== undefined && item.relatedTaskId !== null) {
+      const task = MOCK_TASKS.find((candidate) => String(candidate.id) === String(item.relatedTaskId));
+      checkReference(Boolean(task) && String(task.projectId) === String(item.projectId), `Deliverable ${item.id} references a task from another project`);
+    }
+  });
+  MOCK_ACTIVITIES.forEach((event) => {
+    checkReference(projectIds.has(String(event.projectId)), `Activity ${event.id} references unknown project ${event.projectId}`);
+    checkReference(employeeIds.has(String(event.actorId)), `Activity ${event.id} references unknown actor ${event.actorId}`);
+    if (event.taskId !== undefined && event.taskId !== null) {
+      const task = MOCK_TASKS.find((candidate) => String(candidate.id) === String(event.taskId));
+      checkReference(Boolean(task) && String(task.projectId) === String(event.projectId), `Activity ${event.id} references a task from another project`);
+    }
+  });
+  MOCK_WORK_ENTRIES.forEach((entry) => {
+    checkReference(employeeIds.has(String(entry.employeeId)), `Work entry ${entry.id} references unknown employee ${entry.employeeId}`);
+    checkReference(projectIds.has(String(entry.projectId)), `Work entry ${entry.id} references unknown project ${entry.projectId}`);
+    if (entry.taskId !== undefined && entry.taskId !== null) checkReference(taskIds.has(String(entry.taskId)), `Work entry ${entry.id} references unknown task ${entry.taskId}`);
+  });
+  return { valid: errors.length === 0, errors };
+}
+
+export const MOCK_DATA_VALIDATION = validateMockDataRelationships();
 
 // ── 10. ฟังก์ชันช่วยค้นหาและคำนวณ (Helper Utilities) ─────────────────────
 

@@ -1,6 +1,6 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DEPARTMENTS, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, MOCK_TEAMS, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
 import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 
 export const MockDataContext = createContext(null);
@@ -70,6 +70,7 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
 
 export function MockDataProvider({ children }) {
   const [projectsState, setProjectsState] = useState(() => [...MOCK_PROJECTS_FALLBACK]);
+  const [teamsState] = useState(() => MOCK_TEAMS.map((team) => ({ ...team, memberEmployeeIds: [...(team.memberEmployeeIds || [])] })));
   const [tasksState, setTasksState] = useState(initialTasks);
   const [deliverablesState, setDeliverablesState] = useState(() => MOCK_DELIVERABLES.map((item) => ({ ...item })));
   const [labelsState, setLabelsState] = useState([]);
@@ -595,14 +596,15 @@ export function MockDataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    projects: projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
+    employees: MOCK_EMPLOYEES, departments: MOCK_DEPARTMENTS,
+    projects: projectsState, teams: teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
     tasks: tasksState, setTasks: setTasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
     deliverables: deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable,
     labels: labelsState, createLabel, updateLabel, deleteLabel,
     activity: activityState, recordActivity,
     notifications: notificationsState, addNotification, markNotificationsRead,
     actorId, setActorId,
-  }), [projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
+  }), [projectsState, teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
     deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, actorId, setActorId]);
 
   return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;
