@@ -6,5 +6,9 @@ export const NAV = [
   { to: '/tasks', label: 'ตารางงาน', icon: 'ClipboardList' },
   { to: '/workload', label: 'Workload', icon: 'ChartNoAxesColumn' },
   { to: '/reports', label: 'รายงาน', icon: 'ChartNoAxesColumn' },
+  { to: '/notifications', label: 'การแจ้งเตือน', icon: 'Bell' },
+  { to: '/security/incidents', label: 'เหตุการณ์ความปลอดภัย', icon: 'CircleAlert' },
+  { to: '/audit-log', label: 'บันทึกการตรวจสอบ', icon: 'Activity' },
+  { to: '/exports', label: 'ประวัติการส่งออก', icon: 'FileText' },
   { to: '/settings', label: 'ตั้งค่า', icon: 'Settings' },
 ];
