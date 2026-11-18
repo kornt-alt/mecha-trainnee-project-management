@@ -440,6 +440,49 @@
 .workload-team-fill.is-over {
   background: #ef5555;
 }
+.workload-team-members {
+  margin: 12px 0 4px;
+  padding-top: 10px;
+  border-top: 1px solid #edf1f6;
+}
+.workload-team-members-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #718096;
+  font-size: .67rem;
+  font-weight: 700;
+}
+.workload-team-member-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.workload-team-member {
+  display: flex;
+  min-width: 0;
+  align-items: flex-start;
+  gap: 6px;
+  color: #44566f;
+  font-size: .69rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.workload-team-member::before {
+  content: '';
+  flex: 0 0 5px;
+  width: 5px;
+  height: 5px;
+  margin-top: 4px;
+  border-radius: 50%;
+  background: #4e70df;
+}
+.workload-team-members-empty {
+  color: #8290a3;
+  font-size: .69rem;
+}
 .workload-team-alert-pill {
   display: inline-flex;
   align-items: center;

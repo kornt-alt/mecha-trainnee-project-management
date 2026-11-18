@@ -1,6 +1,7 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { CURRENT_USER, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DEPARTMENTS, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, MOCK_TEAMS, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 
 export const MockDataContext = createContext(null);
 
@@ -69,10 +70,11 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
 
 export function MockDataProvider({ children }) {
   const [projectsState, setProjectsState] = useState(() => [...MOCK_PROJECTS_FALLBACK]);
+  const [teamsState] = useState(() => MOCK_TEAMS.map((team) => ({ ...team, memberEmployeeIds: [...(team.memberEmployeeIds || [])] })));
   const [tasksState, setTasksState] = useState(initialTasks);
-  const [deliverablesState, setDeliverablesState] = useState([]);
+  const [deliverablesState, setDeliverablesState] = useState(() => MOCK_DELIVERABLES.map((item) => ({ ...item })));
   const [labelsState, setLabelsState] = useState([]);
-  const [activityState, setActivityState] = useState([]);
+  const [activityState, setActivityState] = useState(() => MOCK_ACTIVITIES.map((event) => ({ ...event })));
   const [notificationsState, setNotificationsState] = useState(() => [...NOTIFICATIONS]);
   const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
   const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId });
@@ -272,6 +274,26 @@ export function MockDataProvider({ children }) {
     const eventType = String(event?.type || '');
     if (current.status === 'pending_review' && !['task_review_approved', 'task_changes_requested', 'task_review_withdrawn'].includes(eventType)) return null;
     const nextTask = { ...current, ...patch };
+    let checklistStatusEvent = null;
+    if (!Object.prototype.hasOwnProperty.call(patch, 'status')) {
+      const currentProgress = checklistProgressPercent(current.checklist);
+      const nextProgress = checklistProgressPercent(nextTask.checklist);
+      if (current.status === 'not_started' && currentProgress === 0 && nextProgress > 0) {
+        nextTask.status = 'in_progress';
+        nextTask.statusLabel = 'กำลังทำ';
+        checklistStatusEvent = {
+          type: 'task_started_from_checklist',
+          description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นกำลังทำโดยอัตโนมัติตามเช็กลิสต์`,
+        };
+      } else if (current.status === 'in_progress' && currentProgress > 0 && nextProgress === 0) {
+        nextTask.status = 'not_started';
+        nextTask.statusLabel = 'ยังไม่เริ่ม';
+        checklistStatusEvent = {
+          type: 'task_reopened_from_checklist',
+          description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นยังไม่เริ่มโดยอัตโนมัติตามเช็กลิสต์`,
+        };
+      }
+    }
     const assignmentChanged = String(current.assigneeId) !== String(nextTask.assigneeId);
     if (assignmentChanged) {
       nextTask.collaborators = (nextTask.collaborators || []).filter((id) => String(id) !== String(nextTask.assigneeId));
@@ -317,25 +339,38 @@ export function MockDataProvider({ children }) {
       || actor === String(current.reviewerId) || (current.collaborators || []).some((id) => String(id) === actor);
     const checklistEvent = eventType.startsWith('checklist_');
     if (checklistEvent && (!isProjectParticipant || Object.keys(patch).some((key) => key !== 'checklist'))) return null;
+    if (eventType === 'workspace_task_details_updated'
+      && (['pending_review', 'completed'].includes(current.status)
+        || (!isProjectOwner && !isTeamLeader && actor !== String(current.assigneeId)))) return null;
     if (eventType === 'task_updated' && !isProjectOwner && !isTeamLeader
       && actor !== String(current.assigneeId)
       && !(current.collaborators || []).some((id) => String(id) === actor)) return null;
     if (assignmentChanged && ((!isProjectOwner && !isTeamLeader) || !String(event?.reason || '').trim())) return null;
     if (current.status !== nextTask.status) {
       const historyEntry = (nextTask.reviewHistory || []).slice(-1)[0];
-      if (current.status === 'not_started' && nextTask.status === 'in_progress' && eventType === 'task_started'
-        && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
-        // The assigned contributor starts the Task.
-      } else if (current.status === 'in_progress' && nextTask.status === 'pending_review' && eventType === 'task_review_submitted'
+      if (current.status === 'not_started' && nextTask.status === 'in_progress'
+        && ((eventType === 'task_started'
+          && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor)))
+          || (eventType === 'task_started_by_project_lead' && (isProjectOwner || isTeamLeader)))) {
+        // Contributors and project leads can start work from the board.
+      } else if (current.status === 'in_progress' && nextTask.status === 'not_started' && eventType === 'task_reopened'
+        && (actor === String(current.assigneeId) || isProjectOwner || isTeamLeader)) {
+        // The assignee or project lead can return active work to the backlog.
+      } else if (current.status === 'in_progress' && nextTask.status === 'pending_review'
         && employeeExists(nextTask.reviewerId) && historyEntry?.action === 'submitted'
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(nextTask.reviewerId)
-        && Boolean(historyEntry.timestamp) && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
-        // Submission is allowed only when a valid reviewer is present.
-      } else if (current.status === 'pending_review' && nextTask.status === 'completed' && eventType === 'task_review_approved'
-        && actor === String(current.reviewerId) && historyEntry?.action === 'approved'
+        && Boolean(historyEntry.timestamp)
+        && ((eventType === 'task_review_submitted'
+          && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor)))
+          || (eventType === 'task_review_submitted_by_project_lead' && (isProjectOwner || isTeamLeader)))) {
+        // Submission requires a valid reviewer and an authorized actor.
+      } else if (current.status === 'pending_review' && nextTask.status === 'completed'
+        && ((eventType === 'task_review_approved' && actor === String(current.reviewerId))
+          || (eventType === 'task_review_approved_by_project_lead' && (isProjectOwner || isTeamLeader)))
+        && historyEntry?.action === 'approved'
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
         && Boolean(historyEntry.timestamp)) {
-        // Only the designated reviewer approves.
+        // The designated reviewer or project lead approves.
       } else if (current.status === 'pending_review' && nextTask.status === 'in_progress'
         && ['task_changes_requested', 'task_review_withdrawn'].includes(eventType)
         && (eventType === 'task_changes_requested' ? actor === String(current.reviewerId)
@@ -345,6 +380,8 @@ export function MockDataProvider({ children }) {
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
         && String(historyEntry.reason || '').trim() && Boolean(historyEntry.timestamp)) {
         // Return or withdrawal requires an authorized actor and a reason.
+      } else if (checklistStatusEvent) {
+        // An authorized checklist change may move only between the two work states.
       } else return null;
     }
     if (assignmentChanged) {
@@ -369,6 +406,7 @@ export function MockDataProvider({ children }) {
     }
     updateTasksAndSyncProjects((tasks) => tasks.map((task) => String(task.id) === String(taskId) ? nextTask : task), [current.projectId], { recordEvents: false });
     if (event) recordActivity({ projectId: current.projectId, taskId: current.id, ...event });
+    if (checklistStatusEvent) recordActivity({ projectId: current.projectId, taskId: current.id, ...checklistStatusEvent });
     const oldCollaborators = new Set((current.collaborators || []).map(String));
     const nextCollaborators = new Set((nextTask.collaborators || []).map(String));
     nextCollaborators.forEach((id) => {
@@ -558,14 +596,15 @@ export function MockDataProvider({ children }) {
   }, []);
 
   const value = useMemo(() => ({
-    projects: projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
+    employees: MOCK_EMPLOYEES, departments: MOCK_DEPARTMENTS,
+    projects: projectsState, teams: teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
     tasks: tasksState, setTasks: setTasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
     deliverables: deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable,
     labels: labelsState, createLabel, updateLabel, deleteLabel,
     activity: activityState, recordActivity,
     notifications: notificationsState, addNotification, markNotificationsRead,
     actorId, setActorId,
-  }), [projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
+  }), [projectsState, teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
     deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, actorId, setActorId]);
 
   return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;

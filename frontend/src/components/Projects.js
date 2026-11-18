@@ -88,7 +88,7 @@ export default function Projects() {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'card'
+  const [viewMode, setViewMode] = useState('card'); // 'table' | 'card'
   const { data, error, loading, reload } = useLoad(`/projects${filter ? `?status=${filter}` : ''}`);
   const [editing, setEditing] = useState(null); // null = ปิด Modal · {} ไม่มี id = เพิ่มใหม่
   const [deleting, setDeleting] = useState(null); // โปรเจกต์ที่รอยืนยันการลบ
@@ -106,10 +106,9 @@ export default function Projects() {
     navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate, projects]);
 
-  // API Mode = คำขอล่าสุด "สำเร็จ" (data ไม่ใช่ null) · ห้ามใช้ data.length ตัดสินการเชื่อมต่อ
-  // เพราะ backend ตอบ array ว่าง [] เมื่อ DB ยังไม่มีโปรเจกต์ — ยังเป็นคำตอบที่สำเร็จเสมอ
-  // ตอนโหลดครั้งแรก/คำขอล้มเหลว data = null → ใช้ mockData กลาง (ระหว่าง reload คง data เดิมไว้)
-  const isApiConnected = data !== null;
+  // Empty API responses do not replace the existing mock records in frontend-only mode.
+  // A non-empty array is the only API result that can become the current project source.
+  const isApiConnected = Array.isArray(data) && data.length > 0;
   const baseProjects = isApiConnected ? data : projects.filter((p) => !filter || p.status === filter);
 
   // ค้นหา (ชื่อและผู้รับผิดชอบ) — ค้นหาแบบ client-side ทับทั้งแถวที่มาจาก API และ mock
@@ -459,8 +458,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     }
   };
 
-  // เปลี่ยน Project Owner และเพิ่ม Owner คนใหม่เข้า Team
-  // ไม่ลบ Owner คนเก่าออกจาก Team
+  // เปลี่ยน Project Owner พร้อมซิงก์สมาชิก Owner ใน Team
   const handleOwnerChange = (e) => {
     const selectedId = e.target.value;
 
@@ -469,6 +467,9 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
         ...prev,
         managerId: '',
         owner: '',
+        teamMemberIds: [...new Set(
+          prev.teamMemberIds.filter((memberId) => memberId !== prev.managerId)
+        )],
       }));
       return;
     }
@@ -481,14 +482,18 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
 
     if (!employee) return;
 
-    setForm((prev) => ({
-      ...prev,
-      managerId: selectedId,
-      owner: employee.name,
-      teamMemberIds: prev.teamMemberIds.includes(selectedId)
-        ? prev.teamMemberIds
-        : [...prev.teamMemberIds, selectedId],
-    }));
+    setForm((prev) => {
+      const otherMemberIds = prev.teamMemberIds.filter(
+        (memberId) => memberId !== prev.managerId && memberId !== selectedId
+      );
+
+      return {
+        ...prev,
+        managerId: selectedId,
+        owner: employee.name,
+        teamMemberIds: [...new Set([...otherMemberIds, selectedId])],
+      };
+    });
 
     if (fieldErrors.managerId) {
       setFieldErrors((prev) => ({ ...prev, managerId: '' }));
@@ -674,11 +679,10 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
       teamMemberIds = [...new Set([...teamMemberIds, form.managerId])];
     }
 
-    const creator = MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(actorId));
     const payload = {
       ...form,
-      managerId: isEditing ? form.managerId : String(actorId),
-      owner: isEditing ? form.owner : creator?.name || '',
+      managerId: form.managerId,
+      owner: form.owner,
       name: trimmedName,
       description: trimmedDescription,
       teamMemberIds,
@@ -1072,7 +1076,6 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
                           className={`stepper-fld ${fieldErrors.managerId ? 'is-invalid' : ''}`}
                           value={isLegacyOwner ? legacyOptionValue : form.managerId}
                           onChange={handleOwnerChange}
-                          disabled={!isEditing}
                           aria-label="เลือก Project Owner"
                         >
                           <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>
@@ -1854,7 +1857,6 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
                       className="sp-fld"
                       value={isLegacyOwner ? legacyOptionValue : form.managerId}
                       onChange={handleOwnerChange}
-                      disabled={!isEditing}
                       aria-label="เลือก Project Owner"
                     >
                       <option value="">เลือกผู้รับผิดชอบโปรเจกต์</option>

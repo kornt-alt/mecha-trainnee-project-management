@@ -8,12 +8,12 @@ import { Pencil } from '../common/Icons';
 
 const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
 
-const formatDate = (value) => {
+const formatDate = (value, includeYear = true) => {
   if (!value) return '';
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime())
     ? value
-    : new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
+    : new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}) }).format(date);
 };
 
 const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
@@ -35,8 +35,10 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
   const navigate = useNavigate();
   const owner = ownerOf(project) || (project.owner ? { name: project.owner } : null);
   const teamLead = project.teamLeadId ? employeeById(project.teamLeadId) : null;
+  const viewerOptions = MOCK_EMPLOYEES;
   const completion = Math.max(0, Math.min(100, stats.progress));
-  const daysRemaining = project.dueDate ? daysBetween(today(), project.dueDate) : null;
+  const currentDay = today();
+  const daysRemaining = project.dueDate ? daysBetween(currentDay, project.dueDate) : null;
   const isTerminal = ['done', 'cancelled'].includes(project.status);
   const isOwner = String(actorId) === String(project.managerId);
   const isTeamLead = Boolean(project.teamLeadId) && String(actorId) === String(project.teamLeadId);
@@ -60,6 +62,9 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
     return roles.length ? roles.join(' · ') : 'พนักงาน';
   };
   const viewerLabel = (person) => `${actorRole(person.id)} · ${person.name.split(' ')[0]}`;
+  const viewerValue = viewerOptions.some((person) => String(person.id) === String(actorId))
+    ? actorId
+    : actorId;
   const deadlineText = daysRemaining === null
     ? 'ยังไม่ได้กำหนดวันส่ง'
     : daysRemaining < 0 && !isTerminal
@@ -83,11 +88,11 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
               id="workspace-actor"
               className="vw"
               aria-label="เลือกผู้ใช้งานจำลอง"
-              value={actorId}
+              value={viewerValue}
               onChange={(event) => onActorChange(event.target.value)}
               style={{ height: 36, padding: '0 14px', borderRadius: 99, border: '1px solid rgba(255,255,255,.55)', background: 'rgba(255,255,255,.2)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
             >
-              {MOCK_EMPLOYEES.map((person) => <option key={person.id} value={person.id}>{viewerLabel(person)}</option>)}
+              {viewerOptions.map((person) => <option key={person.id} value={person.id}>{viewerLabel(person)}</option>)}
             </select>
           </div>
         </div>
@@ -97,7 +102,7 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
             <span className="project-detail-project-icon" aria-hidden="true"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2.5h7.5A2.5 2.5 0 0 1 21 10v7.5a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" /></svg></span>
             <div className="project-detail-badges">
               <Badge bg="" className={`project-detail-badge project-detail-status status-${project.status}`}>
-                {statusLabel(project.status)}
+                {project.displayStatusLabel || statusLabel(project.status)}
               </Badge>
               {priority.label !== '-' && (
                 <Badge bg="" className={`project-detail-badge project-detail-priority variant-${priority.variant}`}>
@@ -118,7 +123,7 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
                   <span>
                     <span className="project-detail-person-label">ช่วงโปรเจกต์</span>
                     <strong>
-                      {project.startDate ? formatDate(project.startDate) : 'ไม่ระบุวันเริ่ม'}
+                      {project.startDate ? formatDate(project.startDate, !project.dueDate) : 'ไม่ระบุวันเริ่ม'}
                       {project.dueDate ? ` → ${formatDate(project.dueDate)}` : ''}
                     </strong>
                   </span>
@@ -139,7 +144,8 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
               </div>
               <div className="project-detail-ring-copy">
                 <strong>ความคืบหน้า</strong>
-                <span>เสร็จ {stats.completed} จาก {stats.total} งาน</span>
+                <span>คำนวณจากงานที่เสร็จ</span>
+                <span>{stats.completed} จาก {stats.total} งาน</span>
                 <span className={daysRemaining < 0 && !isTerminal ? 'is-overdue' : ''}>{deadlineText}</span>
               </div>
             </div>

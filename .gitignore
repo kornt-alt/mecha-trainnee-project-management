@@ -1,11 +1,7 @@
 backend/node_modules/
 frontend/node_modules/
 .env
-.zip
-
-# MECHA Login Animation Lab - Binary Evidence
-/frontend/public/login-animation-lab/**/*.mp4
-/frontend/public/login-animation-lab/**/*.png
-
-# MECHA Login Animation Lab - Compressed Trace Evidence
-/frontend/public/login-animation-lab/**/*.json.gz
+*.zip
+*.html
+frontend/workspace claude.html
+frontend/div,${JSON.stringify(title)})`)),"APP",JSON.stringify(await a.evaluate(`(${fn.toString()})(.project-detail-inner,${JSON.stringify(title)})`)))}await b.close()})()

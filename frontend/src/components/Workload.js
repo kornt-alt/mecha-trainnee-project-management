@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
-import { MOCK_EMPLOYEES, MOCK_DEPARTMENTS } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
 import {
   buildTaskPlannedWorkEntries,
@@ -92,7 +91,7 @@ function TeamWorkloadBar({ utilization, isOver, index }) {
 }
 
 export default function Workload() {
-  const { projects: projectRecords, tasks } = useMockData();
+  const { projects: projectRecords, tasks, teams, employees, departments } = useMockData();
   
 
   
@@ -112,8 +111,8 @@ export default function Workload() {
     setDepartment(nextDept);
     if (position !== 'all') {
       const validPositions = (nextDept === 'all'
-        ? MOCK_EMPLOYEES
-        : MOCK_EMPLOYEES.filter((emp) => emp.departmentId === nextDept)
+        ? employees
+        : employees.filter((emp) => emp.departmentId === nextDept)
       ).map((emp) => emp.position);
       if (!validPositions.includes(position)) {
         setPosition('all');
@@ -123,20 +122,20 @@ export default function Workload() {
 
   const availablePositions = useMemo(() => {
     const pool = department === 'all'
-      ? MOCK_EMPLOYEES
-      : MOCK_EMPLOYEES.filter((emp) => emp.departmentId === department);
+      ? employees
+      : employees.filter((emp) => emp.departmentId === department);
     return [...new Set(pool.map((emp) => emp.position))].sort((a, b) => a.localeCompare(b, 'th'));
-  }, [department]);
+  }, [department, employees]);
 
   const visibleEmployees = useMemo(
-    () => filterEmployees(MOCK_EMPLOYEES, { department, position, search }),
-    [department, position, search]
+    () => filterEmployees(employees, { department, position, search }),
+    [employees, department, position, search]
   );
 
   const data = useMemo(() => {
-    const entries = buildTaskPlannedWorkEntries(tasks, MOCK_EMPLOYEES);
+    const entries = buildTaskPlannedWorkEntries(tasks, employees);
     return computeEmployeeWorkloadData(visibleEmployees, entries, range, projectFilter);
-  }, [range, visibleEmployees, projectFilter, tasks]);
+  }, [range, visibleEmployees, projectFilter, tasks, employees]);
 
   const rangeDates = useMemo(() => {
     const dates = [];
@@ -197,29 +196,28 @@ export default function Workload() {
     : null;
   const weekPattern = period === 'weekly' ? getWeekSchedulePattern(referenceDate) : null;
 
-  const teamSummary = useMemo(() => {
-    const TEAMS = [
-      { id: 'dept-1', name: 'IT' },
-      { id: 'dept-3', name: 'AI' },
-      { id: 'dept-2', name: 'Electrical' },
-    ];
-    const employeesList = Array.isArray(data?.employees) ? data.employees : [];
-    return TEAMS.map((team) => {
-      const teamEmployees = employeesList.filter((emp) => emp.departmentId === team.id);
-      const plannedHours = teamEmployees.reduce((sum, emp) => sum + Number(emp.plannedHours || 0), 0);
-      const capacityHours = teamEmployees.reduce((sum, emp) => sum + Number(emp.capacityHours || 0), 0);
+  const employeeById = new Map(employees.map((employee) => [String(employee.id), employee]));
+  const workloadEmployees = Array.isArray(data?.employees) ? data.employees : [];
+  const teamSummary = (teams || []).map((team) => {
+      const members = [...new Set((team.memberEmployeeIds || []).map(String))]
+        .map((employeeId) => employeeById.get(employeeId))
+        .filter(Boolean);
+      const memberIds = new Set(members.map((employee) => String(employee.id)));
+      const teamWorkloadEmployees = workloadEmployees.filter((employee) => memberIds.has(String(employee.id)));
+      const plannedHours = teamWorkloadEmployees.reduce((sum, emp) => sum + Number(emp.plannedHours || 0), 0);
+      const capacityHours = teamWorkloadEmployees.reduce((sum, emp) => sum + Number(emp.capacityHours || 0), 0);
       const utilization = capacityHours > 0 ? (plannedHours / capacityHours) * 100 : null;
       const isOver = utilization !== null && utilization >= 100;
       return {
         ...team,
-        count: teamEmployees.length,
+        members,
+        count: members.length,
         plannedHours,
         capacityHours,
         utilization,
         isOver,
       };
-    });
-  }, [data?.employees]);
+  });
 
   const shiftSummary = useMemo(() => {
     const employeesList = Array.isArray(data?.employees) ? data.employees : [];
@@ -269,7 +267,7 @@ export default function Workload() {
             <div className="d-flex flex-wrap gap-2">
               <Form.Select size="sm" value={department} onChange={handleDepartmentChange} aria-label="กรอง Section (แผนก)">
                 <option value="all">ทุก Section (แผนก)</option>
-                {MOCK_DEPARTMENTS.map((item) => (
+                {departments.map((item) => (
                   <option key={item.id} value={item.id}>{item.name}</option>
                 ))}
               </Form.Select>
@@ -412,6 +410,18 @@ export default function Workload() {
                                 </span>
                               </div>
                               <TeamWorkloadBar utilization={team.utilization} isOver={team.isOver} index={index} />
+                              <div className="workload-team-members">
+                                <span className="workload-team-members-label">สมาชิกในทีม</span>
+                                {team.members.length ? (
+                                  <ul className="workload-team-member-list">
+                                    {team.members.map((employee) => (
+                                      <li className="workload-team-member" key={employee.id}>{employee.name}</li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <span className="workload-team-members-empty">ยังไม่มีสมาชิกในทีม</span>
+                                )}
+                              </div>
                             </div>
                             <div className={`workload-team-alert-pill ${team.utilization === null ? 'is-na' : team.isOver ? 'is-over' : 'is-normal'}`}>
                               {team.utilization === null ? 'ไม่มี Capacity ในช่วงนี้' : team.isOver ? '⚠️ เกิน Capacity (Overload)' : '✓ ภาระงานปกติ (Normal Load)'}
@@ -430,7 +440,7 @@ export default function Workload() {
       </Row>
 
       <WorkloadMatrix
-        employees={MOCK_EMPLOYEES}
+        employees={employees}
         tasks={tasks}
         projects={projectRecords}
         department={department}

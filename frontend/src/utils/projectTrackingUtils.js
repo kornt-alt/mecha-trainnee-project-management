@@ -8,6 +8,21 @@ export const today = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
+export const shortThaiDate = (value) => {
+  if (!value) return '—';
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : new Intl.DateTimeFormat('th-TH-u-ca-gregory', { day: 'numeric', month: 'short' }).format(date);
+};
+
+export const daysBetween = (from, to) => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86400000);
+
+export const checklistProgressPercent = (checklist) => {
+  const items = Array.isArray(checklist) ? checklist : [];
+  return items.length ? Math.round((items.filter((item) => item.completed).length / items.length) * 100) : 0;
+};
+
 // แสดงวันที่เป็น yyyy/mm/dd — รูปแบบเดิมของแอป
 export const ymd = (v) => (v ? v.replace(/-/g, '/') : '-');
 
@@ -76,8 +91,15 @@ export const priorityOf = (relatedTasks, project) => {
     return { label: '-', variant: 'low' };
   }
 
+  const assignedPriorities = relatedTasks.filter((task) => task.priority && normalizePriorityKey(task.priority) !== 'none');
+  if (assignedPriorities.length === 0 && project?.priority) {
+    const norm = normalizePriorityKey(project.priority);
+    return PRIORITY_BADGES[norm] || { label: 'ต่ำ', variant: 'low' };
+  }
+  if (assignedPriorities.length === 0) return { label: '-', variant: 'low' };
+
   // หา priority สูงสุดในงานทั้งหมดที่เกี่ยวข้อง (ป้องกันกรณี reduce คืน task object)
-  const topTask = relatedTasks.reduce((highest, current) => {
+  const topTask = assignedPriorities.reduce((highest, current) => {
     const rCurrent = RANK[normalizePriorityKey(current.priority)] ?? 0;
     const rHighest = RANK[normalizePriorityKey(highest.priority)] ?? 0;
     return rCurrent >= rHighest ? current : highest;

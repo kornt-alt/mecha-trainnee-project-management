@@ -4,19 +4,17 @@ import { Alert, Badge, Button, Card, Form, Modal } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
 import { initials } from '../../utils/projectTrackingUtils';
+import { WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 
 const findEmployee = (id) => MOCK_EMPLOYEES.find((person) => String(person.id) === String(id));
 
-export default function ProjectTeam({ projectId }) {
+export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavigateTasks }) {
   const { projects, tasks, actorId, addProjectMember, assignTeamLeader, removeProjectMember } = useMockData();
   const project = projects.find((item) => String(item.id) === String(projectId));
   const [addMemberId, setAddMemberId] = useState('');
   const [addReason, setAddReason] = useState('');
   const [pendingLeadId, setPendingLeadId] = useState('');
   const [leadReason, setLeadReason] = useState('');
-  const [removing, setRemoving] = useState(null);
-  const [replacementId, setReplacementId] = useState('');
-  const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const projectTasks = tasks.filter((task) => String(task.projectId) === String(projectId));
   const canManage = String(actorId) === String(project?.managerId) || String(actorId) === String(project?.teamLeadId);
@@ -29,7 +27,7 @@ export default function ProjectTeam({ projectId }) {
 
   const addMember = () => {
     if (!addMemberId || !addReason.trim() || memberIds.includes(String(addMemberId))) return;
-    const result = addProjectMember(project.id, addMemberId, addReason);
+    const result = addProjectMember(project.id, addMemberId, addReason.trim());
     if (!result) return setError('เพิ่มสมาชิกไม่สำเร็จ กรุณาตรวจสอบสิทธิ์และข้อมูล');
     setAddMemberId('');
     setAddReason('');
@@ -46,30 +44,30 @@ export default function ProjectTeam({ projectId }) {
     setLeadReason('');
     setError('');
   };
-  const affectedTasks = removing ? projectTasks.filter((task) => (
-    String(task.assigneeId) === String(removing.id)
-    || (task.collaborators || []).some((id) => String(id) === String(removing.id))
-    || String(task.reviewerId) === String(removing.id)
-  )) : [];
-  const outstandingTasks = affectedTasks.filter((task) => String(task.assigneeId) === String(removing?.id) && task.status !== 'completed');
-  const lockedTasks = affectedTasks.filter((task) => task.status === 'pending_review');
-  const replacementCandidates = members.filter((person) => String(person.id) !== String(removing?.id)
-    && outstandingTasks.every((task) => String(task.reviewerId) !== String(person.id)));
-  const removeMember = () => {
+  const removeMember = (person) => {
     setError('');
-    if (!removing || lockedTasks.length) return setError('มีงานรอตรวจ ต้องดำเนินการตรวจงานก่อนนำสมาชิกออก');
-    const replacementValid = replacementCandidates.some((person) => String(person.id) === String(replacementId));
-    if (!reason.trim() || (outstandingTasks.length && !replacementValid)) return setError('เลือกผู้รับผิดชอบแทนและระบุเหตุผลก่อนนำสมาชิกออก');
-    const result = removeProjectMember(project.id, removing.id, replacementId, reason);
+    const unfinishedPrimaryTasks = projectTasks.filter((task) => (
+      String(task.assigneeId) === String(person.id) && task.status !== 'completed'
+    ));
+    if (unfinishedPrimaryTasks.length) {
+      onNoticeChange?.({
+        memberId: String(person.id),
+        name: person.name,
+        tasks: unfinishedPrimaryTasks.map((task) => ({ id: task.id, title: task.title })),
+      });
+      return;
+    }
+    const result = removeProjectMember(project.id, person.id, null, 'นำออกจากทีม');
     if (result?.error) return setError(result.error);
-    setRemoving(null);
-    setReplacementId('');
-    setReason('');
+    onNoticeChange?.(null);
+  };
+  const requestRemove = (person) => {
+    removeMember(person);
   };
 
   return (
-    <section className="workspace-section workspace-reference-grid workspace-team-layout" aria-label="ทีมงานโปรเจกต์">
-      {error && !removing && !pendingLeadId && <Alert variant="danger" role="alert" dismissible onClose={() => setError('')}>{error}</Alert>}
+    <section className="workspace-section workspace-reference-grid workspace-team-layout is-reference" aria-label="ทีมงานโปรเจกต์">
+      {error && !pendingLeadId && <Alert variant="danger" role="alert" dismissible onClose={() => setError('')}>{error}</Alert>}
       <Card className="workspace-panel workspace-team-members-panel"><Card.Body>
         <div className="workspace-panel-heading workspace-team-heading">
           <h2>สมาชิกทีม · {members.length} คน</h2>
@@ -78,22 +76,31 @@ export default function ProjectTeam({ projectId }) {
             {MOCK_EMPLOYEES.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
           </Form.Select>}
         </div>
+        {notice && <div className="workspace-team-removal-notice" role="alert">
+          <strong>ยังนำ {notice.name} ออกจากทีมไม่ได้</strong>
+          <span>มีงานที่ยังไม่เสร็จอยู่ในมือ {notice.tasks.length} งาน ต้องโอนงานให้สมาชิกคนอื่นก่อน (Project Owner หรือ Team Lead เป็นผู้โอนได้)</span>
+          <ul>{notice.tasks.map((task) => <li key={task.id}>{task.title}</li>)}</ul>
+          <div className="workspace-team-removal-actions">
+            <Button type="button" onClick={onNavigateTasks}>ไปที่หน้างาน</Button>
+            <Button type="button" onClick={() => onNoticeChange?.(null)}>ปิด</Button>
+          </div>
+        </div>}
         {members.length === 0 ? <div className="workspace-empty-state"><strong>ยังไม่มีสมาชิกในโปรเจกต์</strong></div> : (
           <div className="workspace-member-list">
-            {members.map((person) => {
-              const assigned = projectTasks.filter((task) => String(task.assigneeId) === String(person.id)
-                || (task.collaborators || []).some((id) => String(id) === String(person.id)));
+            {members.map((person, index) => {
+              const assigned = projectTasks.filter((task) => String(task.assigneeId) === String(person.id));
               const openCount = assigned.filter((task) => task.status !== 'completed').length;
               const doneCount = assigned.length - openCount;
               const isOwner = String(project.managerId) === String(person.id);
               const isLead = String(project.teamLeadId || '') === String(person.id);
+              const isLocked = isOwner || isLead;
               const progress = assigned.length ? Math.round((doneCount / assigned.length) * 100) : 0;
               return <article className="workspace-member-row" key={person.id}>
-                <span className="project-detail-avatar" data-person-id={person.id} aria-hidden="true">{initials(person.name)}</span>
+                <span className="project-detail-avatar" data-person-id={person.id} aria-hidden="true" style={{ backgroundColor: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][0], color: WORKSPACE_AVATAR_COLORS[index % WORKSPACE_AVATAR_COLORS.length][1] }}>{initials(person.name)}</span>
                 <span className="workspace-member-name">
                   <span className="workspace-member-title"><strong>{person.name}</strong>
-                    {isOwner && <Badge className="workspace-member-role is-owner">Owner</Badge>}
-                    {isLead && <Badge className="workspace-member-role is-leader">Team Lead</Badge>}
+                    {isOwner && <Badge bg="" className="workspace-member-role is-owner">Owner</Badge>}
+                    {isLead && <Badge bg="" className="workspace-member-role is-leader">Team Lead</Badge>}
                   </span>
                   <small>{person.position || 'สมาชิกโปรเจกต์'} · {person.department || 'Mecha'}</small>
                 </span>
@@ -101,7 +108,7 @@ export default function ProjectTeam({ projectId }) {
                   <span>งานค้าง <b>{openCount}</b> · เสร็จ <b>{doneCount}</b></span>
                   <span className="workspace-member-progress"><i className={openCount >= 4 ? 'is-heavy' : ''} style={{ width: `${progress}%` }} /></span>
                 </span>
-                {canManage && !isOwner && !isLead && <Button size="sm" variant="outline-danger" className="workspace-member-remove" onClick={() => { setRemoving(person); setError(''); }}>นำออก</Button>}
+                <Button type="button" size="sm" variant="outline-danger" className="workspace-member-remove" aria-label={`นำ ${person.name} ออกจากทีม`} disabled={isLocked} onClick={() => requestRemove(person)}>{isLocked ? 'ล็อก' : 'นำออก'}</Button>
               </article>;
             })}
           </div>
@@ -131,15 +138,6 @@ export default function ProjectTeam({ projectId }) {
         <Modal.Header closeButton><Modal.Title>เปลี่ยน Team Leader</Modal.Title></Modal.Header>
         <Modal.Body><p>ระบุเหตุผลการเปลี่ยนผู้รับผิดชอบระดับโปรเจกต์</p><Form.Control aria-label="เหตุผลการเปลี่ยน Team Leader" value={leadReason} onChange={(event) => setLeadReason(event.target.value)} />{error && <Alert variant="danger" className="mt-2">{error}</Alert>}</Modal.Body>
         <Modal.Footer><Button variant="outline-secondary" onClick={() => setPendingLeadId('')}>ยกเลิก</Button><Button disabled={!leadReason.trim()} onClick={saveLead}>ยืนยัน</Button></Modal.Footer>
-      </Modal>}
-      {removing && <Modal show centered onHide={() => setRemoving(null)} className="mecha-confirm-modal is-destructive">
-        <Modal.Header closeButton><Modal.Title>นำสมาชิกออกจากโปรเจกต์</Modal.Title></Modal.Header>
-        <Modal.Body><p>{removing.name} จะถูกนำออกจากทีมโปรเจกต์</p>
-          {outstandingTasks.length > 0 && <><Alert variant="warning">ยังมีงานหลักที่รับผิดชอบ {outstandingTasks.length} รายการ ต้องมอบหมายใหม่ก่อน</Alert><Form.Group className="mb-2"><Form.Label htmlFor="member-replacement">ผู้รับผิดชอบแทน</Form.Label><Form.Select id="member-replacement" value={replacementId} onChange={(event) => setReplacementId(event.target.value)}><option value="">เลือกสมาชิกในโปรเจกต์</option>{replacementCandidates.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select></Form.Group></>}
-          {lockedTasks.length > 0 && <Alert variant="danger">มีงานรอตรวจ: {lockedTasks.map((task) => task.title).join(', ')} กรุณาดำเนินการตรวจก่อน</Alert>}
-          <Form.Group className="mt-2"><Form.Label htmlFor="member-removal-reason">เหตุผลการนำสมาชิกออก</Form.Label><Form.Control id="member-removal-reason" as="textarea" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} /></Form.Group>{error && <Alert variant="danger" className="mt-2">{error}</Alert>}
-        </Modal.Body>
-        <Modal.Footer><Button variant="outline-secondary" onClick={() => setRemoving(null)}>ยกเลิก</Button><Button variant="danger" disabled={lockedTasks.length > 0 || !reason.trim() || (outstandingTasks.length > 0 && (!replacementId || replacementCandidates.length === 0))} onClick={removeMember}>ยืนยันนำออก</Button></Modal.Footer>
       </Modal>}
     </section>
   );

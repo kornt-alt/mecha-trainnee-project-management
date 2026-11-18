@@ -21,15 +21,16 @@ export default function ProjectActivity({ projectId }) {
   return <section className="workspace-activity-section" aria-label="ประวัติการดำเนินการ">
     <Card className="workspace-panel"><Card.Body>
       <h2 className="workspace-reference-activity-title">ประวัติการดำเนินการ</h2>
-      {events.length ? <div className="workspace-reference-activity-list">{events.map((event) => {
+      {events.length ? <div className="workspace-reference-activity-list workspace-history-scroll">{events.map((event) => {
         const actor = MOCK_EMPLOYEES.find((person) => String(person.id) === String(event.actorId));
         return <article className="workspace-reference-activity-row" key={event.id}>
           <span className="project-detail-avatar" data-person-id={actor?.id} aria-hidden="true">{initials(actor?.name || event.actorId || '?')}</span>
-          <span><strong>{actor?.name || event.actorId || 'ไม่ระบุผู้ดำเนินการ'}</strong> {event.description}
-            <small>{formatStamp(event.timestamp)}{event.reason ? ` · เหตุผล: ${event.reason}` : ''}</small>
+          <span className="workspace-reference-activity-copy">
+            <span><strong>{actor?.name || event.actorId || 'ไม่ระบุผู้ดำเนินการ'}</strong> {event.description}</span>
+            <span>{formatStamp(event.timestamp)}{event.reason ? ` · เหตุผล: ${event.reason}` : ''}</span>
           </span>
         </article>;
-      })}</div> : <div className="workspace-reference-empty-note">ยังไม่มีประวัติกิจกรรม</div>}
+      })}</div> : null}
     </Card.Body></Card>
   </section>;
 }
