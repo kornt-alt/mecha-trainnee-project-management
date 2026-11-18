@@ -1,11 +1,12 @@
 // frontend/src/components/project-detail/ProjectOverview.js — context-backed project overview
-import { useState } from 'react';
-import { Badge, ProgressBar } from 'react-bootstrap';
+import { Fragment, useState } from 'react';
+import { Badge, Button, ProgressBar } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
 import { ownerOf, initials, today, ymd } from '../../utils/projectTrackingUtils';
 import { TaskPriorityBadge, TaskStatusBadge } from '../TaskBadges';
 import TaskDetailModal from '../TaskDetailModal';
+import { Plus } from '../common/Icons';
 import ProjectClosure from './ProjectClosure';
 
 const TASK_STATUSES = [
@@ -57,10 +58,34 @@ function getScheduleProgress(project, currentDay) {
   return Math.max(0, Math.min(100, Math.round((dayDifference(project.startDate, currentDay) / totalDays) * 100)));
 }
 
-function KpiCard({ title, className = '', children }) {
+const KPI_ICON_STYLE = {
+  progress: { background: '#E3ECFF', stroke: '#2F5BD0' },
+  status: { background: '#EEE8FF', stroke: '#6D3FC7' },
+  deadline: { background: '#FFE5EE', stroke: '#BE185D' },
+  attention: { background: '#FFEBC8', stroke: '#B45309' },
+};
+
+function KpiIcon({ type }) {
+  const style = KPI_ICON_STYLE[type];
+  return (
+    <span className="project-detail-kpi-icon" style={{ background: style.background }} aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={style.stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {type === 'progress' && <><path d="M4 18a8 8 0 1 1 16 0" /><path d="M12 18l4-6" /></>}
+        {type === 'status' && <path d="M5 20V10M12 20V4M19 20v-7" />}
+        {type === 'deadline' && <><circle cx="12" cy="13" r="8" /><path d="M12 9v4l2.5 2M9 3h6" /></>}
+        {type === 'attention' && <><path d="M12 4l9 16H3z" /><path d="M12 10v4M12 17h.01" /></>}
+      </svg>
+    </span>
+  );
+}
+
+function KpiCard({ title, icon, className = '', children }) {
   return (
     <section className={`project-detail-kpi ${className}`}>
-      <h2>{title}</h2>
+      <div className="project-detail-kpi-heading">
+        <KpiIcon type={icon} />
+        <h2>{title}</h2>
+      </div>
       {children}
     </section>
   );
@@ -68,7 +93,7 @@ function KpiCard({ title, className = '', children }) {
 
 function StatusKpi({ tasks }) {
   return (
-    <KpiCard title={`สรุปสถานะงาน (Task Summary) · ${tasks.length} งาน`}>
+    <KpiCard icon="status" className="status-summary" title={`สรุปสถานะงาน · ${tasks.length} งาน`}>
       <div className="project-detail-status-bar" aria-label="สัดส่วนสถานะงาน">
         {TASK_STATUSES.map((status) => {
           const count = tasks.filter((task) => task.status === status.key).length;
@@ -101,16 +126,17 @@ function DeadlineKpi({ project, currentDay }) {
     ? '—'
     : closed
       ? 'ปิดแล้ว'
-      : daysUntilDue < 0
-        ? `เลย ${Math.abs(daysUntilDue)} วัน`
-        : `${daysUntilDue} วัน`;
+      : String(daysUntilDue);
+  const dateText = project.dueDate
+    ? `${daysUntilDue < 0 && !closed ? 'วันที่เลยกำหนด' : 'วันที่เหลือ'} · ครบ ${formatDate(project.dueDate)}`
+    : 'ยังไม่ได้กำหนดวันส่ง';
 
   return (
-    <KpiCard title="กำหนดส่งโปรเจกต์">
-      <div className="project-detail-kpi-value">{headline}</div>
-      <p className="project-detail-kpi-subtitle">
-        {project.dueDate ? `ครบ ${formatDate(project.dueDate)}` : 'ยังไม่ได้กำหนดวันส่ง'}
-      </p>
+    <KpiCard icon="deadline" title="กำหนดส่งโปรเจกต์">
+      <div className="project-detail-kpi-deadline-value">
+        <span className="project-detail-kpi-value">{headline}</span>
+        <span>{dateText}</span>
+      </div>
       {elapsed !== null && <span className="project-detail-kpi-footnote">ผ่านไปแล้ว {elapsed}% ของระยะเวลา</span>}
     </KpiCard>
   );
@@ -122,7 +148,7 @@ function AttentionKpi({ attention, tasks }) {
   const upcomingCount = attention.filter((item) => item.kind === 'ใกล้ครบ').length;
 
   return (
-    <KpiCard title="ต้องจับตา" className={attention.length ? 'has-attention' : ''}>
+    <KpiCard icon="attention" title="ต้องจับตา" className={attention.length ? 'has-attention' : ''}>
       <div className="project-detail-kpi-value">{attention.length} <small>รายการ</small></div>
       <p className="project-detail-kpi-subtitle">
         เลยกำหนด {overdueCount} · รอตรวจ {reviewCount} · ใกล้ครบ {upcomingCount}
@@ -136,7 +162,7 @@ function TaskAssignee({ task }) {
   if (!employee) return null;
   return (
     <span className="project-detail-task-assignee" title={employee.name}>
-      <span className="project-detail-avatar project-detail-avatar-small" aria-hidden="true">{initials(employee.name)}</span>
+      <span className="project-detail-avatar project-detail-avatar-small" data-person-id={employee.id} aria-hidden="true">{initials(employee.name)}</span>
       <span>{employee.name}</span>
     </span>
   );
@@ -171,7 +197,7 @@ function AttentionPanel({ items, onOpenTask }) {
   );
 }
 
-function TaskPreview({ tasks, onOpenTask, onNavigateSection }) {
+function TaskPreview({ tasks, onOpenTask, onNavigateSection, onCreateTask }) {
   const preview = [...tasks]
     .sort((left, right) => Number(left.status === 'completed') - Number(right.status === 'completed')
       || String(left.dueDate || '9999-12-31').localeCompare(String(right.dueDate || '9999-12-31')))
@@ -181,9 +207,12 @@ function TaskPreview({ tasks, onOpenTask, onNavigateSection }) {
     <section className="project-detail-panel" aria-labelledby="task-preview-title">
       <div className="project-detail-panel-heading">
         <h2 id="task-preview-title">งานในโปรเจกต์</h2>
-        <button type="button" className="project-detail-inline-link" onClick={() => onNavigateSection('tasks')}>
-          ดูทั้งหมด ({tasks.length}) <span aria-hidden="true">→</span>
-        </button>
+        <div className="project-detail-task-preview-actions">
+          <button type="button" className="project-detail-inline-link" onClick={() => onNavigateSection('tasks')}>
+            ดูทั้งหมด ({tasks.length}) <span aria-hidden="true">→</span>
+          </button>
+          <Button type="button" className="project-detail-add-task" onClick={onCreateTask}><Plus size={15} />เพิ่มงาน</Button>
+        </div>
       </div>
       {preview.length === 0 ? (
         <div className="project-detail-empty">ยังไม่มีงานที่เชื่อมโยงกับโปรเจกต์นี้</div>
@@ -223,7 +252,7 @@ function ProjectInformation({ project, priority }) {
       <div className="project-detail-panel-heading"><h2 id="project-information-title">ข้อมูลโปรเจกต์</h2></div>
       {rows.length > 0 ? (
         <dl className="project-detail-information mb-0">
-          {rows.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+          {rows.map(([label, value]) => <Fragment key={label}><dt>{label}</dt><dd>{value}</dd></Fragment>)}
         </dl>
       ) : <div className="project-detail-empty">ยังไม่มีข้อมูลโปรเจกต์เพิ่มเติม</div>}
     </section>
@@ -253,7 +282,7 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
             const roles = [isOwner && 'Project Owner', isTeamLead && 'Team Lead'].filter(Boolean);
             return (
               <li key={member.id}>
-                <span className="project-detail-avatar" aria-hidden="true">{initials(member.name)}</span>
+                <span className="project-detail-avatar" data-person-id={member.id} aria-hidden="true">{initials(member.name)}</span>
                 <span className="project-detail-team-person">
                   <strong>{member.name}</strong>
                   <small>{roles.length ? roles.join(' · ') : member.position || 'สมาชิก'}</small>
@@ -268,7 +297,7 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
   );
 }
 
-export default function ProjectOverview({ project, tasks, stats, priority, onNavigateSection }) {
+export default function ProjectOverview({ project, tasks, stats, priority, onNavigateSection, onCreateTask }) {
   const { deliverables } = useMockData();
   const [selectedTaskId, setSelectedTaskId] = useState(null);
   const currentDay = today();
@@ -278,7 +307,7 @@ export default function ProjectOverview({ project, tasks, stats, priority, onNav
   return (
     <div className="project-detail-overview">
       <div className="project-detail-kpi-grid">
-        <KpiCard title="ความคืบหน้ารวม">
+        <KpiCard icon="progress" title="ความคืบหน้ารวม">
           <div className="project-detail-kpi-progress-value">
             <strong>{stats.progress}%</strong>
             <span>{stats.completed}/{stats.total} งานเสร็จ</span>
@@ -297,7 +326,7 @@ export default function ProjectOverview({ project, tasks, stats, priority, onNav
       <div className="project-detail-overview-columns">
         <div className="project-detail-overview-main">
           <AttentionPanel items={attention} onOpenTask={(task) => setSelectedTaskId(task.id)} />
-          <TaskPreview tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onNavigateSection={onNavigateSection} />
+          <TaskPreview tasks={tasks} onOpenTask={(task) => setSelectedTaskId(task.id)} onNavigateSection={onNavigateSection} onCreateTask={onCreateTask} />
         </div>
         <aside className="project-detail-overview-side">
           <ProjectInformation project={project} priority={priority} />

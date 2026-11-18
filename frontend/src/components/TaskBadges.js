@@ -7,6 +7,7 @@ const STATUS_LABELS = {
 };
 
 const PRIORITY_LABELS = {
+  none: 'ไม่ระบุ',
   urgent: 'ด่วนมาก',
   high: 'สูง',
   normal: 'ปกติ',

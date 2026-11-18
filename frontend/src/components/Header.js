@@ -4,13 +4,13 @@ import { Dropdown } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { Clock, Bell, Check, ChevronDown } from './common/Icons';
 import CalendarDropdown from './common/CalendarDropdown';
-import { useNotificationCenter } from '../context/NotificationCenterContext';
-import { formatThaiDateTime } from '../utils/notificationCenterUtils';
+import { useMockData } from '../context/MockDataContext';
 
 export default function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const { notifications, markNotifications } = useNotificationCenter();
+  const { notifications: allNotifications, actorId, markNotificationsRead } = useMockData();
+  const notifications = allNotifications.filter((item) => String(item.employeeId) === String(actorId));
 
   useEffect(() => {
     // อัปเดตเวลานาฬิกาทุกวินาทีเพื่อให้เวลาตรงกับปัจจุบันเสมอ
@@ -44,7 +44,7 @@ export default function Header() {
   const recentNotifications = notifications.slice(0, 5);
 
   const markAllAsRead = () => {
-    markNotifications(notifications.filter((item) => item.unread).map((item) => item.id), false);
+    markNotificationsRead(actorId);
   };
 
   return (

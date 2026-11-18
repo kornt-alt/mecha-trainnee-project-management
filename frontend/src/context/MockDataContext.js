@@ -1,28 +1,33 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { CURRENT_USER, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, applyTaskSync } from '../data/mockData';
+import { CURRENT_USER, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
 
 export const MockDataContext = createContext(null);
 
 const now = () => new Date().toISOString();
 const projectKey = (id) => String(id);
 const employeeName = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id))?.name || id;
-
-function legacyDeliverablesFor(project) {
-  if (!project.requiresDeliverables || !project.deliverableDescription) return [];
-  return project.deliverableDescription
-    .split(/\r?\n/)
-    .map((line) => line.replace(/^\s*\d+[.)]\s*/, '').trim())
-    .filter(Boolean)
-    .map((title, index) => ({
-      id: `legacy-${project.id}-${index + 1}`,
-      projectId: project.id,
-      title,
-      description: '',
-      status: 'pending',
-      source: 'project-description',
-    }));
-}
+const employeeExists = (id) => MOCK_EMPLOYEES.some((employee) => String(employee.id) === String(id));
+const taskStatuses = new Set(['not_started', 'in_progress', 'pending_review', 'completed']);
+const deliverableStatuses = new Set(['pending', 'in_progress', 'completed']);
+const isValidDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+};
+const validAttachment = (item) => Boolean(item && String(item.name || '').trim() && String(item.category || '').trim()
+  && Number.isFinite(Number(item.size || 0)) && Number(item.size || 0) >= 0);
+const transferPlannedAllocation = (allocations, fromEmployeeId, toEmployeeId) => {
+  const sourceId = String(fromEmployeeId);
+  const targetId = String(toEmployeeId);
+  const source = allocations.find((item) => String(item.employeeId) === sourceId);
+  if (!source || sourceId === targetId) return [...allocations];
+  const retained = allocations.filter((item) => String(item.employeeId) !== sourceId);
+  const target = retained.find((item) => String(item.employeeId) === targetId);
+  return target
+    ? retained.map((item) => String(item.employeeId) === targetId ? { ...item, hours: Number(item.hours) + Number(source.hours) } : item)
+    : [...retained, { employeeId: targetId, hours: Number(source.hours) }];
+};
 
 function initialTasks() {
   return MOCK_TASKS.map((task) => ({
@@ -65,12 +70,14 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
 export function MockDataProvider({ children }) {
   const [projectsState, setProjectsState] = useState(() => [...MOCK_PROJECTS_FALLBACK]);
   const [tasksState, setTasksState] = useState(initialTasks);
-  const [deliverablesState, setDeliverablesState] = useState(() => MOCK_PROJECTS_FALLBACK.flatMap(legacyDeliverablesFor));
+  const [deliverablesState, setDeliverablesState] = useState([]);
+  const [labelsState, setLabelsState] = useState([]);
   const [activityState, setActivityState] = useState([]);
+  const [notificationsState, setNotificationsState] = useState(() => [...NOTIFICATIONS]);
   const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
-  const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, activity: activityState, actorId });
+  const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId });
   const sequenceRef = useRef(0);
-  stateRef.current = { ...stateRef.current, projects: projectsState, tasks: tasksState, deliverables: deliverablesState, activity: activityState, actorId };
+  stateRef.current = { ...stateRef.current, projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId };
 
   const makeId = useCallback((prefix = 'evt') => `${prefix}-${++sequenceRef.current}`, []);
   const recordActivity = useCallback((event) => {
@@ -103,8 +110,24 @@ export function MockDataProvider({ children }) {
   }, [recordActivity]);
 
   const setActorId = useCallback((id) => {
+    if (!employeeExists(id)) return false;
     stateRef.current.actorId = String(id);
     setActorState(String(id));
+    return true;
+  }, []);
+
+  const addNotification = useCallback((notification) => {
+    const item = { id: makeId('notification'), unread: true, ...notification };
+    stateRef.current.notifications = [item, ...stateRef.current.notifications];
+    setNotificationsState(stateRef.current.notifications);
+    return item;
+  }, [makeId]);
+  const markNotificationsRead = useCallback((employeeId) => {
+    const next = stateRef.current.notifications.map((item) => (
+      String(item.employeeId) === String(employeeId) ? { ...item, unread: false } : item
+    ));
+    stateRef.current.notifications = next;
+    setNotificationsState(next);
   }, []);
 
   const setProjects = useCallback((updater) => {
@@ -128,23 +151,10 @@ export function MockDataProvider({ children }) {
       const old = previousById.get(projectKey(project.id));
       if (!old) {
         recordActivity({ projectId: project.id, type: 'project_created', description: `สร้างโปรเจกต์ “${project.name}”` });
-        const existing = new Set(stateRef.current.deliverables.map((item) => String(item.id)));
-        const additions = legacyDeliverablesFor(project).filter((item) => !existing.has(String(item.id)));
-        if (additions.length) {
-          stateRef.current.deliverables = [...stateRef.current.deliverables, ...additions];
-          setDeliverablesState(stateRef.current.deliverables);
-        }
       } else if (old.name !== project.name || old.description !== project.description || old.status !== project.status || old.dueDate !== project.dueDate || old.startDate !== project.startDate || old.category !== project.category || old.priority !== project.priority || String(old.managerId) !== String(project.managerId) || String(old.teamLeadId || '') !== String(project.teamLeadId || '') || JSON.stringify(old.teamMemberIds || []) !== JSON.stringify(project.teamMemberIds || []) || old.requiresDeliverables !== project.requiresDeliverables || old.deliverableDescription !== project.deliverableDescription) {
         const statusChanged = old.status !== project.status;
         recordActivity({ projectId: project.id, type: statusChanged ? 'project_status_changed' : 'project_updated', description: statusChanged ? `เปลี่ยนสถานะโปรเจกต์ “${project.name}” เป็น ${project.status}` : `แก้ไขข้อมูลโปรเจกต์ “${project.name}”` });
         resetClosureReview(project.id);
-      }
-      if (old && (old.deliverableDescription !== project.deliverableDescription || old.requiresDeliverables !== project.requiresDeliverables)) {
-        const retained = stateRef.current.deliverables.filter((item) => !(projectKey(item.projectId) === projectKey(project.id) && item.source === 'project-description'));
-        const existingIds = new Set(retained.map((item) => String(item.id)));
-        const additions = legacyDeliverablesFor(project).filter((item) => !existingIds.has(String(item.id)));
-        stateRef.current.deliverables = [...retained, ...additions];
-        setDeliverablesState(stateRef.current.deliverables);
       }
     });
     previous.forEach((project) => {
@@ -159,8 +169,33 @@ export function MockDataProvider({ children }) {
   const updateProject = useCallback((projectId, patch, event) => {
     const current = stateRef.current.projects.find((project) => projectKey(project.id) === projectKey(projectId));
     if (!current) return null;
+    if (patch.managerId && !employeeExists(patch.managerId)) return null;
+    if (patch.teamLeadId && !employeeExists(patch.teamLeadId)) return null;
+    if (patch.teamMemberIds && patch.teamMemberIds.some((id) => !employeeExists(id))) return null;
     if (current.closure?.status === 'closed' && patch.status && patch.status !== 'done') return null;
     if (patch.status === 'done' && current.closure?.status !== 'closed') return null;
+    if (patch.closure) {
+      const action = event?.type;
+      const actorIdNow = String(stateRef.current.actorId);
+      const isOwner = actorIdNow === String(current.managerId);
+      const isTeamLead = Boolean(current.teamLeadId) && actorIdNow === String(current.teamLeadId);
+      const closure = patch.closure;
+      const projectTasks = stateRef.current.tasks.filter((task) => projectKey(task.projectId) === projectKey(projectId));
+      const projectDeliverables = stateRef.current.deliverables.filter((item) => projectKey(item.projectId) === projectKey(projectId));
+      const tasksDone = projectTasks.length > 0 && projectTasks.every((task) => task.status === 'completed');
+      const deliverablesRequired = Boolean(current.requiresDeliverables || projectDeliverables.length);
+      const deliverablesDone = !deliverablesRequired || (projectDeliverables.length > 0 && projectDeliverables.every((item) => item.status === 'completed'));
+      if (action === 'project_closure_summary_reviewed' && (!isOwner || !tasksDone)) return null;
+      if (action === 'project_closure_deliverables_reviewed' && (!isOwner || !tasksDone || !deliverablesDone)) return null;
+      if (closure.status === 'pending_approval' && (
+        action !== 'project_closure_submitted' || !isOwner || !tasksDone || !deliverablesDone
+        || !closure.ownerReviewedAt || (deliverablesRequired && !closure.deliverablesReviewedAt)
+        || !employeeExists(current.teamLeadId)
+      )) return null;
+      if (closure.status === 'approved' && (action !== 'project_closure_approved' || !isTeamLead || current.closure?.status !== 'pending_approval')) return null;
+      if (closure.status === 'returned' && (action !== 'project_closure_returned' || !isTeamLead || current.closure?.status !== 'pending_approval' || !String(event?.reason || '').trim())) return null;
+      if (closure.status === 'closed' && (action !== 'project_closed' || !isOwner || current.closure?.status !== 'approved' || !tasksDone || !deliverablesDone)) return null;
+    }
     const next = stateRef.current.projects.map((project) => (
       projectKey(project.id) === projectKey(projectId) ? { ...project, ...patch } : project
     ));
@@ -190,15 +225,38 @@ export function MockDataProvider({ children }) {
   }, [makeId, recordActivity, resetClosureReview]);
 
   const createTask = useCallback((values) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(values.projectId));
+    if (!project) return null;
+    if (!String(values.title || '').trim() || !employeeExists(values.assigneeId) || !employeeExists(values.reviewerId) || !isValidDate(values.dueDate)) return null;
+    if (String(values.assigneeId) === String(values.reviewerId)) return null;
+    if ((values.status || 'not_started') !== 'not_started') return null;
+    const projectMembers = new Set([...(project.teamMemberIds || []).map(String), String(project.managerId || ''), String(project.teamLeadId || '')]);
+    if (!projectMembers.has(String(stateRef.current.actorId))) return null;
+    if (!projectMembers.has(String(values.assigneeId))) return null;
+    if (!projectMembers.has(String(values.reviewerId))) return null;
+    if ((values.collaborators || []).some((id) => !employeeExists(id) || !projectMembers.has(String(id)) || String(id) === String(values.assigneeId))) return null;
+    if (new Set((values.collaborators || []).map(String)).size !== (values.collaborators || []).length) return null;
+    if ((values.startDate && !isValidDate(values.startDate)) || (values.startDate && values.dueDate < values.startDate)) return null;
+    const allocations = Array.isArray(values.plannedAllocations) ? values.plannedAllocations : [];
+    if (allocations.some((allocation) => !employeeExists(allocation.employeeId) || !Number.isFinite(Number(allocation.hours)) || Number(allocation.hours) < 0
+      || ![values.assigneeId, ...(values.collaborators || [])].some((id) => String(id) === String(allocation.employeeId)))) return null;
+    if (new Set(allocations.map((allocation) => String(allocation.employeeId))).size !== allocations.length) return null;
+    const estimatedHours = values.estimatedHours === '' || values.estimatedHours == null ? 0 : Number(values.estimatedHours);
+    if (!Number.isFinite(estimatedHours) || estimatedHours < 0) return null;
+    if (allocations.reduce((total, allocation) => total + Number(allocation.hours), 0) > estimatedHours + 0.001) return null;
+    const checklist = Array.isArray(values.checklist) ? values.checklist : [];
+    if (checklist.some((item) => !String(item.title || '').trim() || !employeeExists(item.createdBy) || !employeeExists(item.ownerId || item.createdBy))) return null;
+    if ((values.labelIds || []).some((id) => !stateRef.current.labels.some((label) => String(label.id) === String(id)))) return null;
     const task = {
       ...values,
       id: values.id || `task-local-${++sequenceRef.current}`,
-      projectName: stateRef.current.projects.find((project) => projectKey(project.id) === projectKey(values.projectId))?.name || '',
+      projectName: project.name,
       status: values.status || 'not_started',
       statusLabel: values.statusLabel || (values.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอเริ่มทำ'),
       progress: Number.isFinite(values.progress) ? values.progress : 0,
       collaborators: [...new Set((values.collaborators || []).map(String).filter((id) => String(id) !== String(values.assigneeId)))],
-      checklist: values.checklist || [], assignmentHistory: [], reviewHistory: [],
+      plannedAllocations: allocations.filter((allocation) => Number(allocation.hours) > 0).map((allocation) => ({ employeeId: String(allocation.employeeId), hours: Number(allocation.hours) })),
+      checklist, assignmentHistory: [], reviewHistory: [],
       createdBy: stateRef.current.actorId, createdAt: now(),
     };
     updateTasksAndSyncProjects((tasks) => [task, ...tasks], [task.projectId], { recordEvents: false });
@@ -210,7 +268,105 @@ export function MockDataProvider({ children }) {
     const current = stateRef.current.tasks.find((task) => String(task.id) === String(taskId));
     if (!current) return null;
     const patch = typeof updater === 'function' ? updater(current) : updater;
+    if (!patch || typeof patch !== 'object') return null;
+    const eventType = String(event?.type || '');
+    if (current.status === 'pending_review' && !['task_review_approved', 'task_changes_requested', 'task_review_withdrawn'].includes(eventType)) return null;
     const nextTask = { ...current, ...patch };
+    const assignmentChanged = String(current.assigneeId) !== String(nextTask.assigneeId);
+    if (assignmentChanged) {
+      nextTask.collaborators = (nextTask.collaborators || []).filter((id) => String(id) !== String(nextTask.assigneeId));
+    }
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(current.projectId));
+    if (!project || !String(nextTask.title || '').trim() || !employeeExists(nextTask.assigneeId) || !employeeExists(nextTask.reviewerId) || !isValidDate(nextTask.dueDate)) return null;
+    if (String(nextTask.assigneeId) === String(nextTask.reviewerId)) return null;
+    if (!taskStatuses.has(nextTask.status) || (nextTask.startDate && !isValidDate(nextTask.startDate)) || (nextTask.startDate && nextTask.dueDate < nextTask.startDate)) return null;
+    const projectMembers = new Set([...(project.teamMemberIds || []).map(String), String(project.managerId || ''), String(project.teamLeadId || '')]);
+    if (!projectMembers.has(String(nextTask.assigneeId))) return null;
+    if (String(current.reviewerId) !== String(nextTask.reviewerId)
+      && !projectMembers.has(String(nextTask.reviewerId))) return null;
+    if ((nextTask.collaborators || []).some((id) => !employeeExists(id) || !projectMembers.has(String(id)) || String(id) === String(nextTask.assigneeId))) return null;
+    if (new Set((nextTask.collaborators || []).map(String)).size !== (nextTask.collaborators || []).length) return null;
+    const allocations = Array.isArray(nextTask.plannedAllocations) ? nextTask.plannedAllocations : [];
+    const estimatedHours = nextTask.estimatedHours === '' || nextTask.estimatedHours == null ? 0 : Number(nextTask.estimatedHours);
+    const contributorIds = new Set([nextTask.assigneeId, ...(nextTask.collaborators || [])].map(String));
+    const allocationOwnerIds = new Set([...contributorIds, ...(assignmentChanged ? [String(current.assigneeId)] : [])]);
+    if (!Number.isFinite(estimatedHours) || estimatedHours < 0
+      || allocations.some((allocation) => !employeeExists(allocation.employeeId) || !allocationOwnerIds.has(String(allocation.employeeId))
+        || !Number.isFinite(Number(allocation.hours)) || Number(allocation.hours) < 0)
+      || new Set(allocations.map((allocation) => String(allocation.employeeId))).size !== allocations.length
+      || allocations.reduce((sum, allocation) => sum + Number(allocation.hours), 0) > estimatedHours + 0.001) return null;
+    if (current.status === 'completed' && nextTask.status !== 'completed') return null;
+    const previousChecklist = new Map((current.checklist || []).map((item) => [String(item.id), item]));
+    const nextChecklist = Array.isArray(nextTask.checklist) ? nextTask.checklist : [];
+    const isOwner = String(stateRef.current.actorId) === String(project.managerId);
+    if (nextChecklist.some((item) => !String(item.title || '').trim() || !employeeExists(item.createdBy) || !employeeExists(item.ownerId || item.createdBy))) return null;
+    for (const previousItem of current.checklist || []) {
+      const nextItem = nextChecklist.find((item) => String(item.id) === String(previousItem.id));
+      if ((!nextItem || JSON.stringify(nextItem) !== JSON.stringify(previousItem))
+        && !isOwner && String(previousItem.ownerId || previousItem.createdBy) !== String(stateRef.current.actorId)) return null;
+    }
+    for (const item of nextChecklist) {
+      if (!previousChecklist.has(String(item.id)) && String(item.createdBy) !== String(stateRef.current.actorId)) return null;
+    }
+    if ((nextTask.labelIds || []).some((id) => !stateRef.current.labels.some((label) => String(label.id) === String(id)))) return null;
+    if ((nextTask.attachments || []).some((item) => !validAttachment(item))) return null;
+    const actor = String(stateRef.current.actorId);
+    const isProjectOwner = actor === String(project.managerId);
+    const isTeamLeader = actor === String(project.teamLeadId);
+    const isProjectParticipant = projectMembers.has(actor) || actor === String(current.assigneeId)
+      || actor === String(current.reviewerId) || (current.collaborators || []).some((id) => String(id) === actor);
+    const checklistEvent = eventType.startsWith('checklist_');
+    if (checklistEvent && (!isProjectParticipant || Object.keys(patch).some((key) => key !== 'checklist'))) return null;
+    if (eventType === 'task_updated' && !isProjectOwner && !isTeamLeader
+      && actor !== String(current.assigneeId)
+      && !(current.collaborators || []).some((id) => String(id) === actor)) return null;
+    if (assignmentChanged && ((!isProjectOwner && !isTeamLeader) || !String(event?.reason || '').trim())) return null;
+    if (current.status !== nextTask.status) {
+      const historyEntry = (nextTask.reviewHistory || []).slice(-1)[0];
+      if (current.status === 'not_started' && nextTask.status === 'in_progress' && eventType === 'task_started'
+        && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
+        // The assigned contributor starts the Task.
+      } else if (current.status === 'in_progress' && nextTask.status === 'pending_review' && eventType === 'task_review_submitted'
+        && employeeExists(nextTask.reviewerId) && historyEntry?.action === 'submitted'
+        && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(nextTask.reviewerId)
+        && Boolean(historyEntry.timestamp) && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor))) {
+        // Submission is allowed only when a valid reviewer is present.
+      } else if (current.status === 'pending_review' && nextTask.status === 'completed' && eventType === 'task_review_approved'
+        && actor === String(current.reviewerId) && historyEntry?.action === 'approved'
+        && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
+        && Boolean(historyEntry.timestamp)) {
+        // Only the designated reviewer approves.
+      } else if (current.status === 'pending_review' && nextTask.status === 'in_progress'
+        && ['task_changes_requested', 'task_review_withdrawn'].includes(eventType)
+        && (eventType === 'task_changes_requested' ? actor === String(current.reviewerId)
+          : actor === String(current.reviewSubmittedBy) || actor === String(project.managerId) || actor === String(project.teamLeadId))
+        && String(event?.reason || '').trim()
+        && historyEntry?.action === (eventType === 'task_changes_requested' ? 'changes_requested' : 'withdrawn')
+        && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
+        && String(historyEntry.reason || '').trim() && Boolean(historyEntry.timestamp)) {
+        // Return or withdrawal requires an authorized actor and a reason.
+      } else return null;
+    }
+    if (assignmentChanged) {
+      const reason = String(event?.reason || '').trim();
+      if (!reason) return null;
+      const history = [...(current.assignmentHistory || [])];
+      const alreadyRecorded = history.some((item) => String(item.previousAssigneeId) === String(current.assigneeId)
+        && String(item.newAssigneeId) === String(nextTask.assigneeId) && String(item.actorId) === String(stateRef.current.actorId)
+        && (!event?.timestamp || item.timestamp === event.timestamp));
+      if (!alreadyRecorded) history.push({ previousAssigneeId: current.assigneeId, newAssigneeId: nextTask.assigneeId, actorId: stateRef.current.actorId, reason, timestamp: now() });
+      nextTask.assignmentHistory = history;
+      nextTask.plannedAllocations = transferPlannedAllocation(current.plannedAllocations || [], current.assigneeId, nextTask.assigneeId);
+      const taskLabel = nextTask.title;
+      [current.assigneeId, nextTask.assigneeId].forEach((employeeId) => addNotification({
+        employeeId: String(employeeId),
+        title: 'มีการเปลี่ยนผู้รับผิดชอบงาน',
+        message: `งาน “${taskLabel}” มีการเปลี่ยนผู้รับผิดชอบโดย ${employeeName(stateRef.current.actorId)}`,
+        time: new Date().toLocaleString('th-TH'),
+        projectId: current.projectId,
+        taskId: current.id,
+      }));
+    }
     updateTasksAndSyncProjects((tasks) => tasks.map((task) => String(task.id) === String(taskId) ? nextTask : task), [current.projectId], { recordEvents: false });
     if (event) recordActivity({ projectId: current.projectId, taskId: current.id, ...event });
     const oldCollaborators = new Set((current.collaborators || []).map(String));
@@ -225,17 +381,29 @@ export function MockDataProvider({ children }) {
       recordActivity({ projectId: current.projectId, taskId: current.id, type: 'task_reviewer_changed', description: `เปลี่ยนผู้ตรวจงานของ “${nextTask.title}” เป็น ${employeeName(nextTask.reviewerId)}` });
     }
     return nextTask;
-  }, [recordActivity, updateTasksAndSyncProjects]);
+  }, [addNotification, recordActivity, updateTasksAndSyncProjects]);
 
   const deleteTask = useCallback((taskId, event) => {
     const task = stateRef.current.tasks.find((item) => String(item.id) === String(taskId));
     if (!task) return false;
+    if (task.status === 'pending_review') return false;
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(task.projectId));
+    if (!project) return false;
+    const actor = String(stateRef.current.actorId);
+    if (actor !== String(project.managerId) && actor !== String(project.teamLeadId) && actor !== String(task.createdBy)) return false;
     updateTasksAndSyncProjects((tasks) => tasks.filter((item) => String(item.id) !== String(taskId)), [task.projectId], { recordEvents: false });
     recordActivity({ projectId: task.projectId, taskId: task.id, type: 'task_deleted', description: `ลบงาน “${task.title}”`, ...event });
     return true;
   }, [recordActivity, updateTasksAndSyncProjects]);
 
   const createDeliverable = useCallback((values) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(values.projectId));
+    const linkedTask = values.relatedTaskId && stateRef.current.tasks.find((task) => String(task.id) === String(values.relatedTaskId));
+    if (!project || !String(values.title || '').trim() || (values.responsibleId && !employeeExists(values.responsibleId))
+      || (values.relatedTaskId && (!linkedTask || projectKey(linkedTask.projectId) !== projectKey(values.projectId)))
+      || (values.dueDate && !isValidDate(values.dueDate))
+      || !deliverableStatuses.has(values.status || 'pending')
+      || (values.attachments || []).some((item) => !validAttachment(item))) return null;
     const deliverable = { ...values, id: `deliverable-${++sequenceRef.current}`, status: values.status || 'pending', createdAt: now() };
     stateRef.current.deliverables = [deliverable, ...stateRef.current.deliverables];
     setDeliverablesState(stateRef.current.deliverables);
@@ -247,6 +415,15 @@ export function MockDataProvider({ children }) {
   const updateDeliverable = useCallback((deliverableId, patch, event) => {
     const current = stateRef.current.deliverables.find((item) => String(item.id) === String(deliverableId));
     if (!current) return null;
+    const nextStatus = patch.status || current.status;
+    const responsibleId = Object.prototype.hasOwnProperty.call(patch, 'responsibleId') ? patch.responsibleId : current.responsibleId;
+    const relatedTaskId = Object.prototype.hasOwnProperty.call(patch, 'relatedTaskId') ? patch.relatedTaskId : current.relatedTaskId;
+    const dueDate = Object.prototype.hasOwnProperty.call(patch, 'dueDate') ? patch.dueDate : current.dueDate;
+    const linkedTask = relatedTaskId && stateRef.current.tasks.find((task) => String(task.id) === String(relatedTaskId));
+    if (!deliverableStatuses.has(nextStatus) || (responsibleId && !employeeExists(responsibleId))
+      || (relatedTaskId && (!linkedTask || projectKey(linkedTask.projectId) !== projectKey(current.projectId)))
+      || (dueDate && !isValidDate(dueDate))
+      || (patch.attachments && patch.attachments.some((item) => !validAttachment(item)))) return null;
     const next = stateRef.current.deliverables.map((item) => String(item.id) === String(deliverableId) ? { ...item, ...patch, source: 'workspace' } : item);
     stateRef.current.deliverables = next;
     setDeliverablesState(next);
@@ -268,14 +445,128 @@ export function MockDataProvider({ children }) {
     return true;
   }, [recordActivity, resetClosureReview]);
 
+  const addProjectMember = useCallback((projectId, employeeId, reason) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
+    if (!project || !employeeExists(employeeId) || !String(reason || '').trim()) return null;
+    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return null;
+    const members = [...new Set((project.teamMemberIds || []).map(String))];
+    if (members.includes(String(employeeId)) || String(project.managerId) === String(employeeId) || String(project.teamLeadId) === String(employeeId)) return null;
+    return updateProject(projectId, { teamMemberIds: [...members, String(employeeId)] }, {
+      type: 'member_added', description: `เพิ่ม ${employeeName(employeeId)} เป็นสมาชิกโปรเจกต์`, reason: String(reason).trim(),
+    });
+  }, [updateProject]);
+
+  const assignTeamLeader = useCallback((projectId, employeeId, reason) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
+    if (!project || (employeeId && !employeeExists(employeeId)) || !String(reason || '').trim()) return null;
+    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return null;
+    const members = new Set((project.teamMemberIds || []).map(String));
+    if (employeeId) members.add(String(employeeId));
+    return updateProject(projectId, { teamLeadId: employeeId || null, teamMemberIds: [...members] }, {
+      type: 'team_lead_changed', description: employeeId ? `กำหนด Team Leader เป็น ${employeeName(employeeId)}` : 'นำการกำหนด Team Leader ออก', reason: String(reason).trim(),
+    });
+  }, [updateProject]);
+
+  const removeProjectMember = useCallback((projectId, employeeId, replacementId, reason) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
+    if (!project || !String(reason || '').trim() || !employeeExists(employeeId)) return { error: 'ตรวจสอบข้อมูลสมาชิกและระบุเหตุผลก่อนดำเนินการ' };
+    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return { error: 'คุณไม่มีสิทธิ์จัดการสมาชิกโปรเจกต์นี้' };
+    if ([project.managerId, project.teamLeadId].some((id) => String(id) === String(employeeId))) return { error: 'ต้องเปลี่ยน Project Owner หรือ Team Leader ก่อนนำบุคคลนี้ออก' };
+    const memberIds = new Set((project.teamMemberIds || []).map(String));
+    if (!memberIds.has(String(employeeId))) return { error: 'ไม่พบสมาชิกในโปรเจกต์นี้' };
+    const projectTasks = stateRef.current.tasks.filter((task) => projectKey(task.projectId) === projectKey(projectId));
+    const pendingReferences = projectTasks.filter((task) => task.status === 'pending_review'
+      && (String(task.assigneeId) === String(employeeId) || String(task.reviewerId) === String(employeeId) || (task.collaborators || []).some((id) => String(id) === String(employeeId))));
+    if (pendingReferences.length) return { error: 'สมาชิกมีงานที่กำลังรอตรวจ ต้องจัดการงานตรวจให้เสร็จก่อนนำออก' };
+    const outstanding = projectTasks.filter((task) => String(task.assigneeId) === String(employeeId) && task.status !== 'completed');
+    const remainingMembers = [...memberIds].filter((id) => id !== String(employeeId));
+    const eligibleReplacement = remainingMembers.includes(String(replacementId)) || [project.managerId, project.teamLeadId].some((id) => String(id) === String(replacementId));
+    if (outstanding.length && (!eligibleReplacement || String(replacementId) === String(employeeId))) return { error: 'เลือกสมาชิกโปรเจกต์คนอื่นเพื่อรับงานค้างก่อนนำสมาชิกออก' };
+    if (outstanding.length && (!employeeExists(replacementId) || outstanding.some((task) => String(task.reviewerId) === String(replacementId)))) {
+      return { error: 'ผู้รับผิดชอบแทนต้องเป็นพนักงานที่มีอยู่และไม่ใช่ผู้ตรวจของงานที่โอน' };
+    }
+    if (projectTasks.some((task) => task.status !== 'completed' && String(task.reviewerId) === String(employeeId))) return { error: 'สมาชิกเป็นผู้ตรวจของงานหนึ่งรายการขึ้นไป กรุณาเปลี่ยนผู้ตรวจแต่ละงานก่อนนำออก' };
+    const oldTasks = stateRef.current.tasks;
+    const nextTasks = oldTasks.map((task) => {
+      if (projectKey(task.projectId) !== projectKey(projectId) || task.status === 'completed') return task;
+      const patch = {};
+      if (String(task.assigneeId) === String(employeeId) && task.status !== 'completed') {
+        patch.assigneeId = String(replacementId);
+        patch.collaborators = (task.collaborators || []).filter((id) => (
+          String(id) !== String(employeeId) && String(id) !== String(replacementId)
+        ));
+        patch.assignmentHistory = [...(task.assignmentHistory || []), { previousAssigneeId: task.assigneeId, newAssigneeId: String(replacementId), actorId: stateRef.current.actorId, reason: String(reason).trim(), timestamp: now() }];
+        patch.plannedAllocations = transferPlannedAllocation(task.plannedAllocations || [], employeeId, replacementId);
+      }
+      if ((task.collaborators || []).some((id) => String(id) === String(employeeId))) {
+        patch.collaborators = task.collaborators.filter((id) => String(id) !== String(employeeId));
+        const allocationTarget = patch.assigneeId || task.assigneeId;
+        patch.plannedAllocations = transferPlannedAllocation(patch.plannedAllocations || task.plannedAllocations || [], employeeId, allocationTarget);
+      }
+      return Object.keys(patch).length ? { ...task, ...patch } : task;
+    });
+    stateRef.current.tasks = nextTasks;
+    setTasksState(nextTasks);
+    const touchedProjectIds = new Set(projectTasks.map((task) => task.projectId));
+    const nextProjects = applyTaskSync({ tasks: oldTasks, projects: stateRef.current.projects }, () => nextTasks, [...touchedProjectIds]).projects;
+    stateRef.current.projects = nextProjects;
+    setProjectsState(nextProjects);
+    const nextMemberIds = [...memberIds].filter((id) => id !== String(employeeId));
+    updateProject(projectId, { teamMemberIds: nextMemberIds }, {
+      type: 'member_removed', description: `นำ ${employeeName(employeeId)} ออกจากสมาชิกโปรเจกต์`, reason: String(reason).trim(),
+    });
+    projectTasks.filter((task) => String(task.assigneeId) === String(employeeId) && task.status !== 'completed').forEach((task) => recordActivity({
+      projectId, taskId: task.id, type: 'task_assignee_changed', description: `เปลี่ยนผู้รับผิดชอบของ “${task.title}” จาก ${employeeName(employeeId)} เป็น ${employeeName(replacementId)}`, reason: String(reason).trim(),
+    }));
+    projectTasks.filter((task) => String(task.assigneeId) === String(employeeId) && task.status !== 'completed').forEach((task) => [employeeId, replacementId].forEach((recipientId) => addNotification({
+      employeeId: String(recipientId), title: 'มีการเปลี่ยนผู้รับผิดชอบงาน',
+      message: `งาน “${task.title}” มีการเปลี่ยนผู้รับผิดชอบโดย ${employeeName(stateRef.current.actorId)}`,
+      time: new Date().toLocaleString('th-TH'), projectId, taskId: task.id,
+    })));
+    projectTasks.filter((task) => task.status !== 'completed' && (task.collaborators || []).some((id) => String(id) === String(employeeId))).forEach((task) => recordActivity({
+      projectId, taskId: task.id, type: 'task_collaborator_removed', description: `นำ ${employeeName(employeeId)} ออกจากผู้ร่วมงานใน “${task.title}”`, reason: String(reason).trim(),
+    }));
+    return { project: stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId)) };
+  }, [addNotification, recordActivity, updateProject]);
+
+  const createLabel = useCallback((values) => {
+    const name = String(values.name || '').trim();
+    if (!name) return null;
+    const label = { id: `label-${++sequenceRef.current}`, name, color: values.color || '#2F5BD0' };
+    stateRef.current.labels = [...stateRef.current.labels, label];
+    setLabelsState(stateRef.current.labels);
+    return label;
+  }, []);
+  const updateLabel = useCallback((labelId, patch) => {
+    const name = String(patch.name || '').trim();
+    if (!name) return null;
+    const next = stateRef.current.labels.map((label) => String(label.id) === String(labelId) ? { ...label, ...patch, name } : label);
+    if (next.every((label, index) => label === stateRef.current.labels[index])) return null;
+    stateRef.current.labels = next;
+    setLabelsState(next);
+    return next.find((label) => String(label.id) === String(labelId));
+  }, []);
+  const deleteLabel = useCallback((labelId) => {
+    const next = stateRef.current.labels.filter((label) => String(label.id) !== String(labelId));
+    if (next.length === stateRef.current.labels.length) return false;
+    stateRef.current.labels = next;
+    setLabelsState(next);
+    const nextTasks = stateRef.current.tasks.map((task) => ({ ...task, labelIds: (task.labelIds || []).filter((id) => String(id) !== String(labelId)) }));
+    stateRef.current.tasks = nextTasks;
+    setTasksState(nextTasks);
+    return true;
+  }, []);
+
   const value = useMemo(() => ({
-    projects: projectsState, setProjects, updateProject,
+    projects: projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
     tasks: tasksState, setTasks: setTasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
     deliverables: deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable,
+    labels: labelsState, createLabel, updateLabel, deleteLabel,
     activity: activityState, recordActivity,
+    notifications: notificationsState, addNotification, markNotificationsRead,
     actorId, setActorId,
-  }), [projectsState, setProjects, updateProject, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
-    deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, activityState, recordActivity, actorId, setActorId]);
+  }), [projectsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
+    deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, actorId, setActorId]);
 
   return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;
 }

@@ -87,11 +87,29 @@ function RoutedApplication() {
 export default function App() {
   return (
     <Router basename={APP_BASE}>
-      <NotificationCenterProvider>
-        <MockDataProvider>
-          <RoutedApplication />
-        </MockDataProvider>
-      </NotificationCenterProvider>
+      <MockDataProvider>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<Home />} />
+          <Route path="projects" element={<Projects />} />
+          <Route path="tasks" element={<Tasks />} />
+          <Route path="workload" element={<Workload />} />
+          <Route path="reports" element={<Reports />} />
+          <Route
+            path="settings"
+            element={
+              <PlaceholderPage
+                title="ตั้งค่าระบบ (Settings)"
+                description="การตั้งค่าโปรไฟล์ผู้ใช้งาน การแจ้งเตือน และการเชื่อมต่อฐานข้อมูล"
+              />
+            }
+          />
+          <Route path="about" element={<About />} />
+          <Route path="*" element={<NotFound />} />
+        </Route>
+        <Route path="projects/:projectId" element={<ProjectDetail />} />
+      </Routes>
+      </MockDataProvider>
     </Router>
   );
 }
