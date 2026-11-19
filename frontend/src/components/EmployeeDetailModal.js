@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Badge, Modal, Row, Col, Table } from 'react-bootstrap';
 import { useMockData } from '../context/MockDataContext';
-import { getEmployeeLeaveDays } from '../data/workloadMockData';
 
 
 
@@ -153,11 +152,6 @@ export default function EmployeeDetailModal({ show, onHide, employee, range, per
     return sortDirection === 'asc' ? compare : -compare;
   });
 
-  const leaveEntries = (() => {
-          if (!range) return [];
-          const all = getEmployeeLeaveDays(employee.id) || [];
-          return all.filter(l => l.date >= range.start && l.date <= range.end);
-        })();
         const handleSort = (key) => {
     if (sortKey === key) {
       setSortDirection(prev => (prev === 'asc' ? 'desc' : 'asc'));

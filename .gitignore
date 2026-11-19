@@ -1,7 +1,11 @@
 backend/node_modules/
 frontend/node_modules/
+frontend/build/
 .env
 *.zip
 *.html
 frontend/workspace claude.html
 frontend/div,${JSON.stringify(title)})`)),"APP",JSON.stringify(await a.evaluate(`(${fn.toString()})(.project-detail-inner,${JSON.stringify(title)})`)))}await b.close()})()
+
+กลับมาทำต่อ
+.claude/

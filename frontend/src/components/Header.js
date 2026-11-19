@@ -5,12 +5,40 @@ import { Link } from 'react-router-dom';
 import { Clock, Bell, Check, ChevronDown } from './common/Icons';
 import CalendarDropdown from './common/CalendarDropdown';
 import { useMockData } from '../context/MockDataContext';
+import { useNotificationCenter } from '../context/NotificationCenterContext';
+import { formatThaiDateTime } from '../utils/notificationCenterUtils';
+
+const RECENT_LIMIT = 5;
 
 export default function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  const { notifications: allNotifications, actorId, markNotificationsRead } = useMockData();
-  const notifications = allNotifications.filter((item) => String(item.employeeId) === String(actorId));
+  // กระดิ่งรวม 2 แหล่ง: แจ้งเตือนงานของผู้ใช้ปัจจุบัน (MockDataContext — เกิดตอนเปลี่ยนผู้รับผิดชอบงาน)
+  // + แจ้งเตือนระบบ (NotificationCenterContext — มีหน้ารายละเอียดที่ /notifications/:id)
+  const { notifications: taskNotificationsAll, actorId, markNotificationsRead } = useMockData();
+  const { notifications: systemNotifications, markNotifications } = useNotificationCenter();
+  const taskNotifications = taskNotificationsAll.filter((item) => String(item.employeeId) === String(actorId));
+
+  // แปลงเป็นรูปเดียวกันก่อนแสดง — แจ้งเตือนงานไม่มี createdAt และไม่มีหน้า detail จึงลิงก์ไปหน้าโปรเจกต์แทน
+  // แจ้งเตือนงานเพิ่งเกิดใน session นี้เสมอ จึงวางไว้ก่อนแจ้งเตือนระบบ (ซึ่งเรียงใหม่ → เก่ามาแล้ว)
+  const notifications = [
+    ...taskNotifications.map((item) => ({
+      key: `task-${item.id}`,
+      to: item.projectId ? `/projects/${item.projectId}` : '/notifications',
+      title: item.title,
+      message: item.message,
+      timeLabel: item.time || '—',
+      unread: item.unread,
+    })),
+    ...systemNotifications.map((item) => ({
+      key: `system-${item.id}`,
+      to: `/notifications/${item.id}`,
+      title: item.title,
+      message: item.message,
+      timeLabel: formatThaiDateTime(item.createdAt),
+      unread: item.unread,
+    })),
+  ];
 
   useEffect(() => {
     // อัปเดตเวลานาฬิกาทุกวินาทีเพื่อให้เวลาตรงกับปัจจุบันเสมอ
@@ -41,10 +69,11 @@ export default function Header() {
 
   const { dateStr, timeStr } = formatDateTime(currentTime);
   const unreadCount = notifications.filter((n) => n.unread).length;
-  const recentNotifications = notifications.slice(0, 5);
+  const recentNotifications = notifications.slice(0, RECENT_LIMIT);
 
   const markAllAsRead = () => {
     markNotificationsRead(actorId);
+    markNotifications(systemNotifications.filter((item) => item.unread).map((item) => item.id), false);
   };
 
   return (
@@ -111,13 +140,13 @@ export default function Header() {
               {recentNotifications.map((item) => (
                 <Dropdown.Item
                   as={Link}
-                  to={`/notifications/${item.id}`}
-                  key={item.id}
+                  to={item.to}
+                  key={item.key}
                   className={`notification-item px-3 py-2 border-bottom ${item.unread ? 'unread' : ''}`}
                 >
                   <div className="d-flex justify-content-between align-items-baseline gap-2">
                     <span className="notification-title fw-medium">{item.title}</span>
-                    <span className="notification-time">{formatThaiDateTime(item.createdAt)}</span>
+                    <span className="notification-time">{item.timeLabel}</span>
                   </div>
                   <p className="notification-desc mb-0 small text-muted">{item.message}</p>
                 </Dropdown.Item>

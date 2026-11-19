@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Form, Modal, ProgressBar, Row, Table } from 'react-bootstrap';
+import { Badge, Button, Card, Col, Form, ProgressBar, Row } from 'react-bootstrap';
 import { useMockData } from '../context/MockDataContext';
 import {
   buildTaskPlannedWorkEntries,
-  getWeekSchedulePattern,
   parseISODate,
   toISODate,
   getWorkloadPeriodRange as getRange,
@@ -21,7 +20,6 @@ const PERIODS = [
   { key: 'yearly', label: 'รายปี' },
 ];
 const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-const DAY_LABELS = ['อา.', 'จ.', 'อ.', 'พ.', 'พฤ.', 'ศ.', 'ส.'];
 const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ชม.`;
 const fmtDate = (value) => {
   const date = parseISODate(value);
@@ -31,13 +29,6 @@ const fmtDate = (value) => {
 // Available: < 90% | Near Capacity: 90–99% | Overcapacity: ≥ 100%
 const getStatus = (percent) => (percent >= 100 ? 'danger' : percent >= 90 ? 'warning' : 'success');
 
-const PRIORITY_ORDER = { urgent: 4, high: 3, normal: 2, low: 1 };
-const PRIORITY_META = {
-  urgent: { label: 'Urgent', bg: 'danger' },
-  high: { label: 'High', bg: 'warning' },
-  normal: { label: 'Normal', bg: 'primary' },
-  low: { label: 'Low', bg: 'secondary' },
-};
 
 
 function EmployeeWorkloadBar({ percent, index }) {
@@ -137,54 +128,6 @@ export default function Workload() {
     return computeEmployeeWorkloadData(visibleEmployees, entries, range, projectFilter);
   }, [range, visibleEmployees, projectFilter, tasks, employees]);
 
-  const rangeDates = useMemo(() => {
-    const dates = [];
-    const cursor = parseISODate(range.start);
-    const end = parseISODate(range.end);
-    while (cursor <= end) {
-      dates.push(toISODate(cursor));
-      cursor.setDate(cursor.getDate() + 1);
-    }
-    return dates;
-  }, [range]);
-
-  const matrixBuckets = useMemo(() => {
-    if (period === 'yearly') {
-      const year = parseISODate(range.start).getFullYear();
-      return Array.from({ length: 12 }, (_, month) => ({
-        key: `${year}-${String(month + 1).padStart(2, '0')}`,
-        start: toISODate(new Date(year, month, 1)),
-        end: toISODate(new Date(year, month + 1, 0)),
-        label: THAI_MONTHS[month],
-      }));
-    }
-    return rangeDates.map((date) => ({
-      key: date,
-      start: date,
-      end: date,
-      label: `${DAY_LABELS[parseISODate(date).getDay()]} ${parseISODate(date).getDate()}/${parseISODate(date).getMonth() + 1}`,
-    }));
-  }, [period, range.start, rangeDates]);
-
-  const dailySummary = useMemo(() => {
-    const buckets = Array.isArray(matrixBuckets) ? matrixBuckets : [];
-    const employeesList = Array.isArray(data?.employees) ? data.employees : [];
-    const entriesList = Array.isArray(data?.entries) ? data.entries : [];
-    return buckets.map((bucket) => {
-      const capacity = employeesList.reduce((sum, employee) => {
-        const schedules = Array.isArray(employee?.schedules) ? employee.schedules : [];
-        const dayCapacity = schedules
-          .filter((day) => day && day.date >= bucket.start && day.date <= bucket.end)
-          .reduce((daySum, day) => daySum + Number(day.capacityHours || 0), 0);
-        return sum + dayCapacity;
-      }, 0);
-      const planned = entriesList
-        .filter((entry) => entry && entry.date >= bucket.start && entry.date <= bucket.end)
-        .reduce((sum, entry) => sum + Number(entry.hours || 0), 0);
-      return { ...bucket, capacity, planned, percent: capacity ? (planned / capacity) * 100 : 0 };
-    });
-  }, [matrixBuckets, data?.employees, data?.entries]);
-
   const projectsWithWorkload = useMemo(() => {
     if (!Array.isArray(projectRecords)) return [];
     return projectRecords.filter((project) => tasks.some((task) => String(task.projectId) === String(project.id)
@@ -194,7 +137,6 @@ export default function Workload() {
   const selectedDetails = selectedEmployee
     ? (data.employees || []).find((emp) => emp.id === selectedEmployee.id) || selectedEmployee
     : null;
-  const weekPattern = period === 'weekly' ? getWeekSchedulePattern(referenceDate) : null;
 
   const employeeById = new Map(employees.map((employee) => [String(employee.id), employee]));
   const workloadEmployees = Array.isArray(data?.employees) ? data.employees : [];
@@ -218,23 +160,6 @@ export default function Workload() {
         isOver,
       };
   });
-
-  const shiftSummary = useMemo(() => {
-    const employeesList = Array.isArray(data?.employees) ? data.employees : [];
-    const standard = employeesList.reduce((sum, employee) => {
-      const schedules = Array.isArray(employee?.schedules) ? employee.schedules : [];
-      return sum + schedules.filter((day) => day?.shiftType === 'standard').length;
-    }, 0);
-    const short = employeesList.reduce((sum, employee) => {
-      const schedules = Array.isArray(employee?.schedules) ? employee.schedules : [];
-      return sum + schedules.filter((day) => day?.shiftType === 'short').length;
-    }, 0);
-    const off = employeesList.reduce((sum, employee) => {
-      const schedules = Array.isArray(employee?.schedules) ? employee.schedules : [];
-      return sum + schedules.filter((day) => day?.dayOff).length;
-    }, 0);
-    return { standard, short, off };
-  }, [data?.employees]);
 
   return (
     <div className="workload-page">
