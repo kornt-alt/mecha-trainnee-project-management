@@ -5,7 +5,7 @@ export default function NotFound() {
   return (
     <>
       <h1 className="page-title">ไม่พบหน้านี้</h1>
-      <Link to="/">กลับหน้าแรก</Link>
+      <Link to="/">กลับหน้าหลัก</Link>
     </>
   );
 }

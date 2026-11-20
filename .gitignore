@@ -9,3 +9,6 @@ frontend/div,${JSON.stringify(title)})`)),"APP",JSON.stringify(await a.evaluate(
 
 กลับมาทำต่อ
 .claude/
+
+CHANGELOG.md
+CHANGELOG.md

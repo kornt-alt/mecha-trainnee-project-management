@@ -188,7 +188,7 @@ export default function ProjectTasks({
       {showTaskForm && <TaskFormModal project={project} task={editingTask} workspaceMode onClose={() => setShowTaskForm(false)} onSave={(values) => {
         const result = editingTask
           ? updateTask(editingTask.id, values, { type: 'task_updated', description: `แก้ไขรายละเอียดงาน “${values.title}”` })
-          : createTask({ ...values, status: 'not_started', statusLabel: 'รอเริ่มทำ' });
+          : createTask({ ...values, status: 'not_started' });
         if (result) {
           setShowTaskForm(false);
           setEditingTask(null);

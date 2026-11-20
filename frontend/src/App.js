@@ -1,7 +1,7 @@
 // frontend/src/App.js — รวม route ของทุกหน้า
 //
 // เพิ่มหน้าใหม่: สร้าง components/<Page>.js → เพิ่ม <Route> ข้างล่าง → เพิ่มเมนูใน components/nav.js
-import { useLayoutEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
@@ -21,18 +21,24 @@ import AuditLog from './components/notifications/AuditLog';
 import ExportHistory from './components/notifications/ExportHistory';
 import ExportDetail from './components/notifications/ExportDetail';
 import { APP_BASE } from './utils/config';
-import { MockDataProvider } from './context/MockDataContext';
+import { MockDataProvider, useMockData } from './context/MockDataContext';
 import { NotificationCenterProvider } from './context/NotificationCenterContext';
 import LoginModal from './components/auth/LoginModal';
+import { continueAsGuest, setLoginSession, useLoginSession } from './utils/session';
 
 // ⚠️ ไม่ import CSS ที่นี่ — ทั้งแอป import ที่ src/index.js ที่เดียวเพื่อคุมลำดับ
 
 function RoutedApplication() {
   const location = useLocation();
-  const isDashboardRoute = location.pathname === '/';
+  const session = useLoginSession();
+  const { setActorId } = useMockData();
+  // ลิงก์ตรงไปหน้าโปรเจกต์ (เช่น ส่งต่อโปรเจกต์ public) เปิดดูได้เลยโดยไม่เจอหน้าต่าง login ก่อน
+  const isProjectDetail = /^\/projects\/[^/]+/.test(location.pathname);
+  // เด้งครั้งเดียวต่อ session — login แล้ว หรือกดปิด (ผู้เยี่ยมชม) จะไม่เด้งอีกจนกว่าจะออกจากระบบ (utils/session.js)
+  const showLogin = !session && !isProjectDetail;
   const [backgroundState, setBackgroundState] = useState('obscured');
-  const isObscured = isDashboardRoute && backgroundState === 'obscured';
-  const isRevealed = isDashboardRoute && backgroundState === 'revealed';
+  const isObscured = showLogin && backgroundState === 'obscured';
+  const isRevealed = showLogin && backgroundState === 'revealed';
   const backgroundClassName = [
     'login-app-background',
     isObscured && 'is-obscured',
@@ -40,8 +46,18 @@ function RoutedApplication() {
   ].filter(Boolean).join(' ');
 
   useLayoutEffect(() => {
-    setBackgroundState(isDashboardRoute ? 'obscured' : 'clear');
-  }, [isDashboardRoute]);
+    setBackgroundState(showLogin ? 'obscured' : 'clear');
+  }, [showLogin]);
+
+  // refresh หน้าแล้วยังเป็นคนเดิม — ตั้งผู้ใช้ปัจจุบันของ mock data ตาม session
+  useEffect(() => {
+    if (session?.employeeId) setActorId(session.employeeId);
+  }, [session, setActorId]);
+
+  const handleLoggedIn = (employee) => {
+    setActorId(employee.id);
+    setLoginSession(employee.id);
+  };
 
   return (
     <>
@@ -68,7 +84,7 @@ function RoutedApplication() {
               path="settings"
               element={
                 <PlaceholderPage
-                  title="ตั้งค่าระบบ (Settings)"
+                  title="ตั้งค่าระบบ"
                   description="การตั้งค่าโปรไฟล์ผู้ใช้งาน การแจ้งเตือน และการเชื่อมต่อฐานข้อมูล"
                 />
               }
@@ -80,7 +96,7 @@ function RoutedApplication() {
           <Route path="projects/:projectId" element={<ProjectDetail />} />
         </Routes>
       </div>
-      {isDashboardRoute && <LoginModal onBackgroundChange={setBackgroundState} />}
+      {showLogin && <LoginModal onBackgroundChange={setBackgroundState} onLoggedIn={handleLoggedIn} onDismiss={continueAsGuest} />}
     </>
   );
 }

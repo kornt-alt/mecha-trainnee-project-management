@@ -9,6 +9,7 @@ import {
   CircleCheck,
 } from './Icons';
 import { useMockData } from '../../context/MockDataContext';
+import { taskStatusLabel } from '../../utils/labels';
 
 const THAI_MONTHS_FULL = [
   'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน',
@@ -400,7 +401,7 @@ export default function CalendarDropdown({
                   <span
                     className={`badge ${task.priority === 'urgent' ? 'bg-danger' : task.status === 'completed' ? 'bg-success' : 'bg-primary'} calendar-task-badge`}
                   >
-                    {task.statusLabel || (task.status === 'completed' ? 'เสร็จสิ้น' : 'กำลังดำเนินการ')}
+                    {taskStatusLabel(task.status)}
                   </span>
                 </div>
               ))}
@@ -434,7 +435,7 @@ export default function CalendarDropdown({
             </div>
             <div className="mb-2">
               <span className="small text-muted d-block mb-1">สถานะ</span>
-              <span className="small text-ink">{selectedTask.statusLabel || selectedTask.status}</span>
+              <span className="small text-ink">{taskStatusLabel(selectedTask.status)}</span>
             </div>
           </Modal.Body>
           <Modal.Footer>

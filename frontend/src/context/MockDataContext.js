@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DEPARTMENTS, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, MOCK_TEAMS, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
 import { checklistProgressPercent } from '../utils/projectTrackingUtils';
+import { taskStatusLabel } from '../utils/labels';
 
 export const MockDataContext = createContext(null);
 
@@ -56,7 +57,7 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
       add(task, 'task_created', `สร้างงาน “${task.title}”`);
       return;
     }
-    if (old.status !== task.status) add(task, 'task_status_changed', `เปลี่ยนสถานะ “${task.title}” จาก ${old.statusLabel || old.status} เป็น ${task.statusLabel || task.status}`);
+    if (old.status !== task.status) add(task, 'task_status_changed', `เปลี่ยนสถานะ “${task.title}” จาก ${taskStatusLabel(old.status)} เป็น ${taskStatusLabel(task.status)}`);
     if (String(old.assigneeId) !== String(task.assigneeId)) add(task, 'task_assignee_changed', `เปลี่ยนผู้รับผิดชอบหลักของ “${task.title}”`);
     if (old.title !== task.title || old.description !== task.description || old.dueDate !== task.dueDate || old.priority !== task.priority) {
       add(task, 'task_updated', `แก้ไขรายละเอียดงาน “${task.title}”`);
@@ -76,6 +77,8 @@ export function MockDataProvider({ children }) {
   const [labelsState, setLabelsState] = useState([]);
   const [activityState, setActivityState] = useState(() => MOCK_ACTIVITIES.map((event) => ({ ...event })));
   const [notificationsState, setNotificationsState] = useState(() => [...NOTIFICATIONS]);
+  // ความคิดเห็น / บันทึกเวลาของงาน — { [taskId]: { comments: [], timeLogs: [] } } (UX-09: เดิมอยู่ใน state ของหน้า หายเมื่อออกจากหน้า)
+  const [taskWorkState, setTaskWorkState] = useState({});
   const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
   const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId });
   const sequenceRef = useRef(0);
@@ -103,8 +106,9 @@ export function MockDataProvider({ children }) {
   const resetClosureReview = useCallback((projectId) => {
     const current = stateRef.current.projects.find((project) => projectKey(project.id) === projectKey(projectId));
     const closure = current?.closure;
-    if (!current || !closure || closure.status === 'closed' || !(closure.ownerReviewedAt || closure.deliverablesReviewedAt || ['pending_approval', 'approved', 'returned'].includes(closure.status))) return;
-    const nextClosure = { ...closure, status: 'draft', ownerReviewedAt: null, deliverablesReviewedAt: null, submittedAt: null, approvedAt: null, returnReason: null };
+    // ยกเลิกคำขอปิดที่รออนุมัติอยู่ — งาน / สิ่งส่งมอบเปลี่ยนหลังส่งแล้ว ข้อมูลที่ Team Lead จะอนุมัติไม่ตรงแล้ว
+    if (!current || !closure || closure.status !== 'pending_approval') return;
+    const nextClosure = { ...closure, status: 'draft', ownerReviewedAt: null, deliverablesReviewedAt: null, submittedAt: null, returnReason: null };
     const nextProjects = stateRef.current.projects.map((project) => projectKey(project.id) === projectKey(projectId) ? { ...project, closure: nextClosure } : project);
     stateRef.current.projects = nextProjects;
     setProjectsState(nextProjects);
@@ -124,6 +128,16 @@ export function MockDataProvider({ children }) {
     setNotificationsState(stateRef.current.notifications);
     return item;
   }, [makeId]);
+  // kind = 'comments' | 'timeLogs' · entry มี actorId / timestamp มาจากหน้าเว็บ
+  const addTaskWorkEntry = useCallback((taskId, kind, entry) => {
+    if (!['comments', 'timeLogs'].includes(kind) || !entry) return null;
+    const key = String(taskId);
+    setTaskWorkState((current) => {
+      const existing = current[key] || { comments: [], timeLogs: [] };
+      return { ...current, [key]: { ...existing, [kind]: [...existing[kind], entry] } };
+    });
+    return entry;
+  }, []);
   const markNotificationsRead = useCallback((employeeId) => {
     const next = stateRef.current.notifications.map((item) => (
       String(item.employeeId) === String(employeeId) ? { ...item, unread: false } : item
@@ -156,7 +170,6 @@ export function MockDataProvider({ children }) {
       } else if (old.name !== project.name || old.description !== project.description || old.status !== project.status || old.dueDate !== project.dueDate || old.startDate !== project.startDate || old.category !== project.category || old.priority !== project.priority || String(old.managerId) !== String(project.managerId) || String(old.teamLeadId || '') !== String(project.teamLeadId || '') || JSON.stringify(old.teamMemberIds || []) !== JSON.stringify(project.teamMemberIds || []) || old.requiresDeliverables !== project.requiresDeliverables || old.deliverableDescription !== project.deliverableDescription) {
         const statusChanged = old.status !== project.status;
         recordActivity({ projectId: project.id, type: statusChanged ? 'project_status_changed' : 'project_updated', description: statusChanged ? `เปลี่ยนสถานะโปรเจกต์ “${project.name}” เป็น ${project.status}` : `แก้ไขข้อมูลโปรเจกต์ “${project.name}”` });
-        resetClosureReview(project.id);
       }
     });
     previous.forEach((project) => {
@@ -166,7 +179,7 @@ export function MockDataProvider({ children }) {
         setDeliverablesState(stateRef.current.deliverables);
       }
     });
-  }, [recordActivity, resetClosureReview]);
+  }, [recordActivity]);
 
   const updateProject = useCallback((projectId, patch, event) => {
     const current = stateRef.current.projects.find((project) => projectKey(project.id) === projectKey(projectId));
@@ -175,8 +188,10 @@ export function MockDataProvider({ children }) {
     if (patch.teamLeadId && !employeeExists(patch.teamLeadId)) return null;
     if (patch.teamMemberIds && patch.teamMemberIds.some((id) => !employeeExists(id))) return null;
     if (current.closure?.status === 'closed' && patch.status && patch.status !== 'done') return null;
-    if (patch.status === 'done' && current.closure?.status !== 'closed') return null;
+    // ปิดโปรเจกต์ (status done) ได้ทางเดียวคือ Team Lead อนุมัติการปิด — ส่ง closure.status = closed มาพร้อมกัน
+    if (patch.status === 'done' && current.closure?.status !== 'closed' && patch.closure?.status !== 'closed') return null;
     if (patch.closure) {
+      // ขั้นตอนปิดโปรเจกต์: Owner ส่งขออนุมัติ (ตรวจสรุป + สิ่งส่งมอบในคราวเดียว) → Team Lead อนุมัติ = ปิดทันที / ส่งกลับพร้อมเหตุผล
       const action = event?.type;
       const actorIdNow = String(stateRef.current.actorId);
       const isOwner = actorIdNow === String(current.managerId);
@@ -187,16 +202,13 @@ export function MockDataProvider({ children }) {
       const tasksDone = projectTasks.length > 0 && projectTasks.every((task) => task.status === 'completed');
       const deliverablesRequired = Boolean(current.requiresDeliverables || projectDeliverables.length);
       const deliverablesDone = !deliverablesRequired || (projectDeliverables.length > 0 && projectDeliverables.every((item) => item.status === 'completed'));
-      if (action === 'project_closure_summary_reviewed' && (!isOwner || !tasksDone)) return null;
-      if (action === 'project_closure_deliverables_reviewed' && (!isOwner || !tasksDone || !deliverablesDone)) return null;
       if (closure.status === 'pending_approval' && (
         action !== 'project_closure_submitted' || !isOwner || !tasksDone || !deliverablesDone
-        || !closure.ownerReviewedAt || (deliverablesRequired && !closure.deliverablesReviewedAt)
         || !employeeExists(current.teamLeadId)
       )) return null;
-      if (closure.status === 'approved' && (action !== 'project_closure_approved' || !isTeamLead || current.closure?.status !== 'pending_approval')) return null;
       if (closure.status === 'returned' && (action !== 'project_closure_returned' || !isTeamLead || current.closure?.status !== 'pending_approval' || !String(event?.reason || '').trim())) return null;
-      if (closure.status === 'closed' && (action !== 'project_closed' || !isOwner || current.closure?.status !== 'approved' || !tasksDone || !deliverablesDone)) return null;
+      if (closure.status === 'closed' && (action !== 'project_closure_approved' || !isTeamLead || current.closure?.status !== 'pending_approval' || !tasksDone || !deliverablesDone || patch.status !== 'done')) return null;
+      if (!['pending_approval', 'returned', 'closed'].includes(closure.status)) return null;
     }
     const next = stateRef.current.projects.map((project) => (
       projectKey(project.id) === projectKey(projectId) ? { ...project, ...patch } : project
@@ -204,11 +216,10 @@ export function MockDataProvider({ children }) {
     stateRef.current.projects = next;
     setProjectsState(next);
     if (event) recordActivity({ projectId, ...event });
-    if (!('closure' in patch) && !String(event?.type || '').startsWith('project_closure') && event?.type !== 'project_closed') {
-      resetClosureReview(projectId);
-    }
+    // ไม่ reset การขอปิดเมื่อแก้ข้อมูลโปรเจกต์ (ชื่อ / ทีม / วันที่) — reset เฉพาะเมื่องานหรือสิ่งส่งมอบเปลี่ยน
+    // (updateTasksAndSyncProjects / create-update-deleteDeliverable เรียก resetClosureReview เอง)
     return next.find((project) => projectKey(project.id) === projectKey(projectId));
-  }, [recordActivity, resetClosureReview]);
+  }, [recordActivity]);
 
   const updateTasksAndSyncProjects = useCallback((mutateTasks, projectIds, options = {}) => {
     const previousTasks = stateRef.current.tasks;
@@ -254,7 +265,6 @@ export function MockDataProvider({ children }) {
       id: values.id || `task-local-${++sequenceRef.current}`,
       projectName: project.name,
       status: values.status || 'not_started',
-      statusLabel: values.statusLabel || (values.status === 'in_progress' ? 'กำลังดำเนินการ' : 'รอเริ่มทำ'),
       progress: Number.isFinite(values.progress) ? values.progress : 0,
       collaborators: [...new Set((values.collaborators || []).map(String).filter((id) => String(id) !== String(values.assigneeId)))],
       plannedAllocations: allocations.filter((allocation) => Number(allocation.hours) > 0).map((allocation) => ({ employeeId: String(allocation.employeeId), hours: Number(allocation.hours) })),
@@ -272,7 +282,8 @@ export function MockDataProvider({ children }) {
     const patch = typeof updater === 'function' ? updater(current) : updater;
     if (!patch || typeof patch !== 'object') return null;
     const eventType = String(event?.type || '');
-    if (current.status === 'pending_review' && !['task_review_approved', 'task_changes_requested', 'task_review_withdrawn'].includes(eventType)) return null;
+    // งานรอตรวจถูกล็อก — แก้ได้เฉพาะการอนุมัติ / ส่งกลับ / ถอน (รวมแบบที่ Owner / Team Lead ทำแทนผู้ตรวจ — เดิมลืมใส่ ลากอนุมัติบนบอร์ดจึงพัง)
+    if (current.status === 'pending_review' && !['task_review_approved', 'task_review_approved_by_project_lead', 'task_changes_requested', 'task_review_withdrawn'].includes(eventType)) return null;
     const nextTask = { ...current, ...patch };
     let checklistStatusEvent = null;
     if (!Object.prototype.hasOwnProperty.call(patch, 'status')) {
@@ -280,14 +291,12 @@ export function MockDataProvider({ children }) {
       const nextProgress = checklistProgressPercent(nextTask.checklist);
       if (current.status === 'not_started' && currentProgress === 0 && nextProgress > 0) {
         nextTask.status = 'in_progress';
-        nextTask.statusLabel = 'กำลังทำ';
         checklistStatusEvent = {
           type: 'task_started_from_checklist',
           description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นกำลังทำโดยอัตโนมัติตามเช็กลิสต์`,
         };
       } else if (current.status === 'in_progress' && currentProgress > 0 && nextProgress === 0) {
         nextTask.status = 'not_started';
-        nextTask.statusLabel = 'ยังไม่เริ่ม';
         checklistStatusEvent = {
           type: 'task_reopened_from_checklist',
           description: `เปลี่ยนสถานะงาน “${nextTask.title}” เป็นยังไม่เริ่มโดยอัตโนมัติตามเช็กลิสต์`,
@@ -483,14 +492,15 @@ export function MockDataProvider({ children }) {
     return true;
   }, [recordActivity, resetClosureReview]);
 
-  const addProjectMember = useCallback((projectId, employeeId, reason) => {
+  // เหตุผลไม่บังคับแล้ว (UX-06) — ส่งมาก็บันทึกไว้ใน activity
+  const addProjectMember = useCallback((projectId, employeeId, reason = '') => {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
-    if (!project || !employeeExists(employeeId) || !String(reason || '').trim()) return null;
+    if (!project || !employeeExists(employeeId)) return null;
     if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return null;
     const members = [...new Set((project.teamMemberIds || []).map(String))];
     if (members.includes(String(employeeId)) || String(project.managerId) === String(employeeId) || String(project.teamLeadId) === String(employeeId)) return null;
     return updateProject(projectId, { teamMemberIds: [...members, String(employeeId)] }, {
-      type: 'member_added', description: `เพิ่ม ${employeeName(employeeId)} เป็นสมาชิกโปรเจกต์`, reason: String(reason).trim(),
+      type: 'member_added', description: `เพิ่ม ${employeeName(employeeId)} เป็นสมาชิกโปรเจกต์`, ...(String(reason || '').trim() ? { reason: String(reason).trim() } : {}),
     });
   }, [updateProject]);
 
@@ -603,9 +613,10 @@ export function MockDataProvider({ children }) {
     labels: labelsState, createLabel, updateLabel, deleteLabel,
     activity: activityState, recordActivity,
     notifications: notificationsState, addNotification, markNotificationsRead,
+    taskWork: taskWorkState, addTaskWorkEntry,
     actorId, setActorId,
   }), [projectsState, teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
-    deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, actorId, setActorId]);
+    deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, taskWorkState, addTaskWorkEntry, actorId, setActorId]);
 
   return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;
 }

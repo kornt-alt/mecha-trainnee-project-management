@@ -1,7 +1,22 @@
-  // frontend/src/components/auth/LoginModal.js — runs the mock-only login preview and reveal sequence.
+// frontend/src/components/auth/LoginModal.js — หน้าต่างเข้าสู่ระบบด้วยรหัสพนักงาน + animation บัตรพนักงาน
+//
+// ช่วงยังไม่ต่อ backend: ค้นรหัสจาก MOCK_EMPLOYEES (emp-001 …) รหัสผ่านอะไรก็ได้ → App.js ตั้งผู้ใช้ปัจจุบัน + เก็บ session
+// ⚠️ ต่อ backend แล้วให้เรียก POST /auth/login ใน submitForm แทนการค้น mock (docs/api-contract.md)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EmployeeIdCard from './EmployeeIdCard';
-import { LOGIN_DEMO_EMPLOYEES } from '../../data/loginDemoEmployees';
+import { MOCK_EMPLOYEES } from '../../data/mockData';
+
+// สีพื้นรูปบนบัตร — วนตามลำดับพนักงาน (mock ไม่มีรูปจริง)
+const CARD_TONES = ['#60a5fa', '#7dd3fc', '#93c5fd', '#a5b4fc', '#67e8f9', '#818cf8', '#38bdf8', '#c4b5fd'];
+const LOGIN_EMPLOYEES = MOCK_EMPLOYEES.map((person, index) => ({
+  id: person.id,
+  name: person.name,
+  position: person.position,
+  department: person.department,
+  tone: CARD_TONES[index % CARD_TONES.length],
+}));
+const ID_PATTERN = /^emp-\d{3}$/;
+const findEmployee = (value) => LOGIN_EMPLOYEES.find((item) => item.id === String(value).trim().toLowerCase()) || null;
 
 const wait = (duration, signal) => {
   if (signal?.aborted) return Promise.resolve(false);
@@ -48,13 +63,12 @@ const waitForTransition = (element, propertyName, fallbackDuration, signal) => {
 
 const FOCUSABLE_SELECTOR = 'button:not([disabled]), input:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
 
-export default function LoginModal({ onBackgroundChange }) {
+export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }) {
   const [isOpen, setIsOpen] = useState(true);
   const [employeeId, setEmployeeId] = useState('');
   const [employee, setEmployee] = useState(null);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({ employeeId: '', password: '' });
   const [status, setStatus] = useState('');
   const [liveMessage, setLiveMessage] = useState('');
@@ -65,13 +79,9 @@ export default function LoginModal({ onBackgroundChange }) {
   const [isCardMoving, setIsCardMoving] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [cardTransform, setCardTransform] = useState('none');
-  const [showReopen, setShowReopen] = useState(false);
-  const [showRevealNote, setShowRevealNote] = useState(false);
   const runningRef = useRef(false);
   const lastStateRef = useRef('');
-  const lastTriggerRef = useRef(null);
   const employeeIdRef = useRef(null);
-  const reopenRef = useRef(null);
   const modalRef = useRef(null);
   const cardWrapRef = useRef(null);
   const animationControllerRef = useRef(null);
@@ -110,20 +120,18 @@ export default function LoginModal({ onBackgroundChange }) {
 
   const changeEmployeeId = (event) => {
     const value = event.target.value;
-    const normalizedId = value.trim().toUpperCase();
-    const isCompleteId = /^EMP-\d{3}$/.test(normalizedId);
-    const match = normalizedId
-      ? LOGIN_DEMO_EMPLOYEES.find((item) => item.id === normalizedId) || null
-      : null;
+    const normalizedId = value.trim().toLowerCase();
+    const isCompleteId = ID_PATTERN.test(normalizedId);
+    const match = normalizedId ? findEmployee(normalizedId) : null;
     setEmployeeId(value);
     setEmployee(match);
     setErrors((previous) => ({ ...previous, employeeId: '' }));
     setStatus('');
 
     if (!normalizedId) announce('empty', '');
-    else if (match) announce(`found-${match.id}`, `Employee found: ${match.name}.`);
-    else if (isCompleteId) announce(`not-found-${normalizedId}`, `Employee ${normalizedId} was not found.`);
-    else announce(`partial-${normalizedId}`, `Employee ID preview: ${value}. Keep typing to complete the ID.`);
+    else if (match) announce(`found-${match.id}`, `พบพนักงาน: ${match.name}`);
+    else if (isCompleteId) announce(`not-found-${normalizedId}`, `ไม่พบรหัสพนักงาน ${normalizedId}`);
+    else announce(`partial-${normalizedId}`, `กำลังพิมพ์รหัสพนักงาน: ${value}`);
   };
 
   const changePassword = (event) => {
@@ -149,23 +157,12 @@ export default function LoginModal({ onBackgroundChange }) {
     setCardTransform('none');
   };
 
+  // ปิดโดยไม่เข้าสู่ระบบ = ดูต่อแบบผู้เยี่ยมชม (App.js จำไว้ใน session จะไม่เด้งซ้ำจนกว่าจะออกจากระบบ)
   const closeModal = () => {
     if (runningRef.current) return;
     setIsOpen(false);
-    setShowReopen(true);
     updateBackground('clear');
-    window.requestAnimationFrame(() => {
-      const target = lastTriggerRef.current || reopenRef.current;
-      target?.focus();
-    });
-  };
-
-  const openModal = () => {
-    lastTriggerRef.current = document.activeElement;
-    setShowReopen(false);
-    setShowRevealNote(false);
-    setIsOpen(true);
-    updateBackground('obscured');
+    if (onDismiss) onDismiss();
   };
 
   const runSignature = async (matchedEmployee) => {
@@ -175,7 +172,7 @@ export default function LoginModal({ onBackgroundChange }) {
     runningRef.current = true;
     setIsRunning(true);
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    setLiveMessage('Signing in.');
+    setLiveMessage('กำลังเข้าสู่ระบบ');
     if (!await wait(490, signal)) return;
 
     const modalRect = modalRef.current.getBoundingClientRect();
@@ -204,7 +201,7 @@ export default function LoginModal({ onBackgroundChange }) {
     }
 
     setPresentation('welcomed');
-    setLiveMessage(`Demo success. Welcome to MECHA, ${matchedEmployee.name}.`);
+    setLiveMessage(`ยินดีต้อนรับ ${matchedEmployee.name}`);
     if (!await wait(reducedMotion ? 120 : 700, signal)) return;
 
     setPresentation('dissolving');
@@ -220,10 +217,8 @@ export default function LoginModal({ onBackgroundChange }) {
     animationControllerRef.current = null;
     setIsRunning(false);
     setIsOpen(false);
-    setShowReopen(true);
-    setShowRevealNote(true);
     resetDemo();
-    window.requestAnimationFrame(() => reopenRef.current?.focus());
+    if (onLoggedIn) onLoggedIn(matchedEmployee);
   };
 
   const submitForm = (event) => {
@@ -231,15 +226,15 @@ export default function LoginModal({ onBackgroundChange }) {
     if (runningRef.current) return;
 
     const nextErrors = { employeeId: '', password: '' };
-    const normalizedId = employeeId.trim().toUpperCase();
-    const isCompleteId = /^EMP-\d{3}$/.test(normalizedId);
-    if (!normalizedId) nextErrors.employeeId = 'Enter your Employee ID.';
+    const normalizedId = employeeId.trim().toLowerCase();
+    const isCompleteId = ID_PATTERN.test(normalizedId);
+    if (!normalizedId) nextErrors.employeeId = 'กรอกรหัสพนักงาน';
     else if (!employee) {
       nextErrors.employeeId = isCompleteId
-        ? 'Employee ID not found in the demo data.'
-        : 'Enter a complete Employee ID from the demo list.';
+        ? 'ไม่พบรหัสพนักงานนี้'
+        : 'กรอกรหัสพนักงานให้ครบ เช่น emp-001';
     }
-    if (!password) nextErrors.password = 'Enter your password.';
+    if (!password) nextErrors.password = 'กรอกรหัสผ่าน';
     setErrors(nextErrors);
 
     if (nextErrors.employeeId || nextErrors.password) {
@@ -278,7 +273,7 @@ export default function LoginModal({ onBackgroundChange }) {
   };
 
   const cardView = !employee && Boolean(employeeId.trim());
-  const isCompleteId = /^EMP-\d{3}$/i.test(employeeId.trim());
+  const isCompleteId = ID_PATTERN.test(employeeId.trim().toLowerCase());
   const isNotFound = cardView && isCompleteId;
   const partialId = cardView && !isCompleteId ? employeeId : '';
   const modalClassName = [
@@ -303,7 +298,7 @@ export default function LoginModal({ onBackgroundChange }) {
               aria-labelledby="login-title"
               onKeyDown={handleModalKeyDown}
             >
-              <button className="login-close" type="button" aria-label="Close login" onClick={closeModal}>
+              <button className="login-close" type="button" aria-label="ปิดหน้าต่างเข้าสู่ระบบ" onClick={closeModal}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                   <path d="M6 6l12 12M18 6L6 18" />
                 </svg>
@@ -319,19 +314,19 @@ export default function LoginModal({ onBackgroundChange }) {
                   <div className="login-wordmark">MECHA<small>Project Management</small></div>
                 </div>
                 <div className="login-heading">
-                  <h1 id="login-title">Welcome back</h1>
-                  <p className="login-lede">Sign in with your Employee ID to continue to your projects.</p>
+                  <h1 id="login-title">เข้าสู่ระบบ</h1>
+                  <p className="login-lede">ใช้รหัสพนักงานเพื่อดูงานและโปรเจกต์ของคุณ</p>
                 </div>
 
                 <form className="login-form" noValidate onSubmit={submitForm}>
                   <div className="login-field">
-                    <label htmlFor="login-employee-id">Employee ID</label>
+                    <label htmlFor="login-employee-id">รหัสพนักงาน</label>
                     <input
                       id="login-employee-id"
                       ref={employeeIdRef}
                       type="text"
                       autoComplete="username"
-                      placeholder="e.g. EMP-001"
+                      placeholder="เช่น emp-001"
                       value={employeeId}
                       aria-describedby="login-employee-id-error"
                       aria-invalid={Boolean(errors.employeeId)}
@@ -341,13 +336,13 @@ export default function LoginModal({ onBackgroundChange }) {
                   </div>
 
                   <div className="login-field">
-                    <label htmlFor="login-password">Password</label>
+                    <label htmlFor="login-password">รหัสผ่าน</label>
                     <div className="login-input-wrap">
                       <input
                         id="login-password"
                         type={showPassword ? 'text' : 'password'}
                         autoComplete="current-password"
-                        placeholder="Enter your password"
+                        placeholder="กรอกรหัสผ่าน"
                         value={password}
                         aria-describedby="login-password-error"
                         aria-invalid={Boolean(errors.password)}
@@ -360,34 +355,24 @@ export default function LoginModal({ onBackgroundChange }) {
                         aria-pressed={showPassword}
                         onClick={() => setShowPassword((visible) => !visible)}
                       >
-                        {showPassword ? 'Hide' : 'Show'}
+                        {showPassword ? 'ซ่อน' : 'แสดง'}
                       </button>
                     </div>
                     <p className="login-error" id="login-password-error" role="alert">{errors.password}</p>
                   </div>
 
-                  <div className="login-options-row">
-                    <label className="login-remember">
-                      <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
-                      <span>Remember me</span>
-                    </label>
-                    <button className="login-link" type="button" onClick={() => setStatus('Password recovery is not available in this preview.')}>
-                      Forgot password?
-                    </button>
-                  </div>
-
                   <button className={`login-submit${isRunning ? ' is-loading' : ''}`} type="submit" disabled={isRunning} aria-busy={isRunning}>
                     <span className="login-spinner" aria-hidden="true" />
-                    <span>{isRunning ? 'Signing in...' : 'Sign in'}</span>
+                    <span>{isRunning ? 'กำลังเข้าสู่ระบบ…' : 'เข้าสู่ระบบ'}</span>
                   </button>
                   <p className="login-status" id="login-status">{status}</p>
-                  <p className="login-demo-banner">Demo only. Try EMP-001 to EMP-008 with any password. Nothing is checked or saved.</p>
+                  <p className="login-demo-banner">ช่วงทดลอง: ใช้รหัสพนักงาน เช่น emp-001 กับรหัสผ่านอะไรก็ได้ (ยังไม่ได้เชื่อมระบบจริง)</p>
                 </form>
               </section>
 
               <aside
                 className={`login-preview-col${isLifted ? ' is-lift' : ''}${isShining ? ' is-shining' : ''}${isPreviewExpanded ? ' is-lifted is-expanded' : ''}`}
-                aria-label="Employee preview"
+                aria-label="ตัวอย่างบัตรพนักงาน"
               >
                 <div
                   className={`login-card-wrap${isLifted ? ' is-lift' : ''}${isShining ? ' is-shining' : ''}${isCardMoving ? ' is-moving' : ''}`}
@@ -399,17 +384,17 @@ export default function LoginModal({ onBackgroundChange }) {
                       <circle cx="28" cy="28" r="22" />
                       <path d="M18 29l7 7 13-14" />
                     </svg>
-                    <h2>Welcome to MECHA</h2>
+                    <h2>ยินดีต้อนรับ</h2>
                   </div>
                   <EmployeeIdCard employee={employee} notFound={isNotFound} partialId={partialId} />
                   <div className="login-password-row" aria-hidden="true">
-                    <span>Password</span>
+                    <span>รหัสผ่าน</span>
                     <div className="login-password-dots">
                       {Array.from({ length: password.length }, (_, index) => <span className="login-dot" key={index} />)}
                     </div>
                   </div>
                   <div className="login-welcome-bottom" aria-hidden="true">
-                    {employee ? `Hello, ${employee.name}` : ''}
+                    {employee ? `สวัสดี ${employee.name}` : ''}
                   </div>
                 </div>
               </aside>
@@ -418,19 +403,7 @@ export default function LoginModal({ onBackgroundChange }) {
         </>
       )}
 
-      <div className="login-reveal-note" hidden={!showRevealNote}>
-        Dashboard reveal demo. No session was created.
-      </div>
       <div className="login-sr-only" role="status" aria-live="polite">{liveMessage}</div>
-      <button
-        className="login-reopen"
-        type="button"
-        ref={reopenRef}
-        hidden={!showReopen}
-        onClick={openModal}
-      >
-        {showRevealNote ? 'Replay login demo' : 'Open login'}
-      </button>
     </div>
   );
 }

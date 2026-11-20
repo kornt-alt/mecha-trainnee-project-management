@@ -94,7 +94,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
           <div className="d-flex align-items-start gap-2">
             <div className="panel-icon-wrap text-primary"><ChartPie size={18} /></div>
             <div>
-              <h2 className="panel-title mb-1">Project Category Distribution</h2>
+              <h2 className="panel-title mb-1">สัดส่วนหมวดหมู่โปรเจกต์</h2>
               <p className="small text-muted mb-0">สัดส่วนโปรเจกต์แยกตามประเภท</p>
             </div>
           </div>
@@ -116,7 +116,7 @@ export default function ProjectCategoryTreemap({ projects = [] }) {
         <div className="d-flex align-items-start gap-2">
           <div className="panel-icon-wrap text-primary"><ChartPie size={18} /></div>
           <div>
-            <h2 className="panel-title mb-1">Project Category Distribution</h2>
+            <h2 className="panel-title mb-1">สัดส่วนหมวดหมู่โปรเจกต์</h2>
             <p className="small text-muted mb-0">สัดส่วนโปรเจกต์แยกตามประเภท</p>
           </div>
         </div>

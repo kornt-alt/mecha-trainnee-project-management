@@ -1,4 +1,6 @@
-// Project team membership and role controls backed by MockDataContext.
+// frontend/src/components/project-detail/ProjectTeam.js — สมาชิกทีมโปรเจกต์ + Team Lead (Owner / Team Lead จัดการได้)
+//
+// UX-06: เพิ่มสมาชิกไม่ต้องกรอกเหตุผลแล้ว (นำออกก็ไม่ต้อง) · เปลี่ยน Team Lead ยังต้องมีเหตุผล (เปลี่ยนผู้อนุมัติปิดโปรเจกต์)
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Modal } from 'react-bootstrap';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
@@ -12,7 +14,6 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
   const { projects, tasks, actorId, addProjectMember, assignTeamLeader, removeProjectMember } = useMockData();
   const project = projects.find((item) => String(item.id) === String(projectId));
   const [addMemberId, setAddMemberId] = useState('');
-  const [addReason, setAddReason] = useState('');
   const [pendingLeadId, setPendingLeadId] = useState('');
   const [leadReason, setLeadReason] = useState('');
   const [error, setError] = useState('');
@@ -26,11 +27,10 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
   if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
 
   const addMember = () => {
-    if (!addMemberId || !addReason.trim() || memberIds.includes(String(addMemberId))) return;
-    const result = addProjectMember(project.id, addMemberId, addReason.trim());
+    if (!addMemberId || memberIds.includes(String(addMemberId))) return;
+    const result = addProjectMember(project.id, addMemberId);
     if (!result) return setError('เพิ่มสมาชิกไม่สำเร็จ กรุณาตรวจสอบสิทธิ์และข้อมูล');
     setAddMemberId('');
-    setAddReason('');
     setError('');
   };
   const requestLeadChange = (event) => {
@@ -39,7 +39,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
   };
   const saveLead = () => {
     const result = assignTeamLeader(project.id, pendingLeadId === '__clear__' ? null : pendingLeadId, leadReason);
-    if (!result) return setError('เปลี่ยน Team Leader ไม่สำเร็จ กรุณาระบุเหตุผลและตรวจสอบสิทธิ์');
+    if (!result) return setError('เปลี่ยน Team Lead ไม่สำเร็จ กรุณาระบุเหตุผลและตรวจสอบสิทธิ์');
     setPendingLeadId('');
     setLeadReason('');
     setError('');
@@ -71,9 +71,11 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
       <Card className="workspace-panel workspace-team-members-panel"><Card.Body>
         <div className="workspace-panel-heading workspace-team-heading">
           <h2>สมาชิกทีม · {members.length} คน</h2>
+          {/* แยกกลุ่มให้เห็นชัดว่าเลือกคนนอกทีม = เพิ่มเข้าทีมให้ด้วย (เดิมเพิ่มเงียบ ๆ) */}
           {canManage && <Form.Select aria-label="เลือก Team Leader" value={project.teamLeadId || ''} onChange={requestLeadChange}>
-            <option value="">ยังไม่กำหนด Team Leader</option>
-            {MOCK_EMPLOYEES.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
+            <option value="">ยังไม่กำหนด Team Lead</option>
+            <optgroup label="สมาชิกในทีม">{members.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</optgroup>
+            <optgroup label="พนักงานอื่น (จะเพิ่มเข้าทีมด้วย)">{availableEmployees.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</optgroup>
           </Form.Select>}
         </div>
         {notice && <div className="workspace-team-removal-notice" role="alert">
@@ -122,10 +124,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
               <option value="">เลือกพนักงาน</option>{availableEmployees.map((person) => <option key={person.id} value={person.id}>{person.name} — {person.position || person.department || 'พนักงาน'}</option>)}
             </Form.Select>
           </Form.Group>
-          <Form.Group className="workspace-side-field"><Form.Label htmlFor="workspace-member-reason">เหตุผลการเพิ่มสมาชิก</Form.Label>
-            <Form.Control id="workspace-member-reason" aria-label="เหตุผลการเพิ่มสมาชิก" placeholder="ระบุเหตุผล" value={addReason} onChange={(event) => setAddReason(event.target.value)} />
-          </Form.Group>
-          <Button className="w-100" disabled={!addMemberId || !addReason.trim()} onClick={addMember}>เพิ่มเข้าทีม</Button>
+          <Button className="w-100" disabled={!addMemberId} onClick={addMember}>เพิ่มเข้าทีม</Button>
         </Card.Body></Card>}
         <section className="workspace-team-rules"><strong>กติกาบทบาท</strong><ul>
           <li>มี Project Owner ได้ 1 คนต่อโปรเจกต์ และนำออกจากทีมไม่ได้</li>
@@ -135,7 +134,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
         </ul></section>
       </aside>
       {pendingLeadId !== '' && <Modal show centered onHide={() => setPendingLeadId('')}>
-        <Modal.Header closeButton><Modal.Title>เปลี่ยน Team Leader</Modal.Title></Modal.Header>
+        <Modal.Header closeButton><Modal.Title>เปลี่ยน Team Lead</Modal.Title></Modal.Header>
         <Modal.Body><p>ระบุเหตุผลการเปลี่ยนผู้รับผิดชอบระดับโปรเจกต์</p><Form.Control aria-label="เหตุผลการเปลี่ยน Team Leader" value={leadReason} onChange={(event) => setLeadReason(event.target.value)} />{error && <Alert variant="danger" className="mt-2">{error}</Alert>}</Modal.Body>
         <Modal.Footer><Button variant="outline-secondary" onClick={() => setPendingLeadId('')}>ยกเลิก</Button><Button disabled={!leadReason.trim()} onClick={saveLead}>ยืนยัน</Button></Modal.Footer>
       </Modal>}

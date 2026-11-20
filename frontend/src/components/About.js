@@ -14,14 +14,14 @@ export default function About() {
       {error && <Alert variant="danger">{error}</Alert>}
       {data && data.db !== 'up' && (
         <Alert variant="danger">
-          backend ทำงานแต่ต่อฐานข้อมูลไม่ได้ — เช็คค่า DB_* ใน backend/.env แล้วรัน npm run db:apply
+          เชื่อมต่อฐานข้อมูลไม่ได้ชั่วคราว — กรุณาแจ้งผู้ดูแลระบบ
         </Alert>
       )}
       {data && data.db === 'up' && <Alert variant="success">ระบบพร้อมใช้งาน</Alert>}
 
       <Card body>
         ระบบจัดการโปรเจกต์นี้ถูกพัฒนาขึ้นเพื่อช่วยให้ทีมงานสามารถจัดการและติดตามสถานะของโปรเจกต์ได้อย่างมีประสิทธิภาพ
-        — สามารถเข้าใช้งานได้ที่ <Link to="/">หน้าแรกแดชบอร์ด</Link> หรือ <Link to="/projects">จัดการโปรเจกต์</Link>
+        — สามารถเข้าใช้งานได้ที่ <Link to="/">หน้าหลัก</Link> หรือ <Link to="/projects">จัดการโปรเจกต์</Link>
       </Card>
     </>
   );

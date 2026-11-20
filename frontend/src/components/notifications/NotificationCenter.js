@@ -17,7 +17,8 @@ export default function NotificationCenter() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const search = searchParams.get('q') || '';
   const priority = searchParams.get('priority') || '';
-  const readStatus = searchParams.get('read') || '';
+  // ⚠️ ชื่อ param ต้องตรงกับที่ updateFilters({ readStatus }) เขียนลง URL (เดิมอ่าน 'read' ตัวกรองจึงไม่ทำงาน)
+  const readStatus = searchParams.get('readStatus') || '';
   const requestedPage = Number(searchParams.get('page')) || 1;
   const unreadCount = notifications.filter((item) => item.unread).length;
 
@@ -81,7 +82,7 @@ export default function NotificationCenter() {
           </InputGroup>
           <Form.Select aria-label="กรองตามความสำคัญ" value={priority} onChange={(event) => updateFilters({ priority: event.target.value })}>
             <option value="">ทุกระดับความสำคัญ</option>
-            <option value="urgent">ด่วนมาก</option>
+            <option value="urgent">เร่งด่วน</option>
             <option value="high">สูง</option>
             <option value="normal">ปกติ</option>
           </Form.Select>

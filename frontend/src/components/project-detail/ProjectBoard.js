@@ -1,4 +1,4 @@
-// Read-only project Kanban board sourced from the shared task context.
+// frontend/src/components/project-detail/ProjectBoard.js — บอร์ดงาน (ลากการ์ดเปลี่ยนสถานะได้) project Kanban board sourced from the shared task context.
 import { useMemo, useRef, useState } from 'react';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
@@ -101,7 +101,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
     }
 
     if (task.status === 'not_started' && nextStatus === 'in_progress') {
-      patch = { status: 'in_progress', statusLabel: 'กำลังทำ' };
+      patch = { status: 'in_progress' };
       event = {
         type: primaryAssignee ? 'task_started' : 'task_started_by_project_lead',
         description: `เริ่มทำงาน “${task.title}” (ลากบนบอร์ด)`,
@@ -113,7 +113,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
       }
       reviewHistory.push({ action: 'submitted', actorId, reviewerId: task.reviewerId, timestamp: stamp });
       patch = {
-        status: 'pending_review', statusLabel: 'รอการตรวจสอบ', reviewSubmittedBy: actorId,
+        status: 'pending_review', reviewSubmittedBy: actorId,
         reviewSubmittedAt: stamp, reviewHistory,
       };
       event = {
@@ -127,7 +127,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
       }
       reviewHistory.push({ action: 'approved', actorId, reviewerId: task.reviewerId, timestamp: stamp });
       patch = {
-        status: 'completed', statusLabel: 'เสร็จสิ้น', progress: 100, completedAt: stamp,
+        status: 'completed', progress: 100, completedAt: stamp,
         reviewApprovedBy: actorId, reviewApprovedAt: stamp, reviewHistory,
       };
       event = {
@@ -142,7 +142,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
         showBoardMessage('ย้ายได้เฉพาะผู้รับผิดชอบหลัก หรือผู้ดูแลโปรเจกต์');
         return;
       }
-      patch = { status: 'not_started', statusLabel: 'รอเริ่มทำ' };
+      patch = { status: 'not_started' };
       event = { type: 'task_reopened', description: `ย้ายงาน “${task.title}” กลับเป็นรอดำเนินการจากบอร์ด` };
     } else if (task.status === 'not_started' && nextStatus === 'pending_review') {
       showBoardMessage('ต้องเริ่มทำงานก่อนจึงจะส่งตรวจได้');

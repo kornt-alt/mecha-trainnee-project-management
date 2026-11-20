@@ -39,6 +39,7 @@ import {
 } from '../common/Icons';
 // ข้อมูลพนักงานจำลอง — ใช้สร้าง Map สำหรับค้นหาชื่อพนักงานจาก assigneeId
 import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { PRIORITY_LABELS, TASK_STATUS_LABELS } from '../../utils/labels';
 
 // ==========================================
 // 2. วันที่และเวลา — ใช้ปฏิทินท้องถิ่นทั้งหมด ไม่แปลง UTC (กันคลาดวันตอนเช้า)
@@ -163,9 +164,9 @@ function isDueSoonTask(task, todayStr, dueSoonLimit) {
 // แท็บเหล่านี้ใช้ทั้งสำหรับนับจำนวนงาน และกรองรายการที่แสดงผล
 const FILTER_TABS = [
   { key: 'all', label: 'ทั้งหมด' },           // แสดงงานทุกสถานะที่ยังไม่เสร็จ
-  { key: 'in_progress', label: 'กำลังทำ' },  // งานที่อยู่ในสถานะกำลังดำเนินการ
-  { key: 'pending_review', label: 'รอการตรวจสอบ' }, // งานที่รอการตรวจสอบ/อนุมัติ
-  { key: 'not_started', label: 'รอเริ่มทำ' }, // งานที่ยังไม่เริ่มดำเนินการ
+  { key: 'in_progress', label: TASK_STATUS_LABELS.in_progress },  // งานที่อยู่ในสถานะกำลังดำเนินการ
+  { key: 'pending_review', label: TASK_STATUS_LABELS.pending_review }, // งานที่รอการตรวจสอบ/อนุมัติ
+  { key: 'not_started', label: TASK_STATUS_LABELS.not_started }, // งานที่ยังไม่เริ่มดำเนินการ
   { key: 'overdue', label: 'เลยกำหนด' },     // งานที่เลยกำหนดส่งแล้ว
   { key: 'due_soon', label: 'ครบกำหนดใน 7 วัน' }, // งานที่กำหนดส่งภายใน 7 วันข้างหน้า
 ];
@@ -281,15 +282,14 @@ function getProgressVariant(progress) {
 // หมายเหตุ: สถานะ 'completed' ถูกกำหนดไว้ที่นี่เพื่อความสมบูรณ์ แต่ไม่ควรปรากฏในการ์ดนี้
 // เพราะการ์ดนี้กรองเฉพาะงานที่ยังไม่เสร็จเท่านั้น
 const STATUS_INFO = {
-  in_progress: { label: 'กำลังดำเนินการ', pillClass: 'status-pill-blue' },
-  pending_review: { label: 'รอการตรวจสอบ', pillClass: 'status-pill-orange' },
-  not_started: { label: 'รอเริ่มทำ', pillClass: 'status-pill-gray' },
-  completed: { label: 'เสร็จสิ้น', pillClass: 'status-pill-green' },
+  in_progress: { label: TASK_STATUS_LABELS.in_progress, pillClass: 'status-pill-blue' },
+  pending_review: { label: TASK_STATUS_LABELS.pending_review, pillClass: 'status-pill-orange' },
+  not_started: { label: TASK_STATUS_LABELS.not_started, pillClass: 'status-pill-gray' },
+  completed: { label: TASK_STATUS_LABELS.completed, pillClass: 'status-pill-green' },
 };
 
 // ป้ายแสดงระดับความสำคัญของงาน — ใช้ชุดค่าเดียวกับ renderPriorityBadge ของหน้า Tasks.js
 // ป้องกันการใช้ชื่อหรือสีที่ไม่ตรงกันข้ามหน้าจอต่างๆ
-const PRIORITY_LABELS = { urgent: 'ด่วนมาก', high: 'สูง', normal: 'ปกติ', low: 'ต่ำ' };
 const PRIORITY_BADGE_BG = { urgent: 'danger', high: 'warning', normal: 'primary', low: 'secondary' };
 
 // คลาส CSS สำหรับป้ายประเภทงาน (หมวดหมู่) — แต่ละประเภทมีสีพื้นและตัวอักษรต่างกัน
@@ -447,7 +447,7 @@ function renderTaskTitleBlock(task, { showDescription = false } = {}) {
       <div className="task-title-line d-flex align-items-start gap-1 flex-wrap">
         <span className="task-title fw-semibold text-ink">{task.title}</span>
         {/* "ด่วนมาก" ใช้ป้ายเล็กติดชื่องาน — ไม่เปิดคอลัมน์ความสำคัญเพิ่มให้ตารางกว้างเกินไป */}
-        {task.priority === 'urgent' && <span className="task-urgent-badge">ด่วนมาก</span>}
+        {task.priority === 'urgent' && <span className="task-urgent-badge">{PRIORITY_LABELS.urgent}</span>}
       </div>
       <div className="task-meta-line" title={task.projectName || undefined}>
         <Folder size={12} />
@@ -785,7 +785,7 @@ export default function UnfinishedTasks({ tasks = [] }) {
               <span className="small text-muted d-block mb-1">ชื่องาน</span>
               <div className="d-flex align-items-start gap-2 flex-wrap">
                 <h5 className="fw-semibold text-ink mb-0">{selectedTask.title}</h5>
-                {selectedTask.priority === 'urgent' && <span className="task-urgent-badge">ด่วนมาก</span>}
+                {selectedTask.priority === 'urgent' && <span className="task-urgent-badge">{PRIORITY_LABELS.urgent}</span>}
               </div>
             </div>
 

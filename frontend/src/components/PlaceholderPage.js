@@ -4,13 +4,13 @@ import { Card, Button, Breadcrumb } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { House, Layers } from './common/Icons';
 
-export default function PlaceholderPage({ title, description, backLink = '/', backLabel = 'กลับหน้าแรก' }) {
+export default function PlaceholderPage({ title, description, backLink = '/', backLabel = 'กลับหน้าหลัก' }) {
   return (
     <div className="placeholder-page">
       <Breadcrumb className="small mb-3">
         <Breadcrumb.Item linkAs={Link} linkProps={{ to: '/' }}>
           <House size={14} className="me-1" />
-          หน้าแรก
+          หน้าหลัก
         </Breadcrumb.Item>
         <Breadcrumb.Item active>{title}</Breadcrumb.Item>
       </Breadcrumb>

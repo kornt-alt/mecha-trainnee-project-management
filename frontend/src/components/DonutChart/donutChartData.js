@@ -7,10 +7,10 @@
 import { PROJECT_STATUS_COLORS } from '../../utils/categoryColors';
 
 export const PROJECT_STATUS_META = [
-  { id: 'in_progress', label: 'กำลังดำเนินการ', color: PROJECT_STATUS_COLORS.in_progress, matches: ['in_progress'] },
+  { id: 'in_progress', label: 'กำลังทำ', color: PROJECT_STATUS_COLORS.in_progress, matches: ['in_progress'] },
   { id: 'on_hold', label: 'พักไว้ / รอตรวจสอบ', color: PROJECT_STATUS_COLORS.on_hold, matches: ['on_hold', 'pending_review', 'review'] },
   { id: 'planning', label: 'วางแผน', color: PROJECT_STATUS_COLORS.planning, matches: ['planning'] },
-  { id: 'completed', label: 'เสร็จสิ้น', color: PROJECT_STATUS_COLORS.completed, matches: ['done', 'completed'] },
+  { id: 'completed', label: 'เสร็จแล้ว', color: PROJECT_STATUS_COLORS.completed, matches: ['done', 'completed'] },
   { id: 'cancelled', label: 'ยกเลิก', color: PROJECT_STATUS_COLORS.cancelled, matches: ['cancelled'] },
 ];
 

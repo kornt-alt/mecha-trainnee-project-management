@@ -136,18 +136,18 @@ field เสริมของแต่ละ type (เช่น `reason`) อ�
 | MockDataContext | เส้นที่แนะนำ | สิทธิ์ / กฎหลัก |
 |---|---|---|
 | `setProjects` (เพิ่ม) | `POST /projects` | AD (หรือกำหนดเพิ่ม) · ผู้สร้างเป็น O · `visibility` default `private` |
-| `updateProject` | `PATCH /projects/:id` | O / L · `status: done` ได้เฉพาะเมื่อ `closure.status = closed` · โปรเจกต์ปิดแล้วเปลี่ยนสถานะไม่ได้ · ข้อมูลเปลี่ยน = reset การตรวจปิดโปรเจกต์ (`resetClosureReview`) |
-| `updateProject` + `closure` | `POST /projects/:id/closure/{summary-review, deliverables-review, submit, approve, return, close}` | O เท่านั้น · ต้องทำงานครบ (ทุกงาน `completed`) + สิ่งส่งมอบครบก่อน (ดู MockDataContext บรรทัด ~171–210) |
+| `updateProject` | `PATCH /projects/:id` | O / L · `status: done` ได้เฉพาะเมื่อ `closure.status = closed` · โปรเจกต์ปิดแล้วเปลี่ยนสถานะไม่ได้ · **แก้ชื่อ / คำอธิบาย / วันที่ไม่ reset การขอปิด** (reset เฉพาะเมื่องาน / สิ่งส่งมอบเปลี่ยน) |
+| `updateProject` + `closure` | `POST /projects/:id/closure/submit` · `.../approve` · `.../return` `{ reason }` | **3 เส้น (เดิม 6 — ลดตาม UX-01/07):** `submit` = O เท่านั้น เมื่อทุกงาน `completed` + สิ่งส่งมอบเสร็จครบ → `pending_approval` (ตั้ง `ownerReviewedAt` / `deliverablesReviewedAt` / `submittedAt` พร้อมกัน) · `approve` = L เท่านั้น จาก `pending_approval` → `closed` + โปรเจกต์ `status: done` ทันที (ไม่มีขั้น close แยก) · `return` = L ต้องมีเหตุผล → `returned` (O ส่งใหม่ได้) · งาน/สิ่งส่งมอบเปลี่ยนระหว่างรออนุมัติ → กลับ `draft` (ดู `updateProject` / `resetClosureReview` ใน MockDataContext) |
 | `setProjects` (ลบ) | `DELETE /projects/:id` | AD / O · ลบไม่ได้ถ้ายังมีงานหรือสิ่งส่งมอบ (Policy B ใน `Projects.js`) → 409 |
-| `addProjectMember` | `POST /projects/:id/members` `{ employeeId, reason }` | O / L · ซ้ำ / เป็น O-L อยู่แล้ว = 409 |
-| `assignTeamLeader` | `PUT /projects/:id/team-lead` `{ employeeId, reason }` | O / L |
+| `addProjectMember` | `POST /projects/:id/members` `{ employeeId, reason? }` | O / L · **`reason` ไม่บังคับ** (UX-06) · ซ้ำ / เป็น O-L อยู่แล้ว = 409 |
+| `assignTeamLeader` | `PUT /projects/:id/team-lead` `{ employeeId, reason }` | O / L · ต้องเป็นสมาชิกโปรเจกต์อยู่แล้ว · สร้างโปรเจกต์ส่ง `teamLeadId` มากับ `POST /projects` ได้เลย |
 | `removeProjectMember` | `DELETE /projects/:id/members/:employeeId` `{ replacementId, reason }` | O / L · นำ O/L ออกไม่ได้ · มีงานค้างต้องมีคนรับแทน · เป็นผู้ตรวจงานค้างอยู่ = 409 · โอนงาน + notification ให้ทั้งสองคน |
 
 ### Tasks
 | MockDataContext | เส้นที่แนะนำ | สิทธิ์ / กฎหลัก |
 |---|---|---|
 | `createTask` | `POST /projects/:id/tasks` | actor เป็น M · assignee / reviewer / collaborators ต้องเป็น M · assignee ≠ reviewer · สร้างได้แค่ `not_started` · ผลรวม `plannedAllocations` ≤ `estimatedHours` |
-| `updateTask` (`task_updated`, `workspace_task_details_updated`) | `PATCH /tasks/:id` | O / L / A (+ C สำหรับ `task_updated`) · แก้ไม่ได้ระหว่าง `pending_review` และหลัง `completed` |
+| `updateTask` (`task_updated`) | `PATCH /tasks/:id` | O / L / A / C · แก้ไม่ได้ระหว่าง `pending_review` และหลัง `completed` · แก้ได้ที่ฟอร์ม "แก้ไขงาน" ที่เดียว (UX-09 ตัด panel แก้ซ้ำในหน้าทำงาน) |
 | checklist (`checklist_*`) | `POST /tasks/:id/checklist` · `PATCH/DELETE /tasks/:id/checklist/:itemId` | M หรือผู้เกี่ยวข้องกับงาน · แก้/ลบได้เฉพาะเจ้าของรายการหรือ O · **ติ๊กข้อแรก → `not_started` เป็น `in_progress` อัตโนมัติ · เอาติ๊กออกหมด → กลับ `not_started`** |
 | `task_started` / `_by_project_lead` | `POST /tasks/:id/start` | A / C หรือ O / L |
 | `task_reopened` | `POST /tasks/:id/reopen` | A / O / L (`in_progress` → `not_started`) |
@@ -164,6 +164,7 @@ field เสริมของแต่ละ type (เช่น `reason`) อ�
 | `createDeliverable` / `updateDeliverable` / `deleteDeliverable` | `POST /projects/:id/deliverables` · `PATCH/DELETE /deliverables/:id` | `relatedTaskId` ต้องเป็นงานในโปรเจกต์เดียวกัน · เปลี่ยนแล้ว reset การตรวจปิดโปรเจกต์ |
 | `createLabel` / `updateLabel` / `deleteLabel` | `POST /labels` · `PATCH/DELETE /labels/:id` | ลบป้าย = ถอดออกจากทุกงาน (`task_labels` ON DELETE CASCADE ทำให้แล้ว) |
 | `markNotificationsRead` | `POST /notifications/read-all` | ของตัวเองเท่านั้น |
+| `addTaskWorkEntry` (`comments` / `timeLogs`) | `POST /tasks/:id/comments` `{ text }` · `POST /tasks/:id/time-logs` `{ hours, note }` · อ่านด้วย `GET` เส้นเดียวกัน | ผู้ที่เห็นโปรเจกต์ · ยังไม่มีตาราง — ต้องเพิ่มใน schema (frontend เก็บใน `MockDataContext.taskWork` แล้ว) |
 
 เมื่อทำเส้นเขียนของหมวดไหนเสร็จ: ลบ prefix นั้นออกจาก `PENDING_PREFIXES` ใน `backend/middleware/notImplemented.js` และเปลี่ยน ⏳ เป็น ✅ ในเอกสารนี้
 

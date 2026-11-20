@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/session';
 
 const PROJECT_URL = '/PROJECT-MANAGEMENT/projects';
 
 // เปิดหน้า Projects และบังคับให้ใช้ Mock Data
 test.beforeEach(async ({ page }) => {
+  await loginAs(page);
   await page.route('**/PROJECT-MANAGEMENT/api/projects**', async (route) => {
     const type = route.request().resourceType();
 
@@ -22,7 +24,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.locator('.project-card-item')).toHaveCount(3);
 });
 
-// Helper: เปิด Modal เพิ่มโปรเจกต์ (เริ่มต้นที่ Stepper Mode ตามค่าเริ่มต้น)
+// Helper: เปิด Modal เพิ่มโปรเจกต์ (ฟอร์มหน้าเดียว)
 async function openAddModal(page) {
   await page
     .getByRole('button', { name: /เพิ่มโปรเจกต์/ })
@@ -70,8 +72,6 @@ async function createWorkspaceTask(page, {
   if (await memberSelect.locator(`option[value="${reviewerId}"]`).count()) {
     const reviewerName = (await memberSelect.locator(`option[value="${reviewerId}"]`).textContent()).trim().split(' — ')[0];
     await memberSelect.selectOption(reviewerId);
-    const addReason = page.getByLabel('เหตุผลการเพิ่มสมาชิก');
-    if (await addReason.count()) await addReason.fill('กำหนดสมาชิกเพื่อทดสอบผู้ตรวจงาน');
     await page.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
     await expect(page.locator('.workspace-member-row').filter({ hasText: reviewerName })).toBeVisible();
   }
@@ -85,6 +85,7 @@ async function createWorkspaceTask(page, {
   await dialog.locator('#workspace-task-priority').selectOption(priority);
   await dialog.locator('#workspace-task-due').fill(dueDate);
   if (plannedHours !== null) {
+    await openMoreTaskOptions(dialog);
     await dialog.locator('#workspace-task-hours').fill(String(plannedHours));
     for (const [employeeId, hours] of Object.entries(allocationHours)) {
       const option = dialog.locator(`#workspace-task-assignee option[value="${employeeId}"], #workspace-task-collaborators option[value="${employeeId}"]`).first();
@@ -107,10 +108,14 @@ async function addWorkspaceMember(page, projectId, memberId, ownerId = 'emp-008'
   const memberSelect = page.getByLabel('เลือกสมาชิกเพื่อเพิ่ม');
   await memberSelect.selectOption(memberId);
   const memberName = (await memberSelect.locator('option:checked').textContent()).trim().split(' — ')[0];
-  const addReason = page.getByLabel('เหตุผลการเพิ่มสมาชิก');
-  if (await addReason.count()) await addReason.fill('เพิ่มสมาชิกเพื่อทดสอบ Workspace');
   await page.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
   await expect(page.locator('.workspace-member-row').filter({ hasText: memberName })).toBeVisible();
+}
+
+// ฟิลด์ที่ใช้นาน ๆ ครั้งในฟอร์มงานพับไว้ใต้ "ตัวเลือกเพิ่มเติม" (UX-04) — เปิดก่อนกรอก
+async function openMoreTaskOptions(dialog) {
+  const more = dialog.locator('details.workspace-task-more');
+  if (!(await more.evaluate((element) => element.open))) await more.locator('summary').click();
 }
 
 function getWorkspaceTaskDetail(page) {
@@ -125,22 +130,8 @@ async function confirmWorkspaceTaskAction(page) {
   await getWorkspaceTaskAction(page).getByRole('button', { name: 'ยืนยัน' }).click();
 }
 
-// Helper: สลับไปยังโหมดหน้าเดียว (Single Page Mode)
-async function switchToSinglePage(dialog) {
-  const singleBtn = dialog.getByRole('button', { name: 'หน้าเดียว' });
-  await singleBtn.click();
-  await expect(singleBtn).toHaveClass(/active/);
-}
-
-// Helper: สลับไปยังโหมดขั้นตอน (Stepper Mode)
-async function switchToStepper(dialog) {
-  const stepperBtn = dialog.getByRole('button', { name: 'แบบขั้นตอน' });
-  await stepperBtn.click();
-  await expect(stepperBtn).toHaveClass(/active/);
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// STEPPER MODE TESTS
+// ฟอร์มโปรเจกต์ (หน้าเดียว — เดิมมีโหมดแบบขั้นตอน 3 สเต็ปกับหน้าเดียว ตัดเหลือแบบเดียวใน UX-05)
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Test 1: เปิดและปิด Modal เพิ่มโปรเจกต์ได้
@@ -154,61 +145,51 @@ test('เปิดและปิด Modal เพิ่มโปรเจกต�
   await expect(dialog).not.toBeVisible();
 });
 
-// Test 2: Stepper Mode - ตรวจสอบค่าเริ่มต้นถูกต้อง
-test('Stepper Mode: ตรวจสอบค่าเริ่มต้นของฟอร์มถูกต้อง', async ({ page }) => {
+// Test 2: ค่าเริ่มต้น + ทุกส่วนอยู่หน้าเดียว ไม่มีสเต็ป
+test('Project form: ค่าเริ่มต้นถูกต้องและแสดงทุกส่วนในหน้าเดียว', async ({ page }) => {
   const dialog = await openAddModal(page);
 
-  // ชื่อโปรเจกต์เริ่มต้นต้องว่าง
   const nameInput = dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first();
   await expect(nameInput).toHaveValue('');
-
-  // โปรเจกต์ใหม่ต้องไม่มีตัวเลือกสถานะในฟอร์ม (ถูกกำหนดอัตโนมัติเป็น Planning)
+  // โปรเจกต์ใหม่ไม่มีตัวเลือกสถานะ (เริ่มที่วางแผนเสมอ)
   await expect(dialog.getByText('สถานะโปรเจกต์')).toHaveCount(0);
+  await expect(dialog.locator('.stepper-prio-btn.prio-normal')).toHaveClass(/active/);
+  // วันเริ่มเติมเป็นวันนี้ให้อัตโนมัติ
+  const today = await page.evaluate(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  await expect(dialog.locator('input[type="date"]').first()).toHaveValue(today);
 
-  // ระดับความสำคัญเริ่มต้นเป็น Normal (ปกติ)
-  const normalPrioBtn = dialog.locator('.stepper-prio-btn.prio-normal');
-  await expect(normalPrioBtn).toHaveClass(/active/);
-
-  // อยู่ที่ Step 1: ข้อมูลทั่วไป
-  await expect(dialog.locator('.stepper-step-circle.active')).toHaveText('01');
-  await expect(dialog.getByText('ข้อมูลทั่วไป (Basic Information)')).toBeVisible();
-  await expect(dialog.getByRole('button', { name: 'ถัดไป' })).toBeVisible();
+  await expect(dialog.getByText('ข้อมูลทั่วไป', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('ผู้รับผิดชอบและทีมงาน', { exact: true })).toBeVisible();
+  await expect(dialog.getByText('สิ่งที่ส่งมอบและกำหนดเวลา', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'ถัดไป' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'แบบขั้นตอน' })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: 'หน้าเดียว' })).toHaveCount(0);
+  await expect(dialog.getByText('(Basic Information)')).toHaveCount(0);
 });
 
-// Test 3: Stepper Mode - ตรวจสอบความถูกต้องของชื่อโปรเจกต์ (Validation) และการนำทาง
-test('Stepper Mode: ตรวจสอบ Validation ชื่อโปรเจกต์ และปุ่มถัดไป', async ({
-  page,
-}) => {
+// Test 3: กรอกชื่ออย่างเดียวก็สร้างได้ (เดิมต้องกดถัดไป 2 ครั้ง) + ชื่อว่างแจ้งเตือน
+test('Project form: ชื่อว่างแจ้งเตือน และกรอกแค่ชื่อแล้วบันทึกได้ทันที', async ({ page }) => {
   const dialog = await openAddModal(page);
-
-  // กดปุ่มถัดไปโดยไม่กรอกชื่อโปรเจกต์ -> ต้องแสดงแจ้งเตือน
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
+  await dialog.getByRole('button', { name: 'บันทึก' }).click();
   await expect(dialog.getByText('กรุณาระบุชื่อโปรเจกต์')).toBeVisible();
 
-  // ต้องยังคงอยู่ที่ Step 1
-  await expect(dialog.locator('.stepper-step-circle.active')).toHaveText('01');
-
-  // กรอกชื่อโปรเจกต์แล้วกดถัดไป -> ต้องก้าวไป Step 2 สำเร็จ
-  const nameInput = dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first();
-  await nameInput.fill('โปรเจกต์ทดสอบ Stepper Nav');
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
-
-  // เข้าสู่ Step 2
-  await expect(dialog.locator('.stepper-step-circle.active')).toHaveText('02');
-  await expect(
-    dialog.getByText('ผู้รับผิดชอบโปรเจกต์ & ทีมงาน (Ownership & Team)')
-  ).toBeVisible();
+  const projectName = `Quick Project ${Date.now()}`;
+  await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
+  await dialog.getByRole('button', { name: 'บันทึก' }).click();
+  await expect(dialog).not.toBeVisible();
+  const card = page.locator('.project-card-item').filter({ hasText: projectName });
+  await expect(card).toBeVisible();
+  await expect(card.locator('.tracking-pill-status.status-planning')).toBeVisible();
+  await expect(card.locator('.project-card-owner-name')).toHaveText('Kittipat Samran');
 });
 
 // Test 4: Project Owner selection stays synchronized with the Project Team.
-test('Stepper Mode: Project Owner can be changed and stays in the Project Team', async ({
-  page,
-}) => {
+test('Project form: Project Owner can be changed and stays in the Project Team', async ({ page }) => {
   const dialog = await openAddModal(page);
-
-  // Step 1: กรอกชื่อโปรเจกต์และไป Step 2
   await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill('โปรเจกต์ทดสอบ Owner Sync');
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
 
   const ownerSelect = dialog.getByLabel('เลือก Project Owner');
   await expect(ownerSelect).toBeVisible();
@@ -234,188 +215,63 @@ test('Stepper Mode: Project Owner can be changed and stays in the Project Team',
   await expect(dialog.locator('#project-team-emp-002')).not.toBeChecked();
   await expect(dialog.locator('#project-team-emp-003')).toBeChecked();
   await expect(dialog.getByText(/สมาชิกที่เลือก:/)).toContainText('2 คน');
-
-  await ownerSelect.selectOption('emp-002');
-  await expect(originalOwnerCheckbox).not.toBeChecked();
-  await expect(originalOwnerCheckbox).toBeEnabled();
-  await expect(dialog.locator('#project-team-emp-002')).toBeChecked();
-  await expect(dialog.locator('#project-team-emp-003')).toBeChecked();
-  await expect(dialog.getByText(/สมาชิกที่เลือก:/)).toContainText('2 คน');
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
 });
 
-// Test 5: Stepper Mode - Deliverables เป็น Optional, ตรวจสอบวันที่ และสร้างโปรเจกต์สำเร็จ
-test('Stepper Mode: Deliverables เป็น Optional ตรวจสอบวันที่ และสร้างโปรเจกต์สำเร็จ', async ({
-  page,
-}) => {
+// Test 5: Deliverables เป็น optional, ตรวจวันที่ แล้วสร้างสำเร็จ
+test('Project form: Deliverables เป็น Optional ตรวจสอบวันที่ และสร้างโปรเจกต์สำเร็จ', async ({ page }) => {
   const dialog = await openAddModal(page);
-  const projectName = `Stepper PW Project ${Date.now()}`;
-
-  // Step 1: กรอกข้อมูลทั่วไป
+  const projectName = `Form PW Project ${Date.now()}`;
   await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
 
-  // Step 2: The Owner can be changed and is included in the Team.
   const ownerSelect = dialog.getByLabel('เลือก Project Owner');
-  await expect(ownerSelect).toBeVisible();
-  await expect(ownerSelect).toBeEnabled();
   await ownerSelect.selectOption('emp-002');
   await expect(dialog.locator('#project-team-emp-002')).toBeChecked();
   await expect(dialog.locator('#project-team-emp-002')).toBeDisabled();
   await expect(dialog.getByText(/สมาชิกที่เลือก:/)).toContainText('1 คน');
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
 
-  // Step 3: กำหนดเวลาและสิ่งที่ต้องส่งมอบ
-  await expect(dialog.locator('.stepper-step-circle.active')).toHaveText('03');
-
-  // สิ่งที่ต้องส่งมอบ (Deliverables) ค่าเริ่มต้นปิดอยู่ (Optional)
   const deliverablesToggle = dialog.locator('#stepper-deliverables-toggle');
   await expect(deliverablesToggle).toHaveAttribute('aria-pressed', 'false');
+  // ช่องรายละเอียดสิ่งส่งมอบถูกตัดออก (บันทึกแล้วไม่แสดงที่ไหน) — เปิดสวิตช์แล้วไม่มี textarea โผล่
+  await deliverablesToggle.click();
+  await expect(dialog.locator('textarea[placeholder*="คู่มือการใช้งาน"]')).toHaveCount(0);
+  await deliverablesToggle.click();
 
-  // ตรวจสอบ Date Validation: วันที่เริ่ม > กำหนดส่ง
   const startDateInput = dialog.locator('input[type="date"]').first();
   const dueDateInput = dialog.locator('input[type="date"]').nth(1);
   await startDateInput.fill('2026-12-31');
   await dueDateInput.fill('2026-01-01');
-
   await dialog.getByRole('button', { name: 'บันทึก' }).click();
   await expect(dialog.getByText('วันที่เริ่มต้นต้องไม่มากกว่ากำหนดส่ง')).toBeVisible();
 
-  // แก้ไขวันที่ให้ถูกต้อง
   await startDateInput.fill('2026-01-01');
   await dueDateInput.fill('2026-03-31');
-
-  // บันทึกโปรเจกต์โดยไม่ต้องกรอก Deliverables
   await dialog.getByRole('button', { name: 'บันทึก' }).click();
-
-  // Modal ต้องปิดหลังบันทึก
   await expect(dialog).not.toBeVisible();
 
-  // New projects use the default Card View and retain Owner and planning status.
   const projectCard = page.locator('.project-card-item').filter({ hasText: projectName });
   await expect(projectCard).toBeVisible();
   await expect(projectCard.locator('.tracking-pill-status.status-planning')).toBeVisible();
   await expect(projectCard.locator('.project-card-owner-name')).toHaveText('Napat Chaiyaphon');
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SINGLE PAGE MODE TESTS
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Test 6: Single Page Mode keeps creator ownership and optional Deliverables.
-test('Single Page Mode: แสดงครบทุกส่วน เปลี่ยน Project Owner และสร้างโปรเจกต์สำเร็จ', async ({
-  page,
-}) => {
+// Test 6: ตั้ง Team Lead ในฟอร์มได้ (เลือกจากสมาชิก) — เอาคนนั้นออกจากทีมแล้ว Team Lead ถูกล้าง
+test('Project form: Team Lead is chosen from team members and shown in the workspace', async ({ page }) => {
   const dialog = await openAddModal(page);
-
-  // สลับไปยังโหมดหน้าเดียว (Single Page Mode)
-  await switchToSinglePage(dialog);
-
-  // ตรวจสอบว่ามีหัวข้อครบทั้ง 5 ส่วนในหน้าเดียว
-  await expect(dialog.getByText('ข้อมูลทั่วไป', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('ผู้รับผิดชอบโปรเจกต์', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('ทีมงานโปรเจกต์', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('สิ่งที่ต้องส่งมอบ', { exact: true })).toBeVisible();
-  await expect(dialog.getByText('กำหนดเวลาและรายละเอียด', { exact: true })).toBeVisible();
-
-  // กรอกชื่อโปรเจกต์
-  const spProjectName = `SinglePage PW Project ${Date.now()}`;
-  await dialog.locator('.single-page-form-body input[placeholder*="ระบุชื่อโปรเจกต์"]').fill(spProjectName);
-
-  // The default Project Owner is still the creator and can be changed.
-  const ownerSelect = dialog.getByLabel('เลือก Project Owner');
-  await expect(ownerSelect).toBeEnabled();
-  await ownerSelect.selectOption('emp-002');
-  const ownerId = 'emp-002';
-
-  // The selected Owner is part of the Team and reflected in the preview.
-  const memberCard = dialog.locator(`#sp-team-member-${ownerId}`);
-  await expect(memberCard).toHaveClass(/is-owner/);
-  await expect(memberCard.getByText('Owner')).toBeVisible();
-  await expect(dialog.locator('#sp-team-member-emp-001')).not.toHaveClass(/is-selected/);
-  await expect(dialog.getByText(/สมาชิกที่เลือก:/)).toContainText('1 คน');
-  await expect(dialog.locator('.single-page-preview-card')).toContainText('Napat Chaiyaphon');
-
-  // ตรวจสอบ Deliverables Toggle เป็น false (Optional)
-  const deliverablesToggle = dialog.locator('.sp-section-box button[aria-pressed]');
-  await expect(deliverablesToggle).toHaveAttribute('aria-pressed', 'false');
-
-  // บันทึกโปรเจกต์
+  const projectName = `Team Lead Project ${Date.now()}`;
+  await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
+  const leadSelect = dialog.locator('#project-team-lead');
+  await expect(leadSelect.locator('option')).toHaveCount(2); // ยังไม่กำหนด + Owner
+  await dialog.locator('#project-team-emp-009').check();
+  await leadSelect.selectOption('emp-009');
+  await dialog.locator('#project-team-emp-009').uncheck();
+  await expect(leadSelect).toHaveValue('');
+  await dialog.locator('#project-team-emp-009').check();
+  await leadSelect.selectOption('emp-009');
   await dialog.getByRole('button', { name: 'บันทึก' }).click();
-
-  // Modal ต้องปิดหลังบันทึก
   await expect(dialog).not.toBeVisible();
 
-  // New projects use the default Card View and retain Owner and planning status.
-  const projectCard = page.locator('.project-card-item').filter({ hasText: spProjectName });
-  await expect(projectCard).toBeVisible();
-  await expect(projectCard.locator('.tracking-pill-status.status-planning')).toBeVisible();
-  await expect(projectCard.locator('.project-card-owner-name')).toHaveText('Napat Chaiyaphon');
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// VIEW MODE SWITCHING & STATE PRESERVATION TEST
-// ─────────────────────────────────────────────────────────────────────────────
-
-// Test 7: สลับมุมมองระหว่าง Stepper และ Single Page โดยรักษาข้อมูลทั้งหมด (State Preservation)
-test('สลับมุมมองระหว่าง Stepper และ Single Page โดยรักษาข้อมูลทั้งหมดที่กรอกไว้', async ({
-  page,
-}) => {
-  const dialog = await openAddModal(page);
-  const preservedName = 'โปรเจกต์ทดสอบสลับมุมมอง State Preservation';
-
-  // เริ่มที่ Stepper Mode (Step 1)
-  await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(preservedName);
-  await dialog.getByLabel('เลือกหมวดหมู่โปรเจกต์').selectOption({ index: 1 });
-  const urgentPrioBtn = dialog.locator('.stepper-prio-btn.prio-urgent');
-  await urgentPrioBtn.click();
-  await expect(urgentPrioBtn).toHaveClass(/active/);
-
-  // Change the Owner in Stepper Mode before switching layouts.
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
-  const ownerSelect = dialog.getByLabel('เลือก Project Owner');
-  await expect(ownerSelect).toBeVisible();
-  await expect(ownerSelect).toBeEnabled();
-  await ownerSelect.selectOption('emp-002');
-  const ownerId = 'emp-002';
-  await expect(dialog.locator(`#project-team-${ownerId}`)).toBeDisabled();
-  await expect(dialog.getByText(/สมาชิกที่เลือก:/)).toContainText('1 คน');
-
-  // สลับไปยัง Single Page Mode
-  await switchToSinglePage(dialog);
-
-  // ตรวจสอบว่าข้อมูลจาก Stepper Mode ยังคงอยู่ครบถ้วนใน Single Page Mode
-  const spNameInput = dialog.locator('.single-page-form-body input[placeholder*="ระบุชื่อโปรเจกต์"]');
-  await expect(spNameInput).toHaveValue(preservedName);
-
-  const spOwnerSelect = dialog.getByLabel('เลือก Project Owner');
-  await expect(spOwnerSelect).toHaveValue(ownerId);
-
-  // ตรวจสอบ Live Preview Card ใน Aside ของ Single Page Mode สะท้อนชื่อโปรเจกต์
-  await expect(dialog.locator('.single-page-preview-card')).toContainText(preservedName);
-
-  // ใน Single Page Mode: เปิดใช้งาน Deliverables และกรอกรายละเอียด
-  const deliverablesToggle = dialog.locator('.sp-section-box button[aria-pressed]');
-  await deliverablesToggle.click();
-  await expect(deliverablesToggle).toHaveAttribute('aria-pressed', 'true');
-  const deliverableText = 'เอกสารระบบทดสอบ State V1';
-  await dialog.locator('textarea[placeholder*="Deliverable Description"]').fill(deliverableText);
-
-  // สลับกลับมายัง Stepper Mode (จะยังคงอยู่ที่ Step 2 เดิม)
-  await switchToStepper(dialog);
-
-  // ตรวจสอบว่ายังจำ Owner เดิมใน Step 2
-  await expect(dialog.getByLabel('เลือก Project Owner')).toHaveValue(ownerId);
-
-  // ย้อนกลับไป Step 1: ตรวจสอบว่าชื่อโปรเจกต์และ Priority ยังคงอยู่
-  await dialog.getByRole('button', { name: /STEP 1/ }).click();
-  await expect(dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first()).toHaveValue(preservedName);
-  await expect(dialog.locator('.stepper-prio-btn.prio-urgent')).toHaveClass(/active/);
-
-  // ไปยัง Step 3: ตรวจสอบว่า Deliverables ที่เปิดไว้ใน Single Page ยังคงเปิดอยู่พร้อมข้อความ
-  await dialog.getByRole('button', { name: /STEP 3/ }).click();
-  await expect(dialog.locator('#stepper-deliverables-toggle')).toHaveAttribute('aria-pressed', 'true');
-  await expect(dialog.locator('textarea[placeholder*="คู่มือการใช้งาน"]')).toHaveValue(deliverableText);
+  await page.locator('.project-card-item').filter({ hasText: projectName }).locator('.project-card-navigation-link').click();
+  await expect(page.locator('.project-detail-header')).toContainText('Korn Tawonphon');
 });
 
 test('Dual-View: สลับระหว่างมุมมอง Table และ Card ค้นหา กรอง และเรียกใช้ Action ได้อย่างถูกต้อง', async ({ page }) => {
@@ -748,8 +604,8 @@ test('Project Workspace: Tasks tab shows an empty state for a project without ta
 
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
   const closure = page.locator('.workspace-closure');
-  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติ' })).toBeDisabled();
-  await expect(closure.locator('.project-detail-closure-copy').first()).toContainText('เสร็จ 0/0 งาน');
+  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' })).toBeDisabled();
+  await expect(closure.locator('.project-detail-closure-copy').first()).toContainText('งาน 0/0');
 });
 
 test('Project Workspace: Task form shows one modal body and limits reviewers to Project Team members', async ({ page }) => {
@@ -852,7 +708,7 @@ test('Project Workspace: Tasks tab fits mobile screens without browser errors', 
 
 test('Workload: Team cards show their assigned members independently of Employee filters', async ({ page }) => {
   await page.goto('/PROJECT-MANAGEMENT/workload');
-  await expect(page.getByRole('heading', { name: 'Workload Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /ภาระงานของทีม/ })).toBeVisible();
 
   const plannedWorkload = page.locator('.workload-kpi').filter({ hasText: 'Planned Workload' });
   await expect(plannedWorkload.locator('.workload-kpi-value')).toHaveText('0 ชม.');
@@ -898,9 +754,7 @@ test('Project Workspace: task selection opens inline detail from every tab and p
   await createdReviewTaskRow.click();
   let reviewTaskDetail = getWorkspaceTaskDetail(page);
   await reviewTaskDetail.getByRole('button', { name: 'เริ่มงาน' }).click();
-  await confirmWorkspaceTaskAction(page);
   await reviewTaskDetail.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await reviewTaskDetail.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   const overviewTab = page.getByRole('tab', { name: 'ภาพรวม', exact: true });
@@ -1110,22 +964,43 @@ test('Project Workspace: inline detail matches reference dimensions and wraps at
   }
 });
 
-test('Task Detail remains a Bootstrap Modal on the general Tasks page', async ({ page }) => {
-  const title = `General Task Modal ${Date.now()}`;
+test('Tasks page: shows my tasks first and opens a task inside its Project Workspace (UX-10)', async ({ page }) => {
+  const title = `General Task ${Date.now()}`;
+  // createWorkspaceTask ใช้ผู้ใช้จำลอง emp-008 เป็นผู้รับผิดชอบ → อยู่ใน "งานของฉัน" ของ emp-008
   await createWorkspaceTask(page, { projectId: 1, title });
   await page.locator('.project-detail-breadcrumb a').click();
   await page.getByRole('link', { name: 'ตารางงาน', exact: true }).first().click();
+
+  await expect(page.getByRole('button', { name: 'งานของฉัน' })).toHaveAttribute('aria-pressed', 'true');
   const taskRow = page.locator('.task-table tbody tr').filter({ hasText: title });
   await expect(taskRow).toBeVisible();
-  await taskRow.locator('button[title="ดูรายละเอียด"]').click();
+  // งานของคนอื่น (emp-002 รับผิดชอบ) ไม่อยู่ใน "งานของฉัน"
+  await expect(page.locator('.task-table tbody tr').filter({ hasText: 'พัฒนาระบบแจ้งเตือนเครื่องหยุด' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'ทั้งหมด', exact: true }).click();
+  await expect(page.locator('.task-table tbody tr').filter({ hasText: 'พัฒนาระบบแจ้งเตือนเครื่องหยุด' })).toBeVisible();
 
-  const dialog = page.getByRole('dialog');
-  await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText(title);
-  await expect(dialog.locator('.modal-body')).toBeVisible();
-  await expect(page.locator('.workspace-task-detail')).toHaveCount(0);
-  await dialog.locator('.btn-close').click();
-  await expect(dialog).toHaveCount(0);
+  await taskRow.locator('button[title="เปิดงานในโปรเจกต์"]').click();
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  const detail = page.locator('.workspace-task-detail');
+  await expect(detail).toBeVisible();
+  await expect(detail.getByRole('heading', { name: title })).toBeVisible();
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+});
+
+test('Home: "งานของฉัน" lists my tasks and opens one in its workspace (UX-11)', async ({ page }) => {
+  const title = `Home My Task ${Date.now()}`;
+  await createWorkspaceTask(page, { projectId: 1, title });
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.getByRole('link', { name: 'หน้าหลัก', exact: true }).first().click();
+
+  const myWork = page.getByLabel('งานของฉัน', { exact: true });
+  await expect(myWork).toBeVisible();
+  const assigned = myWork.locator('section[aria-labelledby="my-work-assigned"]');
+  const item = assigned.getByRole('button', { name: new RegExp(title) });
+  await expect(item).toBeVisible();
+  await item.click();
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  await expect(page.locator('.workspace-task-detail').getByRole('heading', { name: title })).toBeVisible();
 });
 
 test('Project Workspace: Board empty state and mobile layout are usable', async ({ page }) => {
@@ -1138,9 +1013,7 @@ test('Project Workspace: Board empty state and mobile layout are usable', async 
   const projectName = `Empty Board Project ${Date.now()}`;
   const dialog = await openAddModal(page);
   await dialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
   await expect(dialog.getByLabel('เลือก Project Owner')).toBeEnabled();
-  await dialog.getByRole('button', { name: 'ถัดไป' }).click();
   await dialog.getByRole('button', { name: 'บันทึก' }).click();
   await expect(dialog).not.toBeVisible();
 
@@ -1318,9 +1191,7 @@ test('Project Workspace: reference text colors and interface contrast targets', 
   const projectName = `Contrast Empty State Project ${Date.now()}`;
   const addDialog = await openAddModal(page);
   await addDialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
-  await addDialog.getByRole('button', { name: 'ถัดไป' }).click();
   await expect(addDialog.getByLabel('เลือก Project Owner')).toBeEnabled();
-  await addDialog.getByRole('button', { name: 'ถัดไป' }).click();
   await addDialog.getByRole('button', { name: 'บันทึก' }).click();
   await expect(addDialog).not.toBeVisible();
   await page.locator('.project-card-item').filter({ hasText: projectName }).locator('.project-card-navigation-link').click();
@@ -1396,7 +1267,6 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   await expect(submitDialog.getByRole('button', { name: 'เริ่มงาน' })).toHaveCount(0);
   await expect(submitDialog.getByRole('button', { name: 'ส่งตรวจ' })).toBeVisible();
   await submitDialog.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await expect(submitDialog.getByText(/ล็อกระหว่างรอตรวจ/)).toBeVisible();
   await expect(submitDialog.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
   await submitDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
@@ -1406,7 +1276,7 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   const reviewerDialog = getWorkspaceTaskDetail(page);
   await reviewerDialog.getByRole('button', { name: 'อนุมัติ' }).click();
   await confirmWorkspaceTaskAction(page);
-  await expect(reviewerDialog.locator('.task-detail-status')).toContainText('เสร็จสิ้น');
+  await expect(reviewerDialog.locator('.task-detail-status')).toContainText('เสร็จแล้ว');
   await reviewerDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
@@ -1424,9 +1294,7 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
   await taskRow.click();
   let detailDialog = getWorkspaceTaskDetail(page);
   await detailDialog.getByRole('button', { name: 'เริ่มงาน' }).click();
-  await confirmWorkspaceTaskAction(page);
   await detailDialog.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
@@ -1436,14 +1304,13 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
   await requestChanges.click();
   await getWorkspaceTaskAction(page).getByLabel(/เหตุผล/).fill('ขอแนบผลทดสอบเพิ่ม');
   await confirmWorkspaceTaskAction(page);
-  await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังดำเนินการ');
+  await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังทำ');
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-001');
   await taskRow.click();
   detailDialog = getWorkspaceTaskDetail(page);
   await detailDialog.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   await taskRow.click();
@@ -1452,7 +1319,7 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
   await withdraw.click();
   await getWorkspaceTaskAction(page).getByLabel(/เหตุผล/).fill('ต้องปรับข้อมูลก่อนตรวจอีกครั้ง');
   await confirmWorkspaceTaskAction(page);
-  await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังดำเนินการ');
+  await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังทำ');
 
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
@@ -1468,8 +1335,6 @@ test('Project Workspace: Team, Deliverables, Timeline and Activity share project
   const memberSelect = page.getByLabel('เลือกสมาชิกเพื่อเพิ่ม');
   await memberSelect.selectOption({ index: 1 });
   const memberName = (await memberSelect.locator('option:checked').textContent()).trim().split(' — ')[0];
-  const addReason = page.getByLabel('เหตุผลการเพิ่มสมาชิก');
-  if (await addReason.count()) await addReason.fill('เพิ่มสมาชิกเพื่อทดสอบ Workspace');
   await page.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
   await expect(page.locator('.workspace-member-row').filter({ hasText: memberName })).toBeVisible();
 
@@ -1573,6 +1438,7 @@ test('Project Workspace: creating and deleting a Task updates the same Board and
   await page.getByRole('button', { name: 'เพิ่มงาน', exact: true }).click();
   const formDialog = page.getByRole('dialog').last();
   await formDialog.locator('#workspace-task-title').fill(title);
+  await openMoreTaskOptions(formDialog);
   await formDialog.locator('#workspace-task-category').fill('Workspace');
   await formDialog.locator('#workspace-task-assignee').selectOption('emp-008');
   await formDialog.locator('#workspace-task-reviewer').selectOption('emp-001');
@@ -1663,11 +1529,9 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   const projectName = `Closure Workflow ${Date.now()}`;
   const addDialog = await openAddModal(page);
   await addDialog.locator('input[placeholder*="ระบุชื่อโปรเจกต์"]').first().fill(projectName);
-  await addDialog.getByRole('button', { name: 'ถัดไป' }).click();
   const ownerSelect = addDialog.getByLabel('เลือก Project Owner');
   await expect(ownerSelect).toBeEnabled();
   const ownerId = await ownerSelect.inputValue();
-  await addDialog.getByRole('button', { name: 'ถัดไป' }).click();
   await addDialog.getByRole('button', { name: 'บันทึก' }).click();
   await expect(addDialog).not.toBeVisible();
 
@@ -1683,8 +1547,8 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
 
   const closure = page.locator('.workspace-closure');
-  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติ' })).toBeDisabled();
-  await expect(closure.locator('.project-detail-closure-copy').first()).toContainText('เสร็จ 0/0 งาน');
+  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' })).toBeDisabled();
+  await expect(closure.locator('.project-detail-closure-copy').first()).toContainText('งาน 0/0');
   await createWorkspaceTask(page, {
     projectId,
     title: `Closure task ${Date.now()}`,
@@ -1696,9 +1560,7 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   await taskRow.click();
   let taskDetail = getWorkspaceTaskDetail(page);
   await taskDetail.getByRole('button', { name: 'เริ่มงาน' }).click();
-  await confirmWorkspaceTaskAction(page);
   await taskDetail.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await taskDetail.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(leaderId);
   await taskRow.click();
@@ -1709,20 +1571,17 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(ownerId);
 
-  await page.getByRole('button', { name: 'ยืนยันตรวจสรุป' }).click();
-  await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
-  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติ' })).toBeEnabled();
-  await closure.getByRole('button', { name: 'ส่งขออนุมัติ' }).click();
+  // ขั้นตอนใหม่: Owner ส่งครั้งเดียว → Team Lead อนุมัติ = ปิดทันที (เดิม 5 ขั้น ยืนยันทุกขั้น)
+  await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' })).toBeEnabled();
+  await closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
 
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(leaderId);
-  await closure.getByRole('button', { name: 'อนุมัติ' }).click();
-  await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(ownerId);
-  await closure.getByRole('button', { name: 'ปิดโปรเจกต์' }).click();
+  await closure.getByRole('button', { name: 'อนุมัติและปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
 
   await expect(page.locator('.project-detail-status')).toHaveClass(/status-done/);
+  await expect(closure.locator('.workspace-closure-complete')).toBeVisible();
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
   await expect(page.locator('.workspace-reference-activity-list')).toContainText('ปิดโปรเจกต์');
 });
@@ -1742,35 +1601,35 @@ test('Project Workspace: task metadata edits appear in all views and support fil
   await expect(taskRow.locator('.workspace-task-metadata-priority')).toHaveCSS('background-color', 'rgb(255, 228, 230)');
   await expect(taskRow.locator('.workspace-task-metadata-priority')).toHaveCSS('color', 'rgb(138, 16, 48)');
 
+  // UX-09: แก้รายละเอียดผ่านฟอร์ม "แก้ไขงาน" ที่เดียว (หน้าทำงานไม่มี panel แก้ซ้ำแล้ว)
   await taskRow.click();
-  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  const workPage = page.locator('.workspace-task-work-page');
-  const details = workPage.locator('.workspace-task-details-panel');
-  await expect(details).toBeVisible();
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-003');
-  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+  await expect(getWorkspaceTaskDetail(page).getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
-  await expect(details.locator('#workspace-task-details-priority')).toBeEnabled();
-  await details.locator('#workspace-task-details-priority').selectOption('high');
-  await details.locator('#workspace-task-details-start').fill('2026-12-01');
-  await details.locator('#workspace-task-details-due').fill('2026-11-30');
-  await expect(details.locator('.workspace-task-details-footer').getByRole('button', { name: 'บันทึกรายละเอียด' })).toBeDisabled();
-  await expect(details.locator('.invalid-feedback')).toContainText('กำหนดส่งต้องไม่อยู่ก่อนวันเริ่ม');
-  await details.locator('#workspace-task-details-due').fill('2026-12-18');
-  await details.locator('.workspace-task-details-options').getByRole('button', { name: 'Korn Tawonphon' }).click();
-  await details.locator('#workspace-task-details-label-name').fill('Workspace review label');
-  await details.getByRole('button', { name: 'สร้างป้ายและเพิ่ม' }).click();
-  await details.getByRole('button', { name: '+ Production Plan' }).click();
-  await details.locator('#workspace-task-details-attachment-file').setInputFiles({
+  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'แก้ไขงาน' }).click();
+  const editDialog = page.getByRole('dialog').last();
+  await editDialog.locator('#workspace-task-priority').selectOption('high');
+  await editDialog.locator('#workspace-task-start').fill('2026-12-01');
+  await editDialog.locator('#workspace-task-due').fill('2026-11-30');
+  await expect(editDialog.getByRole('button', { name: 'บันทึกงาน' })).toBeDisabled();
+  await expect(editDialog.locator('.workspace-task-modal-footer')).toContainText('แก้วันที่ให้ถูกต้อง');
+  await editDialog.locator('#workspace-task-due').fill('2026-12-18');
+  await editDialog.locator('.workspace-task-collaborators').getByRole('button', { name: /Korn/ }).click();
+  await openMoreTaskOptions(editDialog);
+  await editDialog.locator('#workspace-task-label-name').fill('Workspace review label');
+  await editDialog.getByRole('button', { name: 'สร้างป้าย' }).click();
+  await editDialog.locator('#workspace-task-attachments').setInputFiles({
     name: 'workspace-attachment.txt',
     mimeType: 'text/plain',
     buffer: Buffer.from('workspace attachment'),
   });
-  await details.getByRole('button', { name: 'ลบไฟล์ Production Plan' }).click();
-  await details.getByRole('button', { name: 'บันทึกรายละเอียด' }).click();
+  await editDialog.getByRole('button', { name: 'บันทึกงาน' }).click();
+  await expect(editDialog).toHaveCount(0);
 
-  await expect(details.locator('#workspace-task-details-priority')).toHaveValue('high');
-  // ป้ายความสำคัญอยู่ที่แถบ tag หัวหน้าทำงาน — ใน panel รายละเอียดมีแค่ dropdown
+  await taskRow.click();
+  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
+  const workPage = page.locator('.workspace-task-work-page');
+  await expect(workPage.locator('.workspace-task-details-panel')).toHaveCount(0);
   const priorityBadge = workPage.locator('.workspace-task-work-tags .workspace-priority-badge.priority-high');
   await expect(priorityBadge).toHaveCSS('background-color', 'rgb(255, 235, 200)');
   await expect(priorityBadge).toHaveCSS('color', 'rgb(122, 58, 6)');
@@ -1835,6 +1694,7 @@ test('Project Workspace: owner returns a reviewed task with a reason from the bo
 });
 
 test('Project Workspace: Work Page editing follows assignee permissions and task locks', async ({ page }) => {
+  // UX-09: แก้รายละเอียดผ่านปุ่ม "แก้ไขงาน" ที่เดียว — ปุ่มโผล่เฉพาะคนที่มีสิทธิ์ และหายเมื่องานถูกล็อก (รอตรวจ / เสร็จ)
   await addWorkspaceMember(page, 1, 'emp-002');
   const title = `Workspace detail permissions ${Date.now()}`;
   const taskRow = await createWorkspaceTask(page, { title, assigneeId: 'emp-002', reviewerId: 'emp-009' });
@@ -1843,34 +1703,25 @@ test('Project Workspace: Work Page editing follows assignee permissions and task
   let detail = getWorkspaceTaskDetail(page);
   await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
   let workPage = page.locator('.workspace-task-work-page');
-  let details = workPage.locator('.workspace-task-details-panel');
-  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
-  await expect(details.getByRole('button', { name: 'บันทึกรายละเอียด' })).toBeDisabled();
+  await expect(workPage.locator('.workspace-task-details-panel')).toHaveCount(0);
+  await expect(workPage.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
   await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
 
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
   detail = getWorkspaceTaskDetail(page);
-  await expect(detail.getByRole('button', { name: 'เริ่มงาน' })).toBeVisible();
+  await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toBeVisible();
   await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
-  await confirmWorkspaceTaskAction(page);
   await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
-  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  workPage = page.locator('.workspace-task-work-page');
-  details = workPage.locator('.workspace-task-details-panel');
-  await expect(details).toContainText('งานถูกล็อกระหว่างรอตรวจ');
-  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
-  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
+  await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
 
   await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
   detail = getWorkspaceTaskDetail(page);
   await detail.getByRole('button', { name: 'อนุมัติ' }).click();
   await confirmWorkspaceTaskAction(page);
+  await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
   await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
   workPage = page.locator('.workspace-task-work-page');
-  details = workPage.locator('.workspace-task-details-panel');
-  await expect(details).toContainText('งานเสร็จแล้ว');
-  await expect(details.locator('#workspace-task-details-priority')).toBeDisabled();
+  await expect(workPage.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
 });
 
 test('Project Workspace: selected task details and Work Page fit desktop, tablet, and mobile', async ({ page }) => {
@@ -1894,7 +1745,7 @@ test('Project Workspace: selected task details and Work Page fit desktop, tablet
 
     await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
     const workPage = page.locator('.workspace-task-work-page');
-    await expect(workPage.locator('.workspace-task-details-panel')).toBeVisible();
+    await expect(workPage.getByRole('heading', { name: 'บันทึกเวลาทำงาน' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
     await expect(getWorkspaceTaskDetail(page).getByRole('heading', { name: title })).toBeVisible();
@@ -1971,7 +1822,6 @@ test('Project Workspace: Checklist progress never overrides review or completed 
   await expect(detail.locator('.task-detail-status')).toHaveClass(/status-in_progress/);
 
   await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
-  await confirmWorkspaceTaskAction(page);
   await expect(detail.locator('.task-detail-status')).toHaveClass(/status-pending_review/);
   await expect(detail.locator('.workspace-checklist li').filter({ hasText: checklistTitle }).getByRole('checkbox')).toBeDisabled();
 
@@ -2035,4 +1885,37 @@ test('Project Workspace and Task Work Page history lists scroll within bounded s
   await projectHistory.evaluate((element) => { element.scrollTop = element.scrollHeight; });
   expect(await projectHistory.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
   expect(await projectHeading.evaluate((element) => element.getBoundingClientRect().top)).toBe(projectHeadingTop);
+});
+
+test('Project Workspace: a project with deliverables can be closed once tasks and deliverables are done (UX-01)', async ({ page }) => {
+  // โปรเจกต์ 1: Owner = emp-008, Team Lead = emp-009, มีสิ่งส่งมอบ 3 รายการ — เดิมปิดไม่ได้เพราะไม่มีปุ่มตรวจสิ่งส่งมอบ
+  await openWorkspaceProject(page, 1);
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await page.getByRole('tab', { name: /^บอร์ด/ }).click();
+  const done = page.locator('.project-board-column[data-status="completed"]');
+  for (const status of ['not_started', 'in_progress', 'pending_review']) {
+    const column = page.locator(`.project-board-column[data-status="${status}"]`);
+    // จำกัดรอบ — ถ้าลากไม่ไป เทสต้อง fail ที่ assertion ด้านล่าง ไม่ใช่วนจนหมดเวลา
+    for (let guard = 0; guard < 10 && await column.locator('.project-board-task').count(); guard += 1) {
+      const card = column.locator('.project-board-task').first();
+      if (status === 'not_started') await card.dragTo(page.locator('.project-board-column[data-status="in_progress"]'));
+      else if (status === 'in_progress') await card.dragTo(page.locator('.project-board-column[data-status="pending_review"]'));
+      else await card.dragTo(done);
+    }
+  }
+  await expect(done.locator('.project-board-count')).toHaveText('8');
+
+  await page.getByRole('tab', { name: /^สิ่งที่ส่งมอบ/ }).click();
+  const markButtons = page.getByRole('button', { name: 'ทำเครื่องหมายส่งมอบแล้ว' });
+  for (let guard = 0; guard < 10 && await markButtons.count(); guard += 1) await markButtons.first().click();
+  await expect(page.locator('.workspace-count-pill')).toContainText('ส่งมอบแล้ว 3/3');
+
+  await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
+  const closure = page.locator('.workspace-closure');
+  await closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
+  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await closure.getByRole('button', { name: 'อนุมัติและปิดโปรเจกต์' }).click();
+  await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
+  await expect(page.locator('.project-detail-status')).toHaveClass(/status-done/);
 });

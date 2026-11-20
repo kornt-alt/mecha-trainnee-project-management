@@ -165,11 +165,9 @@ export default function Workload() {
     <div className="workload-page">
       <div className="workload-page-heading">
         <div>
-          <div className="workload-eyebrow">RESOURCE MANAGEMENT</div>
-          <h1>Workload Dashboard</h1>
-          <p>วิเคราะห์ภาระงานและวางแผนกำลังคนจาก Planned Hours เทียบกับ Capacity ตามตารางทำงานจริง</p>
+          <h1>ภาระงานของทีม (Workload)</h1>
+          <p>ชั่วโมงงานที่วางแผนไว้เทียบกับเวลาทำงานจริงของแต่ละคน</p>
         </div>
-        <Badge bg="primary" className="workload-mock-badge">Mock Data · Frontend</Badge>
       </div>
 
       <Card className="workload-toolbar border-0 shadow-sm mb-3">

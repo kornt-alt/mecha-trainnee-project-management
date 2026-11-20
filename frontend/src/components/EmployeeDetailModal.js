@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Badge, Modal, Row, Col, Table } from 'react-bootstrap';
 import { useMockData } from '../context/MockDataContext';
+import { PRIORITY_LABELS } from '../utils/labels';
 
 
 
@@ -13,8 +14,8 @@ const PRIORITY_META = {
   none: { label: 'ไม่ระบุ', bg: 'secondary' },
   urgent: { label: 'Urgent', bg: 'danger' },
   high: { label: 'High', bg: 'warning' },
-  normal: { label: 'ปานกลาง', bg: 'primary' },
-  medium: { label: 'ปานกลาง', bg: 'primary' },
+  normal: { label: PRIORITY_LABELS.normal, bg: 'primary' },
+  medium: { label: PRIORITY_LABELS.medium, bg: 'primary' },
   low: { label: 'Low', bg: 'secondary' },
 };
 

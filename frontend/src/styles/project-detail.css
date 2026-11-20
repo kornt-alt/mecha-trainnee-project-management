@@ -2714,6 +2714,11 @@
 .project-workspace-modal .workspace-modal-hours-field { grid-column:1 / -1; order:10; }
 .project-workspace-modal .workspace-hours-allocation { grid-column:1 / -1; order:11; }
 .project-workspace-modal .workspace-modal-benefit-field { grid-column:1 / -1; order:12; }
+/* "ตัวเลือกเพิ่มเติม" — ฟิลด์ที่ใช้นาน ๆ ครั้งพับไว้ท้ายคอลัมน์ขวา (UX-04) */
+.project-workspace-modal .workspace-task-more { grid-column:1 / -1; order:20; border:1.5px solid #E3E8F2; border-radius:14px; padding:0; }
+.project-workspace-modal .workspace-task-more > summary { display:flex; align-items:baseline; gap:8px; padding:12px 14px; color:#1B3A8A; font-size:14px; font-weight:700; cursor:pointer; }
+.project-workspace-modal .workspace-task-more > summary span { color:#64748B; font-size:12.5px; font-weight:500; }
+.project-workspace-modal .workspace-task-more-body { display:flex; flex-direction:column; gap:16px; padding:0 14px 14px; }
 .project-workspace-modal .workspace-task-labels { display:none; }
 .project-workspace-modal .workspace-task-labels-reference { display:flex; flex-direction:column; gap:12px; border:1.5px solid #E3E8F2; border-radius:18px; padding:16px; }
 .project-workspace-modal .workspace-task-reference-panel-title { color:#0F172A; font-size:15px; font-weight:700; }
@@ -3099,47 +3104,9 @@
 .project-detail.is-reference .project-detail-task-row { grid-template-columns:minmax(0,1fr) auto auto; }
 .project-detail.is-reference .project-board-task > .workspace-task-metadata { margin-top:-2px; }
 
-.project-detail.is-reference .workspace-task-work-page .workspace-task-details-panel { width:auto; }
-.project-detail.is-reference .workspace-task-details-panel .workspace-task-details-readonly { margin:0; border-radius:10px; padding:9px 12px; background:#FFF4E0; color:#7A3A06; font-size:13px; line-height:1.5; }
-.project-detail.is-reference .workspace-task-details-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }
-.project-detail.is-reference .workspace-task-details-grid .form-group { display:flex; min-width:0; flex-direction:column; gap:6px; }
-.project-detail.is-reference .workspace-task-details-grid .form-label,
-.project-detail.is-reference .workspace-task-details-section > h3,
-.project-detail.is-reference .workspace-task-details-section-heading h3 { margin:0; color:#0F172A; font-size:13.5px; font-weight:650; }
-.project-detail.is-reference .workspace-task-details-section { display:flex; min-width:0; flex-direction:column; gap:9px; border-top:1px solid #EEF2F6; padding-top:13px; }
-.project-detail.is-reference .workspace-task-details-options,
-.project-detail.is-reference .workspace-task-details-labels { display:flex; min-width:0; flex-wrap:wrap; gap:7px; }
-.project-detail.is-reference .workspace-task-details-options > button,
-.project-detail.is-reference .workspace-task-details-labels > button { display:inline-flex; min-height:36px; align-items:center; gap:7px; border:1px solid #CBD5E1; border-radius:999px; padding:4px 10px; background:#fff; color:#334155; font:inherit; font-size:12.5px; }
-.project-detail.is-reference .workspace-task-details-options > button.is-selected { border-color:#2F5BD0; background:#E3ECFF; color:#1B3A8A; }
-.project-detail.is-reference .workspace-task-details-options > button:disabled,
-.project-detail.is-reference .workspace-task-details-labels > button:disabled { cursor:not-allowed; opacity:.58; }
-.project-detail.is-reference .workspace-task-details-person-avatar { display:inline-flex; width:25px; height:25px; align-items:center; justify-content:center; border-radius:50%; font-size:9px; font-weight:700; }
-.project-detail.is-reference .workspace-task-details-empty { margin:0; color:#64748B; font-size:12.5px; }
-.project-detail.is-reference .workspace-task-details-label-editor { display:flex; min-width:0; flex-wrap:wrap; gap:8px; }
-.project-detail.is-reference .workspace-task-details-label-editor .form-control { min-width:180px; flex:1 1 220px; }
-.project-detail.is-reference .workspace-task-details-label-editor .btn { min-height:40px; border:0; border-radius:11px; padding:0 14px; background:#2F5BD0; font-size:13px; font-weight:700; }
-.project-detail.is-reference .workspace-task-details-palette { display:flex; flex-wrap:wrap; gap:7px; }
-.project-detail.is-reference .workspace-task-details-palette > button { width:22px; height:22px; border:0; border-radius:50%; box-shadow:inset 0 0 0 1px rgba(15,23,42,.18); }
-.project-detail.is-reference .workspace-task-details-palette > button[aria-pressed="true"] { outline:2px solid #fff; outline-offset:2px; }
-.project-detail.is-reference .workspace-task-details-palette > button:disabled { cursor:not-allowed; opacity:.58; }
-.project-detail.is-reference .workspace-task-details-section-heading { display:flex; min-width:0; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:9px; }
 .project-detail.is-reference .workspace-task-attachment-quick { display:flex; flex-wrap:wrap; gap:7px; }
 .project-detail.is-reference .workspace-task-attachment-quick > button { min-height:34px; border:1px solid #CBD5E1; border-radius:9px; padding:0 11px; background:#F5F8FF; color:#1B3A8A; font-size:12px; font-weight:650; }
 .project-detail.is-reference .workspace-task-attachment-quick > button:disabled { cursor:not-allowed; opacity:.58; }
-.project-detail.is-reference .workspace-task-details-attachments-list { display:flex; flex-direction:column; gap:6px; margin:0; padding:0; list-style:none; }
-.project-detail.is-reference .workspace-task-details-attachments-list > li { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:10px; border:1px solid #E3E8F2; border-radius:10px; padding:8px 10px; background:#F7F9FF; }
-.project-detail.is-reference .workspace-task-details-attachments-list > li > span { display:flex; min-width:0; flex-direction:column; gap:2px; }
-.project-detail.is-reference .workspace-task-details-attachments-list strong { overflow-wrap:anywhere; color:#1E293B; font-size:13px; }
-.project-detail.is-reference .workspace-task-details-attachments-list small { color:#64748B; font-size:11px; }
-.project-detail.is-reference .workspace-task-details-attachments-list > li > button { display:flex; width:34px; height:34px; flex:none; align-items:center; justify-content:center; border:0; border-radius:8px; background:transparent; color:#B91C1C; }
-.project-detail.is-reference .workspace-task-details-attachments-list > li > button:hover:not(:disabled) { background:#FFF1F2; }
-.project-detail.is-reference .workspace-task-details-attachments-list > li > button:disabled { cursor:not-allowed; opacity:.5; }
-.project-detail.is-reference .workspace-task-details-error { margin:0; }
-.project-detail.is-reference .workspace-task-details-footer { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; border-top:1px solid #EEF2F6; padding-top:12px; }
-.project-detail.is-reference .workspace-task-details-footer > span { color:#475569; font-size:12.5px; }
-.project-detail.is-reference .workspace-task-details-footer .btn { min-height:40px; border:0; border-radius:11px; padding:0 15px; background:#2F5BD0; font-size:13px; font-weight:700; }
-.project-detail.is-reference .workspace-task-details-footer .btn:disabled { background:#E2E8F0; color:#64748B; opacity:1; }
 
 @media (min-width: 992px) {
   .project-detail.is-reference .workspace-task-detail { position:sticky; top:20px; align-self:flex-start; max-height:calc(100vh - 40px); overflow-y:auto; }
@@ -3150,7 +3117,6 @@
   .project-detail.is-reference .project-tasks-metadata-filters > :first-child { grid-column:1 / -1; }
   .project-detail.is-reference .project-tasks-clear-filters { grid-column:1 / -1; }
   .project-detail.is-reference .workspace-task-detail { position:static; max-height:none; overflow:visible; }
-  .project-detail.is-reference .workspace-task-details-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 
 @media (max-width: 760px) {
@@ -3160,7 +3126,6 @@
 
 @media (max-width: 520px) {
   .project-detail.is-reference .workspace-history-scroll { max-height:min(360px,55vh); }
-  .project-detail.is-reference .workspace-task-details-grid { grid-template-columns:minmax(0,1fr); }
   .project-detail.is-reference .project-detail-task-row { grid-template-columns:minmax(0,1fr) auto; gap:7px; }
   .project-detail.is-reference .project-detail-task-row-copy { grid-column:1 / -1; }
   .project-detail.is-reference .project-detail-task-row > .project-detail-task-assignee { grid-column:1; }

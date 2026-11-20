@@ -1,5 +1,8 @@
-// frontend/src/components/Tasks.js — หน้าตารางงาน (Tasks) และกระดานคานบัน (Kanban Board)
-// เชื่อมโยงกับ MockDataContext และ MOCK_EMPLOYEES (Single Source of Truth)
+// frontend/src/components/Tasks.js — หน้าตารางงานรวมทุกโปรเจกต์ (ตาราง / บอร์ด)
+//
+// UX-10: เปิดที่ "งานของฉัน" เป็นค่าเริ่มต้น · คลิกงานแล้วพาไปที่งานนั้นใน Project Workspace (รายละเอียดงานมีที่เดียว)
+// · เปลี่ยนสถานะทำใน workspace (มีกฎสิทธิ์ครบ) หน้านี้ไว้ดูภาพรวมและเพิ่มงานเร็ว ๆ
+// · progress ใช้ % เช็กลิสต์ สูตรเดียวกับ workspace
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -17,12 +20,11 @@ import {
   MOCK_EMPLOYEES,
 } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
-import TaskDetailModal from './TaskDetailModal';
 import TaskFormModal from './project-detail/TaskFormModal';
+import { PRIORITY_LABELS, TASK_STATUS_LABELS, priorityLabel } from '../utils/labels';
+import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 import {
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   CircleCheck,
   Eye,
   Folder,
@@ -33,11 +35,22 @@ import {
 
 // สถานะงานทั้งหมดในระบบ
 const TASK_COLUMNS = [
-  { key: 'not_started', label: 'รอเริ่มทำ', badgeClass: 'status-pill-gray', headerBg: '#F1F5F9' },
-  { key: 'in_progress', label: 'กำลังดำเนินการ', badgeClass: 'status-pill-blue', headerBg: 'var(--blue-tint)' },
-  { key: 'pending_review', label: 'รอการตรวจสอบ', badgeClass: 'status-pill-orange', headerBg: 'var(--amber-tint)' },
-  { key: 'completed', label: 'เสร็จสิ้น', badgeClass: 'status-pill-green', headerBg: 'var(--green-tint)' },
+  { key: 'not_started', label: TASK_STATUS_LABELS.not_started, badgeClass: 'status-pill-gray', headerBg: '#F1F5F9' },
+  { key: 'in_progress', label: TASK_STATUS_LABELS.in_progress, badgeClass: 'status-pill-blue', headerBg: 'var(--blue-tint)' },
+  { key: 'pending_review', label: TASK_STATUS_LABELS.pending_review, badgeClass: 'status-pill-orange', headerBg: 'var(--amber-tint)' },
+  { key: 'completed', label: TASK_STATUS_LABELS.completed, badgeClass: 'status-pill-green', headerBg: 'var(--green-tint)' },
 ];
+const PRIORITY_BADGE_BG = { urgent: 'danger', high: 'warning', normal: 'primary', medium: 'primary', low: 'secondary', none: 'secondary' };
+
+// ขอบเขตงาน — ค่าเริ่มต้นคืองานของฉัน (เดิมเห็นงานทุกคนปนกัน หาไม่เจอว่าตัวเองต้องทำอะไร)
+const SCOPES = [
+  { key: 'mine', label: 'งานของฉัน' },
+  { key: 'review', label: 'รอฉันตรวจ' },
+  { key: 'all', label: 'ทั้งหมด' },
+];
+
+// % เช็กลิสต์ — งานที่เสร็จแล้วนับ 100 เสมอ (สูตรเดียวกับ workspace)
+const taskProgress = (task) => (task.status === 'completed' ? 100 : checklistProgressPercent(task.checklist || []));
 
 const today = () => {
   const d = new Date();
@@ -47,29 +60,38 @@ const today = () => {
 export default function Tasks() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { tasks: taskList, projects, actorId, createTask, updateTask } = useMockData();
+  const { tasks: taskList, projects, actorId, createTask } = useMockData();
   const [currentView, setCurrentView] = useState('list'); // 'list' หรือ 'kanban'
+  const [scope, setScope] = useState('mine');
   const [projectFilter, setProjectFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedTask, setSelectedTask] = useState(null);
   const [isAdding, setIsAdding] = useState(false);
-  const [editingTask, setEditingTask] = useState(null);
 
+  // เปิดงานใน workspace ของโปรเจกต์ (หน้ารายละเอียดงานมีที่เดียว)
+  const openTask = (task) => navigate(`/projects/${task.projectId}`, { state: { openTaskId: task.id } });
+
+  // ลิงก์เก่าที่ส่ง { selectedTaskId } มาที่หน้านี้ → ส่งต่อไปที่ workspace
   useEffect(() => {
     const requestedId = location.state?.selectedTaskId;
     if (requestedId === undefined || requestedId === null) return;
     const target = taskList.find((task) => String(task.id) === String(requestedId));
-    if (target) setSelectedTask(target);
-    navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
+    if (target) navigate(`/projects/${target.projectId}`, { replace: true, state: { openTaskId: target.id } });
+    else navigate(`${location.pathname}${location.search}`, { replace: true, state: null });
   }, [location.pathname, location.search, location.state, navigate, taskList]);
 
   const todayStr = today();
 
   // กรองงานตามเงื่อนไขที่เลือก
+  const isMine = (t) => String(t.assigneeId) === String(actorId) || (t.collaborators || []).some((id) => String(id) === String(actorId));
+  const isMyReview = (t) => String(t.reviewerId) === String(actorId) && t.status === 'pending_review';
+
   const filteredTasks = useMemo(() => {
     let list = [...taskList];
+
+    if (scope === 'mine') list = list.filter(isMine);
+    if (scope === 'review') list = list.filter(isMyReview);
 
     if (projectFilter) {
       list = list.filter((t) => String(t.projectId) === String(projectFilter));
@@ -94,54 +116,15 @@ export default function Tasks() {
     }
 
     return list;
-  }, [taskList, projectFilter, statusFilter, priorityFilter, searchTerm]);
-
-  // ฟังก์ชันย้ายสถานะของงาน (สำหรับ Kanban Board) — อัปเดต task และ sync metrics โปรเจกต์ต้นสังกัดพร้อมกัน
-  const moveTaskStatus = (taskId, newStatus) => {
-    const affected = taskList.find((t) => t.id === taskId);
-    if (!affected || affected.status !== 'not_started' || newStatus !== 'in_progress') return;
-    const isContributor = String(actorId) === String(affected.assigneeId)
-      || (affected.collaborators || []).some((id) => String(id) === String(actorId));
-    if (!isContributor) return;
-    updateTask(taskId, { status: 'in_progress', statusLabel: 'กำลังดำเนินการ', progress: Math.max(1, Number(affected.progress) || 0) }, {
-      type: 'task_started', description: `เริ่มทำงาน “${affected.title}”`,
-    });
-  };
-
-  // ฟังก์ชันหาคอลัมน์ก่อนหน้า/ถัดไป
-  const getPrevStatus = () => null;
-
-  const getNextStatus = (currentStatus) => {
-    return currentStatus === 'not_started' ? 'in_progress' : null;
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isMine / isMyReview อ่าน actorId ซึ่งอยู่ใน deps แล้ว
+  }, [taskList, scope, actorId, projectFilter, statusFilter, priorityFilter, searchTerm]);
 
   const renderStatusBadge = (status) => {
-    switch (status) {
-      case 'in_progress':
-        return <span className="status-pill status-pill-blue">กำลังดำเนินการ</span>;
-      case 'pending_review':
-        return <span className="status-pill status-pill-orange">รอการตรวจสอบ</span>;
-      case 'not_started':
-        return <span className="status-pill status-pill-gray">รอเริ่มทำ</span>;
-      case 'completed':
-        return <span className="status-pill status-pill-green">เสร็จสิ้น</span>;
-      default:
-        return <span className="status-pill status-pill-gray">{status}</span>;
-    }
+    const column = TASK_COLUMNS.find((item) => item.key === status);
+    return <span className={`status-pill ${column?.badgeClass || 'status-pill-gray'}`}>{column?.label || status}</span>;
   };
 
-  const renderPriorityBadge = (p) => {
-    const map = {
-      none: { label: 'ไม่ระบุ', bg: 'secondary' },
-      urgent: { label: 'ด่วนมาก', bg: 'danger' },
-      high: { label: 'สูง', bg: 'warning' },
-      normal: { label: 'ปานกลาง', bg: 'primary' },
-      medium: { label: 'ปานกลาง', bg: 'primary' },
-      low: { label: 'ต่ำ', bg: 'secondary' },
-    };
-    const item = map[p] || { label: p, bg: 'secondary' };
-    return <Badge bg={item.bg}>{item.label}</Badge>;
-  };
+  const renderPriorityBadge = (p) => <Badge bg={PRIORITY_BADGE_BG[p] || 'secondary'}>{priorityLabel(p)}</Badge>;
 
   // นับจำนวนงาน
   const totalCount = taskList.length;
@@ -153,10 +136,8 @@ export default function Tasks() {
       {/* ── แถบหัวข้อและสถิติรวม ─────────────────────────────────── */}
       <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
         <div>
-          <h1 className="page-title mb-1">ตารางงาน (Tasks)</h1>
-          <p className="text-muted small mb-0">
-            ระบบบริหารจัดการงานย่อย รายละเอียดความคืบหน้า และกระดานคานบัน (Kanban Board)
-          </p>
+          <h1 className="page-title mb-1">ตารางงาน</h1>
+          <p className="text-muted small mb-0">งานจากทุกโปรเจกต์ · คลิกงานเพื่อไปทำต่อในหน้าโปรเจกต์</p>
         </div>
 
         <div className="d-flex align-items-center gap-2">
@@ -167,14 +148,14 @@ export default function Tasks() {
               className={`btn btn-sm ${currentView === 'list' ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => setCurrentView('list')}
             >
-              ตารางงาน (List)
+              ตาราง
             </button>
             <button
               type="button"
               className={`btn btn-sm ${currentView === 'kanban' ? 'btn-primary' : 'btn-outline-primary'}`}
               onClick={() => setCurrentView('kanban')}
             >
-              กระดานคานบัน (Kanban)
+              บอร์ด
             </button>
           </div>
 
@@ -200,7 +181,7 @@ export default function Tasks() {
         </Col>
         <Col xs={6} md={3}>
           <Card className="border-0 shadow-sm p-3 bg-white">
-            <div className="small text-muted">กำลังดำเนินการ</div>
+            <div className="small text-muted">{TASK_STATUS_LABELS.in_progress}</div>
             <div className="h4 fw-bold text-primary mb-0">{taskList.filter((t) => t.status === 'in_progress').length} <small className="small fw-normal text-muted">รายการ</small></div>
           </Card>
         </Col>
@@ -212,7 +193,7 @@ export default function Tasks() {
         </Col>
         <Col xs={6} md={3}>
           <Card className="border-0 shadow-sm p-3 bg-white">
-            <div className="small text-muted">เสร็จสิ้นแล้ว</div>
+            <div className="small text-muted">{TASK_STATUS_LABELS.completed}</div>
             <div className="h4 fw-bold text-success mb-0">{completedCount} <small className="small fw-normal text-muted">รายการ</small></div>
           </Card>
         </Col>
@@ -221,6 +202,19 @@ export default function Tasks() {
       {/* ── แถบตัวกรองและค้นหา ──────────────────────────────────── */}
       <Card className="border-0 shadow-sm mb-3">
         <Card.Body className="p-3">
+          <div className="btn-group mb-2" role="group" aria-label="ขอบเขตงาน">
+            {SCOPES.map((item) => (
+              <button
+                key={item.key}
+                type="button"
+                className={`btn btn-sm ${scope === item.key ? 'btn-primary' : 'btn-outline-primary'}`}
+                aria-pressed={scope === item.key}
+                onClick={() => setScope(item.key)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
           <Row className="g-2 align-items-center">
             {/* ค้นหา */}
             <Col xs={12} md={4}>
@@ -274,11 +268,10 @@ export default function Tasks() {
                 onChange={(e) => setPriorityFilter(e.target.value)}
               >
                 <option value="">ทุกความสำคัญ</option>
-                <option value="none">ไม่ระบุ</option>
-                <option value="urgent">ด่วนมาก</option>
-                <option value="high">สูง</option>
-                <option value="medium">ปานกลาง</option>
-                <option value="low">ต่ำ</option>
+                <option value="urgent">{PRIORITY_LABELS.urgent}</option>
+                <option value="high">{PRIORITY_LABELS.high}</option>
+                <option value="medium">{PRIORITY_LABELS.medium}</option>
+                <option value="low">{PRIORITY_LABELS.low}</option>
               </Form.Select>
             </Col>
           </Row>
@@ -292,8 +285,8 @@ export default function Tasks() {
             {filteredTasks.length === 0 ? (
               <div className="text-center py-5 px-3">
                 <CircleCheck size={36} className="text-muted mb-2" />
-                <h6 className="fw-semibold text-ink">ไม่พบงานที่ตรงกับเงื่อนไขการค้นหา</h6>
-                <p className="text-muted small mb-0">ลองปรับตัวกรองหรือล้างคำค้นหา</p>
+                <h6 className="fw-semibold text-ink">{scope === 'mine' ? 'ยังไม่มีงานที่คุณรับผิดชอบ' : scope === 'review' ? 'ไม่มีงานที่รอคุณตรวจ' : 'ไม่พบงานที่ตรงกับเงื่อนไขการค้นหา'}</h6>
+                <p className="text-muted small mb-0">{scope === 'all' ? 'ลองปรับตัวกรองหรือล้างคำค้นหา' : 'กด “ทั้งหมด” เพื่อดูงานของทุกคน'}</p>
               </div>
             ) : (
               <Table hover responsive className="align-middle mb-0 task-table bg-white">
@@ -338,11 +331,11 @@ export default function Tasks() {
                         <td>{renderStatusBadge(task.status)}</td>
                         <td>
                           <div className="d-flex justify-content-between align-items-center mb-1">
-                            <span className="small text-muted">{task.progress}%</span>
+                            <span className="small text-muted">{taskProgress(task)}%</span>
                           </div>
                           <ProgressBar
-                            now={task.progress}
-                            variant={task.progress === 100 ? 'success' : task.progress > 50 ? 'primary' : 'warning'}
+                            now={taskProgress(task)}
+                            variant={taskProgress(task) === 100 ? 'success' : taskProgress(task) > 50 ? 'primary' : 'warning'}
                             style={{ height: 6 }}
                           />
                         </td>
@@ -351,8 +344,8 @@ export default function Tasks() {
                             variant="outline-primary"
                             size="sm"
                             className="py-1 px-2"
-                            onClick={() => setSelectedTask(task)}
-                            title="ดูรายละเอียด"
+                            onClick={() => openTask(task)}
+                            title="เปิดงานในโปรเจกต์"
                           >
                             <Eye size={14} />
                           </Button>
@@ -397,10 +390,6 @@ export default function Tasks() {
                       ) : (
                         colTasks.map((task) => {
                           const isTaskOverdue = task.dueDate < todayStr && task.status !== 'completed';
-                          const prevCandidate = getPrevStatus(task.status);
-                          const nextCandidate = getNextStatus(task.status);
-                          const prevStatus = ['pending_review', 'completed'].includes(prevCandidate) ? null : prevCandidate;
-                          const nextStatus = ['pending_review', 'completed'].includes(nextCandidate) ? null : nextCandidate;
 
                           return (
                             <Card key={task.id} className="border shadow-none kanban-card p-2">
@@ -416,7 +405,7 @@ export default function Tasks() {
                               {/* ชื่องาน */}
                               <div
                                 className="fw-semibold text-ink small mb-2 cursor-pointer"
-                                onClick={() => setSelectedTask(task)}
+                                onClick={() => openTask(task)}
                                 role="button"
                                 tabIndex={0}
                               >
@@ -427,11 +416,11 @@ export default function Tasks() {
                               <div className="mb-2">
                                 <div className="d-flex justify-content-between small text-muted mb-1" style={{ fontSize: '0.75rem' }}>
                                   <span>ความคืบหน้า</span>
-                                  <span>{task.progress}%</span>
+                                  <span>{taskProgress(task)}%</span>
                                 </div>
                                 <ProgressBar
-                                  now={task.progress}
-                                  variant={task.progress === 100 ? 'success' : task.progress > 50 ? 'primary' : 'warning'}
+                                  now={taskProgress(task)}
+                                  variant={taskProgress(task) === 100 ? 'success' : taskProgress(task) > 50 ? 'primary' : 'warning'}
                                   style={{ height: 4 }}
                                 />
                               </div>
@@ -446,40 +435,16 @@ export default function Tasks() {
                                 </div>
 
                                 <div className="d-flex align-items-center gap-1">
-                                  {prevStatus && (
-                                    <Button
-                                      variant="outline-secondary"
-                                      size="sm"
-                                      className="py-0 px-1"
-                                      style={{ fontSize: '0.7rem' }}
-                                      onClick={() => moveTaskStatus(task.id, prevStatus)}
-                                      title="ย้ายไปสถานะก่อนหน้า"
-                                    >
-                                      <ChevronLeft size={12} />
-                                    </Button>
-                                  )}
                                   <Button
                                     variant="outline-primary"
                                     size="sm"
                                     className="py-0 px-1"
                                     style={{ fontSize: '0.7rem' }}
-                                    onClick={() => setSelectedTask(task)}
+                                    onClick={() => openTask(task)}
                                     title="ดูรายละเอียดงาน"
                                   >
                                     <Eye size={12} />
                                   </Button>
-                                  {nextStatus && (
-                                    <Button
-                                      variant="outline-primary"
-                                      size="sm"
-                                      className="py-0 px-1"
-                                      style={{ fontSize: '0.7rem' }}
-                                      onClick={() => moveTaskStatus(task.id, nextStatus)}
-                                      title="ย้ายไปสถานะถัดไป"
-                                    >
-                                      <ChevronRight size={12} />
-                                    </Button>
-                                  )}
                                 </div>
                               </div>
                             </Card>
@@ -495,21 +460,14 @@ export default function Tasks() {
         </div>
       )}
 
-      <TaskDetailModal task={selectedTask} onClose={() => setSelectedTask(null)} onEdit={(task) => { setEditingTask(task); setSelectedTask(null); }} />
-
       {/* ── Modal เพิ่มงานใหม่ (New Task Modal) ─────────────────── */}
       {isAdding && (
         <TaskFormModal projects={projects} onClose={() => setIsAdding(false)} onSave={(values) => {
-          const result = createTask({ ...values, status: 'not_started', statusLabel: 'รอเริ่มทำ' });
+          const result = createTask({ ...values, status: 'not_started' });
           if (result) setIsAdding(false);
           return result;
         }} />
       )}
-      {editingTask && <TaskFormModal project={projects.find((project) => String(project.id) === String(editingTask.projectId))} task={editingTask} onClose={() => setEditingTask(null)} onSave={(values) => {
-        const result = updateTask(editingTask.id, values, { type: 'task_updated', description: `แก้ไขรายละเอียดงาน “${values.title}”` });
-        if (result) setEditingTask(null);
-        return result;
-      }} />}
     </div>
   );
 }

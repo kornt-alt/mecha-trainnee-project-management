@@ -25,7 +25,7 @@ export function MockDataNotice() {
 }
 
 export function PriorityBadge({ priority }) {
-  const labels = { normal: 'ปกติ', high: 'สูง', urgent: 'ด่วนมาก' };
+  const labels = { normal: 'ปกติ', high: 'สูง', urgent: 'เร่งด่วน' };
   return <span className={`notification-priority priority-${priority || 'normal'}`}>{labels[priority] || labels.normal}</span>;
 }
 

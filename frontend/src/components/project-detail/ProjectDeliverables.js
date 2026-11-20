@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Alert, Button, Card, Form } from 'react-bootstrap';
 import { useMockData } from '../../context/MockDataContext';
+import { taskStatusLabel } from '../../utils/labels';
 
 export default function ProjectDeliverables({ projectId }) {
   const { projects, tasks, deliverables, createDeliverable, updateDeliverable } = useMockData();
@@ -47,7 +48,7 @@ export default function ProjectDeliverables({ projectId }) {
             return <article className={`workspace-deliverable-row${item.status === 'completed' ? ' is-complete' : ''}`} key={item.id}>
               <span className="workspace-deliverable-copy">
                 <strong>{item.title}</strong>
-                <small>{task ? `ผูกกับงาน: ${task.title} (${task.statusLabel || task.status})` : 'ยังไม่ได้ผูกกับงาน'}</small>
+                <small>{task ? `ผูกกับงาน: ${task.title} (${taskStatusLabel(task.status)})` : 'ยังไม่ได้ผูกกับงาน'}</small>
               </span>
               <Button type="button" variant={item.status === 'completed' ? 'success' : 'outline-primary'} aria-pressed={item.status === 'completed'} onClick={() => toggleItem(item)}>
                 {item.status === 'completed' ? 'ส่งมอบแล้ว' : 'ทำเครื่องหมายส่งมอบแล้ว'}
@@ -65,7 +66,7 @@ export default function ProjectDeliverables({ projectId }) {
             <Form.Control id="deliverable-quick-title" placeholder="เช่น ซอร์สโค้ด คู่มือ รายงาน..." value={title} onChange={(event) => setTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addItem(); } }} />
           </Form.Group>
           <Button type="button" className="w-100" disabled={!title.trim()} onClick={addItem}>เพิ่ม</Button>
-          <p className="workspace-side-note">Project Owner จะตรวจสรุปโปรเจกต์และสิ่งที่ส่งมอบก่อนส่งขออนุมัติปิดโปรเจกต์</p>
+          <p className="workspace-side-note">ทำเครื่องหมายส่งมอบครบทุกรายการแล้ว Project Owner จึงส่งขออนุมัติปิดโปรเจกต์ได้</p>
         </Card.Body></Card>
       </aside>
     </section>

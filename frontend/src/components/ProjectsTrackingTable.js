@@ -1,6 +1,6 @@
-// frontend/src/components/ProjectsTrackingTable.js — ตารางติดตามโปรเจกต์ 8 คอลัมน์ (ผู้รับผิดชอบ/ชื่อ/หมวด/ลำดับความสำคัญ/สถานะ/ความคืบหน้า/เริ่มต้น/กำหนดส่ง)
+// frontend/src/components/ProjectsTrackingTable.js — ตารางติดตามโปรเจกต์ (ผู้รับผิดชอบ/ชื่อ/หมวด/ความสำคัญ/สถานะ/ความคืบหน้า/วันที่ + ปุ่มแก้ไข/ลบ เหมือนมุมมองการ์ด)
 // อ่านข้อมูลจาก MockDataContext (แหล่งเดียวร่วมกับหน้าโปรเจกต์) · สถานะ "ล่าช้า" คือการแสดงผลจากวันกำหนดส่งแล้ว ไม่แก้ข้อมูลจริง
-import { Badge, ProgressBar, Table } from 'react-bootstrap';
+import { Badge, Button, ProgressBar, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
 import { statusLabel } from '../utils/config';
@@ -13,14 +13,14 @@ import {
   ymd,
 } from '../utils/projectTrackingUtils';
 
-export default function ProjectsTrackingTable({ projects: propProjects }) {
+export default function ProjectsTrackingTable({ projects: propProjects, onEdit, onDelete }) {
   const { projects: contextProjects, tasks } = useMockData();
   const displayProjects = propProjects !== undefined ? propProjects : contextProjects;
 
   return (
     <div className="tracking-table-card shadow-sm">
       <div className="d-flex align-items-center justify-content-between px-3 py-2 border-bottom">
-        <h2 className="panel-title mb-0">ตารางติดตามโปรเจกต์ (Project Tracking)</h2>
+        <h2 className="panel-title mb-0">ตารางติดตามโปรเจกต์</h2>
         <Badge bg="light" text="dark" className="border fw-normal">{displayProjects.length} โปรเจกต์</Badge>
       </div>
       <Table responsive className="tracking-table align-middle mb-0">
@@ -29,11 +29,12 @@ export default function ProjectsTrackingTable({ projects: propProjects }) {
             <th>ผู้รับผิดชอบ</th>
             <th>ชื่อโปรเจกต์</th>
             <th>หมวดหมู่</th>
-            <th>ลำดับความสำคัญ</th>
+            <th>ความสำคัญ</th>
             <th>สถานะ</th>
-            <th style={{ minWidth: 170 }}>ความคืบหน้า (Milestone)</th>
+            <th style={{ minWidth: 170 }}>ความคืบหน้า</th>
             <th>เริ่มต้น</th>
             <th>กำหนดส่ง</th>
+            {(onEdit || onDelete) && <th aria-label="จัดการ" />}
           </tr>
         </thead>
         <tbody>
@@ -45,12 +46,12 @@ export default function ProjectsTrackingTable({ projects: propProjects }) {
             const priority = priorityOf(related, p);
             return (
               <tr key={p.id}>
-                {/* ── 1. ผู้รับผิดชอบ: อวตารอักษรย่อ + อีเมล (หรือ fallback ชื่อ/owner เดิม) ── */}
+                {/* ── 1. ผู้รับผิดชอบ: อวตารอักษรย่อ + ชื่อ (เดิมแสดงอีเมล ไม่ตรงกับการ์ด) ── */}
                 <td className="text-nowrap">
                   {owner ? (
                     <div className="tracking-owner d-flex align-items-center gap-2">
                       <span className="tracking-avatar flex-shrink-0">{initials(owner.name)}</span>
-                      <span className="text-truncate">{owner.email || owner.name}</span>
+                      <span className="text-truncate">{owner.name}</span>
                     </div>
                   ) : p.owner ? (
                     <div className="tracking-owner d-flex align-items-center gap-2">
@@ -100,6 +101,12 @@ export default function ProjectsTrackingTable({ projects: propProjects }) {
                 <td className="text-nowrap tracking-date">{ymd(p.startDate)}</td>
                 {/* ── 8. กำหนดส่ง (ล่าช้า = แดงตาม text-overdue เดิม) ── */}
                 <td className={`text-nowrap tracking-date ${delayed ? 'text-overdue' : ''}`}>{ymd(p.dueDate)}</td>
+                {(onEdit || onDelete) && (
+                  <td className="text-nowrap text-end">
+                    {onEdit && <Button size="sm" variant="outline-primary" className="me-1" aria-label={`แก้ไข ${p.name}`} onClick={() => onEdit(p)}>แก้ไข</Button>}
+                    {onDelete && <Button size="sm" variant="outline-danger" aria-label={`ลบ ${p.name}`} onClick={() => onDelete(p)}>ลบ</Button>}
+                  </td>
+                )}
               </tr>
             );
           })}

@@ -1,4 +1,4 @@
-// frontend/src/components/auth/EmployeeIdCard.js — renders the approved login employee card states.
+// frontend/src/components/auth/EmployeeIdCard.js — บัตรพนักงานในหน้าต่างเข้าสู่ระบบ (ว่าง / กำลังพิมพ์ / ไม่พบ / พบ)
 import React from 'react';
 
 function qrCells(id) {
@@ -31,7 +31,7 @@ function CardHeader() {
     <div className="login-idc-head">
       <div className="login-idc-logo" aria-hidden="true">M</div>
       <span className="login-idc-brand">MECHA</span>
-      <span className="login-idc-tag">Employee</span>
+      <span className="login-idc-tag">พนักงาน</span>
     </div>
   );
 }
@@ -73,7 +73,7 @@ function EmptyCard() {
         <div className="login-skeleton login-skeleton-55" />
         <div className="login-skeleton login-skeleton-65" />
       </div>
-      <p className="login-idc-hint">Enter an Employee ID</p>
+      <p className="login-idc-hint">กรอกรหัสพนักงาน</p>
       <div className="login-idc-stripe" />
     </div>
   );
@@ -89,7 +89,7 @@ function PartialCard({ employeeId }) {
         <div className="login-skeleton login-skeleton-55" />
         <div className="login-skeleton login-skeleton-65" />
         <div className="login-idc-partial-row">
-          <small>Employee ID</small>
+          <small>รหัสพนักงาน</small>
           <b className="login-idc-partial-value">{employeeId}</b>
         </div>
       </div>
@@ -103,8 +103,8 @@ function NotFoundCard() {
     <div className="login-id-card is-not-found">
       <CardHeader />
       <div className="login-idc-message">
-        <strong>Employee not found</strong>
-        <span>Check the ID and try again.</span>
+        <strong>ไม่พบพนักงาน</strong>
+        <span>ตรวจสอบรหัสแล้วลองอีกครั้ง</span>
       </div>
       <div className="login-idc-stripe" />
     </div>
@@ -122,11 +122,11 @@ function EmployeeCard({ employee }) {
         <p className="login-idc-name">{employee.name}</p>
         <p className="login-idc-position">{employee.position}</p>
         <div className="login-idc-field">
-          <small>Department</small>
+          <small>แผนก</small>
           <b>{employee.department}</b>
         </div>
         <div className="login-idc-field">
-          <small>Employee ID</small>
+          <small>รหัสพนักงาน</small>
           <b>{employee.id}</b>
         </div>
       </div>

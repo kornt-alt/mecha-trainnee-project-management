@@ -1,8 +1,8 @@
 // frontend/src/components/Layout.js — โครงหน้าหลัก: จัดวาง sidebar ด้านซ้าย (รวมเมนูนำทางและโปรไฟล์ผู้ใช้ด้านล่าง), Header ด้านบน, และพื้นที่แสดงผลหน้าย่อย (<Outlet>)
 import React from 'react';
-import { NavLink, Outlet, Link } from 'react-router-dom';
+import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
 import { Dropdown, Badge } from 'react-bootstrap';
-import { NAV } from './nav';
+import { ADMIN_NAV, NAV } from './nav';
 import Header from './Header';
 import {
   House,
@@ -17,8 +17,10 @@ import {
   CircleAlert,
   Activity,
   FileText,
+  Users,
 } from './common/Icons';
-import { CURRENT_USER } from '../data/mockData';
+import { useMockData } from '../context/MockDataContext';
+import { clearLoginSession, useLoginSession } from '../utils/session';
 
 const ICONS = {
   House,
@@ -30,9 +32,41 @@ const ICONS = {
   CircleAlert,
   Activity,
   FileText,
+  Users,
 };
 
+// ลิงก์เมนูหนึ่งรายการ — ใช้ร่วมกันทั้งเมนูหลักและเมนูผู้ดูแลระบบ
+function NavItem({ item }) {
+  const IconComp = ICONS[item.icon] || House;
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      className={({ isActive }) => `app-nav-link d-flex align-items-center ${isActive ? 'active' : ''}`}
+    >
+      <IconComp size={18} className="nav-icon me-2" />
+      <span className="nav-label">{item.label}</span>
+    </NavLink>
+  );
+}
+
+// TODO(login): เมื่อต่อ /auth/login แล้ว ให้คืน user.role === 'ADMIN' — ตอนนี้แสดงทุกคนเพราะยังไม่มี role จริง
+const canSeeAdminMenu = () => true;
+
 export default function Layout() {
+  const navigate = useNavigate();
+  const session = useLoginSession();
+  const { employees, actorId } = useMockData();
+  // ผู้ใช้ที่แสดงมุมล่าง = คนที่ login (actorId) ไม่ใช่ CURRENT_USER ตายตัวแบบเดิม
+  const me = employees.find((person) => String(person.id) === String(actorId));
+  const isGuest = Boolean(session?.guest);
+
+  // ออกจากระบบ = ล้าง session → App.js เปิดหน้าต่าง login ใหม่ที่หน้าหลัก
+  const logout = () => {
+    clearLoginSession();
+    navigate('/');
+  };
+
   return (
     <div className="app-shell">
       {/* ── แถบด้านข้าง (Sidebar) ─────────────────────────── */}
@@ -44,27 +78,22 @@ export default function Layout() {
               <Layers size={22} color="var(--blue)" />
             </div>
             <div className="brand-text">
-              <span className="brand-title">Project Management</span>
+              <span className="brand-title">MECHA Project Management</span>
             </div>
           </Link>
 
           {/* รายการเมนูหลัก */}
           <nav className="app-nav">
-            {NAV.map((item) => {
-              const IconComp = ICONS[item.icon] || House;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) => `app-nav-link d-flex align-items-center ${isActive ? 'active' : ''}`}
-                >
-                  <IconComp size={18} className="nav-icon me-2" />
-                  <span className="nav-label">{item.label}</span>
-                </NavLink>
-              );
-            })}
+            {NAV.map((item) => <NavItem key={item.to} item={item} />)}
           </nav>
+
+          {/* เมนูผู้ดูแลระบบ (แยกกลุ่มจากงานประจำวัน) */}
+          {canSeeAdminMenu() && (
+            <nav className="app-nav app-nav-admin" aria-label="เมนูผู้ดูแลระบบ">
+              <div className="app-nav-section-title">ผู้ดูแลระบบ (ADMIN)</div>
+              {ADMIN_NAV.map((item) => <NavItem key={item.to} item={item} />)}
+            </nav>
+          )}
         </div>
 
         {/* ข้อมูลระบบและเมนูโปรไฟล์ผู้ใช้ด้านล่าง */}
@@ -72,7 +101,7 @@ export default function Layout() {
           {/* ข้อมูลองค์กรและเวอร์ชันของระบบ */}
           <div className="sidebar-system-info mb-3 px-1">
             <div className="d-flex align-items-center justify-content-between">
-              <span className="system-org fw-semibold text-ink">Mecha Trainee</span>
+              <span className="system-org fw-semibold text-ink">MECHA</span>
               <span className="version-tag">v0.1.0</span>
             </div>
             <div className="system-sub small text-muted">Project Management System</div>
@@ -86,33 +115,24 @@ export default function Layout() {
                   <UserRound size={18} />
                 </div>
                 <div className="user-info text-truncate">
-                  <div className="user-name text-truncate">{CURRENT_USER.name}</div>
-                  <div className="user-role text-truncate">{CURRENT_USER.title}</div>
+                  <div className="user-name text-truncate">{isGuest ? 'ผู้เยี่ยมชม' : me?.name || '-'}</div>
+                  <div className="user-role text-truncate">{isGuest ? 'ยังไม่ได้เข้าสู่ระบบ' : me?.position || ''}</div>
                 </div>
               </div>
             </Dropdown.Toggle>
 
             <Dropdown.Menu className="sidebar-profile-menu shadow-sm">
-              <div className="px-3 py-2 border-bottom user-menu-header">
-                <div className="fw-semibold text-ink">{CURRENT_USER.fullName}</div>
-                <div className="small text-muted text-truncate">{CURRENT_USER.email}</div>
-                <Badge bg="primary" className="mt-1">{CURRENT_USER.title}</Badge>
-              </div>
-              <Dropdown.Item as={Link} to="/settings" className="d-flex align-items-center py-2">
-                <UserRound size={16} className="me-2 text-muted" />
-                ข้อมูลโปรไฟล์
-              </Dropdown.Item>
-              <Dropdown.Item as={Link} to="/settings" className="d-flex align-items-center py-2">
-                <Settings size={16} className="me-2 text-muted" />
-                การตั้งค่าระบบ
-              </Dropdown.Item>
-              <Dropdown.Divider />
-              <Dropdown.Item
-                onClick={() => alert('ตัวอย่างปุ่มออกจากระบบ (ออกจากระบบสำเร็จ)')}
-                className="d-flex align-items-center py-2 text-danger"
-              >
+              {!isGuest && me && (
+                <div className="px-3 py-2 border-bottom user-menu-header">
+                  <div className="fw-semibold text-ink">{me.name}</div>
+                  <div className="small text-muted text-truncate">{me.email}</div>
+                  <Badge bg="primary" className="mt-1">{me.position}</Badge>
+                </div>
+              )}
+              {/* ข้อมูลโปรไฟล์ / ตั้งค่า ยังไม่มีหน้าจริง จึงไม่แสดงลิงก์ไปหน้าว่าง */}
+              <Dropdown.Item onClick={logout} className="d-flex align-items-center py-2 text-danger">
                 <LogOut size={16} className="me-2 text-danger" />
-                ออกจากระบบ
+                {isGuest ? 'เข้าสู่ระบบ' : 'ออกจากระบบ'}
               </Dropdown.Item>
             </Dropdown.Menu>
           </Dropdown>

@@ -1,11 +1,12 @@
-// frontend/src/components/Home.js — หน้าแรก Dashboard แสดงสถานะระบบและรายการงานที่ยังไม่เสร็จ
+// frontend/src/components/Home.js — หน้าหลัก: งานของฉัน (บนสุด) + ภาพรวมโปรเจกต์ / workload / งบประมาณ
 import React, { useMemo, useState } from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useLoad } from '../utils/api';
-import { CURRENT_USER } from '../data/mockData';
+import { MOCK_EMPLOYEES } from '../data/mockData';
 import { useMockData } from '../context/MockDataContext';
 import { MOCK_PROJECT_COST_ITEMS } from '../data/mockProjectCosts';
 import UnfinishedTasks from './dashboard/UnfinishedTasks';
+import MyWork, { groupMyTasks } from './dashboard/MyWork';
 import SummaryCards from './dashboard/SummaryCards';
 import DonutChart from './DonutChart/DonutChart';
 import { buildProjectStatusItems } from './DonutChart/donutChartData';
@@ -13,12 +14,13 @@ import EmployeeWorkloadChart from './dashboard/EmployeeWorkloadChart';
 import BudgetBarChart from './BudgetBarChart/BudgetBarChart';
 import { buildBudgetCategories } from './BudgetBarChart/budgetBarChartData';
 import ProjectCategoryTreemap from './dashboard/ProjectCategoryTreemap';
-import { Info, CircleAlert, CircleCheck } from './common/Icons';
+import { Info, CircleAlert } from './common/Icons';
 
 export default function Home() {
   // Projects + Tasks จาก MockDataContext — dashboard จะอัปเดตตามการแก้ไขในหน้าอื่นทันที (mock-only phase)
   // API integration ยังเป็น phase ถัดไป ตอนนี้ context คือแหล่งข้อมูลจริงของ Dashboard
-  const { projects, tasks } = useMockData();
+  const { projects, tasks, actorId } = useMockData();
+  const actor = MOCK_EMPLOYEES.find((person) => String(person.id) === String(actorId));
 
   // 1. เรียก API ตรวจสอบสถานะ backend/DB (เก็บไว้ทำ alert สถานะการเชื่อมต่อ — ไม่ใช้เป็นแหล่งข้อมูลจนกว่าจะเข้า Phase API Integration)
   const { data: healthData, error: healthError, loading: healthLoading } = useLoad('/health');
@@ -28,22 +30,8 @@ export default function Home() {
   const isBackendConnected = !healthError && healthData && healthData.status === 'ok';
   const isDbReady = isBackendConnected && healthData.db === 'up';
 
-  // รายการงาน (Tasks) จำลองสำหรับ Mecha Trainee Dashboard — อ้าง context ตรง ๆ ไม่ copy ลง state
-
-  // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
-  const d = new Date();
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  // คำนวณวันที่ในอีก 7 วันข้างหน้าสำหรับงานที่ใกล้ถึงกำหนดส่ง
-  const sevenDaysLaterDate = new Date();
-  sevenDaysLaterDate.setDate(sevenDaysLaterDate.getDate() + 7);
-  const sevenDaysLater = `${sevenDaysLaterDate.getFullYear()}-${String(sevenDaysLaterDate.getMonth() + 1).padStart(2, '0')}-${String(sevenDaysLaterDate.getDate()).padStart(2, '0')}`;
-
-  // คำนวณตัวเลขสำหรับสรุปข้อมูล
-  const unfinishedTasks = tasks.filter((t) => t.status !== 'completed');
-  const dueSoonTasks = tasks.filter((t) => {
-    return t.status !== 'completed' && t.dueDate && t.dueDate >= today && t.dueDate <= sevenDaysLater;
-  });
+  // ตัวเลขบน banner นับเฉพาะงานของคนที่ login (เดิมนับงานทุกคนรวมกัน)
+  const myTasks = groupMyTasks(tasks, actorId);
 
   // ตัวเลือกช่วงเวลาย้อนหลังของกราฟเปรียบเทียบงบประมาณและค่าใช้จ่ายจริง (ค่าเริ่มต้น 6 เดือน)
   const [budgetRangeMonths, setBudgetRangeMonths] = useState(6);
@@ -59,25 +47,25 @@ export default function Home() {
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3">
           <div>
             <div className="d-flex align-items-center gap-2 mb-1">
-              <span className="welcome-tag">Mecha Trainee Portal</span>
+              <span className="welcome-tag">MECHA Project Management</span>
             </div>
             <h1 className="welcome-title h3 mb-2">
-              สวัสดี, {CURRENT_USER.name}
+              สวัสดี{actor ? `, ${actor.name}` : ''}
             </h1>
             <p className="welcome-subtitle mb-0">
-              ตรวจสอบความคืบหน้าของงานและโปรเจกต์ที่ได้รับมอบหมายได้ที่นี่ (Track your assigned tasks and monitor project progress from one place.)
+              ดูงานของคุณและความคืบหน้าของโปรเจกต์ได้ที่นี่
             </p>
           </div>
 
           <div className="welcome-stats-pill d-none d-lg-flex align-items-center gap-3 bg-white text-ink p-3 rounded shadow-sm">
             <div className="welcome-stat-item text-center">
-              <span className="d-block small text-muted">งานที่ต้องทำ</span>
-              <span className="fw-bold text-primary h5 mb-0">{unfinishedTasks.length}</span>
+              <span className="d-block small text-muted">งานของฉัน</span>
+              <span className="fw-bold text-primary h5 mb-0">{myTasks.assigned.length}</span>
             </div>
             <div className="vr" />
             <div className="welcome-stat-item text-center">
-              <span className="d-block small text-muted">ใกล้กำหนดส่ง</span>
-              <span className="fw-bold text-danger h5 mb-0">{dueSoonTasks.length}</span>
+              <span className="d-block small text-muted">ใกล้ / เลยกำหนด</span>
+              <span className="fw-bold text-danger h5 mb-0">{myTasks.due.length}</span>
             </div>
           </div>
         </div>
@@ -95,7 +83,7 @@ export default function Home() {
         <Alert variant="info" className="d-flex align-items-center gap-2 py-2 mb-4 alert-sample-mode">
           <Info size={18} className="flex-shrink-0" />
           <div className="small">
-            <strong>โหมดแสดงข้อมูลตัวอย่าง (Sample UI Mode):</strong> ระบบกำลังแสดงข้อมูลตัวอย่างสำหรับหน้าแรกเนื่องจากยังไม่ได้เชื่อมต่อ Backend (ข้อมูลงานและโปรเจกต์จะซิงค์อัตโนมัติเมื่อ Backend เปิดใช้งาน)
+            กำลังแสดงข้อมูลตัวอย่าง — ข้อมูลที่แก้จะหายเมื่อรีเฟรชหน้า
           </div>
         </Alert>
       )}
@@ -104,28 +92,21 @@ export default function Home() {
         <Alert variant="warning" className="d-flex align-items-center gap-2 py-2 mb-4">
           <CircleAlert size={18} className="flex-shrink-0" />
           <div className="small">
-            Backend ทำงานแล้ว แต่ฐานข้อมูลยังไม่พร้อม — ตรวจสอบค่า DB ใน backend/.env และรัน npm run db:apply
+            เชื่อมต่อฐานข้อมูลไม่ได้ชั่วคราว — กำลังแสดงข้อมูลตัวอย่าง กรุณาแจ้งผู้ดูแลระบบ
           </div>
         </Alert>
       )}
 
-      {isBackendConnected && isDbReady && (
-        <Alert variant="success" className="d-flex align-items-center gap-2 py-2 mb-4">
-          <CircleCheck size={18} className="flex-shrink-0" />
-          <div className="small">
-            เชื่อมต่อ Backend และฐานข้อมูลสำเร็จ ข้อมูลโปรเจกต์ซิงค์แบบเรียลไทม์
-          </div>
-        </Alert>
-      )}
+      {/* ── งานของฉัน (บนสุด — สิ่งแรกที่ผู้ใช้ต้องรู้คือวันนี้ต้องทำอะไร) ── */}
+      <MyWork tasks={tasks} actorId={actorId} />
 
-      {/* ── การ์ดสรุปโปรเจกต์ (Project Summary Cards) ─────────── */}
+      {/* ── การ์ดสรุปโปรเจกต์ ─────────── */}
       <SummaryCards projects={projects} />
 
       {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
       <Row className="g-4 dashboard-blocks-row">
       {/* คอลัมน์ที่ 1 */}
         <Col xl={4} lg={6} xs={12} className="chart-col"> {/* แนะนำ xs={12} เพื่อให้จอมือถือเต็มจอ */}
-          {/* กราฟโดนัทตัวใหม่ (แทน ProjectStatusChart เดิม) — items นับจากข้อมูลโปรเจกต์ชุดเดิมของ Dashboard */}
           <DonutChart items={buildProjectStatusItems(projects)} />
         </Col>
 

@@ -56,7 +56,7 @@ export const initials = (name) => {
 export const RANK = { urgent: 3, high: 2, normal: 1, medium: 1, low: 0, none: -1 };
 export const PRIORITY_BADGES = {
   none: { label: '-', variant: 'low' },
-  urgent: { label: 'ด่วนมาก', variant: 'urgent' },
+  urgent: { label: 'เร่งด่วน', variant: 'urgent' },
   high: { label: 'สูง', variant: 'high' },
   normal: { label: 'ปกติ (Medium)', variant: 'medium' },
   medium: { label: 'ปกติ (Medium)', variant: 'medium' },
@@ -69,7 +69,7 @@ export const normalizePriorityKey = (val) => {
   if (typeof val === 'string') {
     const k = val.toLowerCase().trim();
     if (k === 'none' || k === 'ไม่ระบุ') return 'none';
-    if (k === 'ด่วนมาก' || k === 'urgent') return 'urgent';
+    if (k === 'ด่วนมาก' || k === 'เร่งด่วน' || k === 'urgent') return 'urgent';
     if (k === 'สูง' || k === 'high') return 'high';
     if (k === 'ปกติ' || k === 'ปานกลาง' || k === 'medium' || k === 'normal') return 'normal';
     if (k === 'ต่ำ' || k === 'low') return 'low';
@@ -82,20 +82,15 @@ export const normalizePriorityKey = (val) => {
 };
 
 export const priorityOf = (relatedTasks, project) => {
-  // หากไม่มีงานที่ผูก ให้ fallback ตรวจสอบ priority ของ project (ถ้ามี)
-  if (!relatedTasks || relatedTasks.length === 0) {
-    if (project && project.priority) {
-      const norm = normalizePriorityKey(project.priority);
-      return PRIORITY_BADGES[norm] || { label: 'ต่ำ', variant: 'low' };
-    }
-    return { label: '-', variant: 'low' };
-  }
-
-  const assignedPriorities = relatedTasks.filter((task) => task.priority && normalizePriorityKey(task.priority) !== 'none');
-  if (assignedPriorities.length === 0 && project?.priority) {
+  // ความสำคัญที่ผู้ใช้เลือกในฟอร์มโปรเจกต์มาก่อนเสมอ — เดิมถูกทับด้วยความสำคัญสูงสุดของงาน ทำให้ช่องในฟอร์มไม่มีผล
+  if (project?.priority && normalizePriorityKey(project.priority) !== 'none') {
     const norm = normalizePriorityKey(project.priority);
     return PRIORITY_BADGES[norm] || { label: 'ต่ำ', variant: 'low' };
   }
+  if (!relatedTasks || relatedTasks.length === 0) return { label: '-', variant: 'low' };
+
+  // โปรเจกต์ไม่ได้ระบุความสำคัญ (ข้อมูลเก่า) → ใช้ความสำคัญสูงสุดของงานแทน
+  const assignedPriorities = relatedTasks.filter((task) => task.priority && normalizePriorityKey(task.priority) !== 'none');
   if (assignedPriorities.length === 0) return { label: '-', variant: 'low' };
 
   // หา priority สูงสุดในงานทั้งหมดที่เกี่ยวข้อง (ป้องกันกรณี reduce คืน task object)

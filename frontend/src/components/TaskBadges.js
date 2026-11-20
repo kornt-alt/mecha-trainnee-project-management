@@ -1,21 +1,7 @@
 // Shared task status and priority badges with accessible semantic color pairs.
 import { MOCK_EMPLOYEES } from '../data/mockData';
+import { PRIORITY_LABELS, taskStatusLabel } from '../utils/labels';
 
-const STATUS_LABELS = {
-  not_started: 'รอเริ่มทำ',
-  in_progress: 'กำลังดำเนินการ',
-  pending_review: 'รอการตรวจสอบ',
-  completed: 'เสร็จสิ้น',
-};
-
-const PRIORITY_LABELS = {
-  none: 'ไม่ระบุ',
-  urgent: 'ด่วนมาก',
-  high: 'สูง',
-  normal: 'ปกติ',
-  medium: 'ปกติ',
-  low: 'ต่ำ',
-};
 
 export const WORKSPACE_LABEL_PALETTE = ['#EF4444', '#FB923C', '#FACC15', '#10B981', '#60A5FA', '#1E3A8A', '#8B5CF6', '#EC4899', '#92400E', '#6B7280', '#14B8A6', '#06B6D4', '#6366F1', '#D946EF', '#F43F5E', '#F59E0B', '#84CC16', '#991B1B', '#166534', '#111827'];
 
@@ -75,7 +61,8 @@ export function WorkspaceTaskMetadata({ task, labels = [] }) {
 }
 
 export function TaskStatusBadge({ task, className = '' }) {
-  const label = task.statusLabel || STATUS_LABELS[task.status] || task.status || 'ไม่ระบุสถานะ';
+  // ไม่อ่าน task.statusLabel แล้ว — เดิมชื่อเปลี่ยนไปตามว่ากดเปลี่ยนสถานะด้วยวิธีไหน (UX-08)
+  const label = taskStatusLabel(task.status);
   return (
     <span className={`workspace-status-badge status-${task.status || 'unknown'} ${className}`.trim()}>
       {label}
@@ -84,7 +71,7 @@ export function TaskStatusBadge({ task, className = '' }) {
 }
 
 export function TaskPriorityBadge({ priority, className = '', workspaceMode = false }) {
-  const label = workspaceMode && priority === 'urgent' ? 'เร่งด่วน' : PRIORITY_LABELS[priority];
+  const label = PRIORITY_LABELS[priority];
   if (!label) return null;
   return (
     <span className={`workspace-priority-badge priority-${priority === 'medium' ? 'normal' : priority} ${className}`.trim()}>

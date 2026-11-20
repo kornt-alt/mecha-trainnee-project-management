@@ -1,5 +1,10 @@
 // Reference-specific visual regression coverage for Project Workspace.
 import { test, expect } from '@playwright/test';
+import { loginAs } from './helpers/session';
+
+test.beforeEach(async ({ page }) => {
+  await loginAs(page);
+});
 
 test('Project Workspace keeps operational records empty and renders Team controls', async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 1000 });
@@ -30,7 +35,6 @@ test('Project Workspace keeps operational records empty and renders Team control
   await expect(team.locator('.workspace-member-remove:disabled').first()).toHaveCSS('border-radius', '10px');
   await expect(team.locator('.workspace-member-remove:disabled').first()).toHaveCSS('color', 'rgb(100, 116, 139)');
   await team.getByLabel('เลือกสมาชิกเพื่อเพิ่ม').selectOption('emp-002');
-  await team.getByLabel('เหตุผลการเพิ่มสมาชิก').fill('เพิ่มสมาชิกสำหรับตรวจการทำงานของทีม');
   await team.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
   const addedMember = team.locator('.workspace-member-row').filter({ has: page.locator('[data-person-id="emp-002"]') });
   await expect(addedMember.locator('.workspace-member-remove')).toHaveText('นำออก');
@@ -168,7 +172,6 @@ test('Project Workspace blocks member removal inline for unfinished primary task
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
   await team.getByLabel('เลือกสมาชิกเพื่อเพิ่ม').selectOption('emp-002');
-  await team.getByLabel('เหตุผลการเพิ่มสมาชิก').fill('เพิ่มผู้รับผิดชอบงาน');
   await team.getByRole('button', { name: 'เพิ่มเข้าทีม' }).click();
 
   await page.getByRole('tab', { name: /^งาน/ }).click();

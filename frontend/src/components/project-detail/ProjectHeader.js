@@ -47,8 +47,8 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
   const canOpenClosure = isOwner || (isTeamLead && closure.status === 'pending_approval');
   const closureActionLabel = isTeamLead && closure.status === 'pending_approval'
     ? 'ตรวจคำขอปิดโปรเจกต์'
-    : closure.status === 'approved' && isOwner
-      ? 'ดำเนินการปิดโปรเจกต์'
+    : closure.status === 'pending_approval'
+      ? 'รอ Team Lead อนุมัติ'
       : closure.status === 'closed'
         ? 'ปิดโปรเจกต์แล้ว'
         : 'ส่งขออนุมัติปิดโปรเจกต์';
@@ -154,7 +154,7 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
                 type="button"
                 variant="outline-secondary"
                 className="project-detail-edit-button"
-                onClick={() => navigate('/projects', { state: { editProjectId: project.id } })}
+                onClick={() => navigate('/projects', { state: { editProjectId: project.id, returnTo: `/projects/${project.id}` } })}
               >
                 <Pencil size={16} />
                 แก้ไขโปรเจกต์
@@ -170,9 +170,13 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
               </Button>
             </div>
             <span className="project-detail-header-hint">
-              {isOwner && allTasksComplete
-                ? 'ตรวจสรุปและสิ่งที่ส่งมอบก่อนส่งให้ Team Leader อนุมัติ'
-                : `ต้องทำทุกงานให้เป็น “เสร็จแล้ว” ก่อน (เสร็จ ${stats.completed}/${stats.total})`}
+              {closure.status === 'closed'
+                ? 'โปรเจกต์นี้ปิดแล้ว'
+                : closure.status === 'pending_approval'
+                  ? 'ส่งขออนุมัติแล้ว รอ Team Lead ตรวจ'
+                  : isOwner && allTasksComplete
+                    ? 'งานครบแล้ว ส่งให้ Team Lead อนุมัติปิดได้เลย'
+                    : `ต้องทำทุกงานให้เป็น “เสร็จแล้ว” ก่อน (เสร็จ ${stats.completed}/${stats.total})`}
             </span>
           </aside>
       </div>

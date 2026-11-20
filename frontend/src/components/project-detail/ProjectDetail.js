@@ -1,6 +1,8 @@
-// Route shell and shared state binding for one Project Workspace.
+// frontend/src/components/project-detail/ProjectDetail.js — หน้า Project Workspace (แท็บ ภาพรวม / งาน / บอร์ด / ทีม / ส่งมอบ / ไทม์ไลน์ / ประวัติ)
+//
+// หน้าอื่นเปิดงานที่นี่ได้ด้วย navigate('/projects/:id', { state: { openTaskId } }) — รายละเอียดงานมีที่เดียวคือใน workspace (UX-10)
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { MOCK_EMPLOYEES } from '../../data/mockData';
 import { useMockData } from '../../context/MockDataContext';
 import { priorityOf, statsFrom } from '../../utils/projectTrackingUtils';
@@ -24,20 +26,34 @@ const SECTIONS = [
 
 export default function ProjectDetail() {
   const { projectId } = useParams();
-  const { projects, tasks, deliverables, activity, actorId, setActorId } = useMockData();
+  const { projects, tasks, deliverables, activity, actorId, setActorId, taskWork, addTaskWorkEntry } = useMockData();
   const [activeSection, setActiveSection] = useState('overview');
   const [createTaskRequested, setCreateTaskRequested] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
   const [taskAction, setTaskAction] = useState('');
   const [taskFilter, setTaskFilter] = useState('all');
-  const [taskWorkEntries, setTaskWorkEntries] = useState({});
   const [teamNotice, setTeamNotice] = useState(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const requestedTaskId = location.state?.openTaskId;
   useEffect(() => {
     setSelectedTask(null);
     setTaskAction('');
     setTaskFilter('all');
     setTeamNotice(null);
   }, [projectId]);
+  // ⚠️ ต้องอยู่หลัง effect ล้างค่าตอนเปลี่ยนโปรเจกต์ข้างบน — effect รันตามลำดับ ถ้าอยู่ก่อนจะถูกล้างทิ้งทันที
+  useEffect(() => {
+    if (requestedTaskId === undefined || requestedTaskId === null) return;
+    const target = tasks.find((task) => String(task.id) === String(requestedTaskId) && String(task.projectId) === String(projectId));
+    if (target) {
+      setSelectedTask({ projectId: String(projectId), taskId: String(target.id) });
+      setTaskFilter('all');
+      setActiveSection('tasks');
+    }
+    // ล้าง state ออกจาก history — refresh / กดย้อนกลับแล้วไม่เปิดงานเดิมซ้ำ
+    navigate(location.pathname, { replace: true, state: null });
+  }, [requestedTaskId, projectId, tasks, navigate, location.pathname]);
   const project = projects.find((item) => String(item.id) === String(projectId));
   if (!project) return <section className="project-detail project-detail-not-found" aria-labelledby="project-not-found-title"><h1 id="project-not-found-title" className="page-title">ไม่พบโปรเจกต์</h1><p className="text-muted">โปรเจกต์นี้อาจถูกลบหรือไม่มีอยู่ในข้อมูลปัจจุบัน</p><Link to="/projects" className="btn btn-primary">กลับไปหน้าโปรเจกต์</Link></section>;
 
@@ -76,13 +92,6 @@ export default function ProjectDetail() {
     setTaskAction('');
   };
   const selectedTaskId = selectedTask?.projectId === String(project.id) ? selectedTask.taskId : null;
-  const addTaskWorkEntry = (taskId, kind, entry) => {
-    const key = `${project.id}:${taskId}`;
-    setTaskWorkEntries((current) => {
-      const existing = current[key] || { comments: [], timeLogs: [] };
-      return { ...current, [key]: { ...existing, [kind]: [...existing[kind], entry] } };
-    });
-  };
 
   return <div className="project-detail is-reference"><div className="project-detail-inner">
     <nav className="project-detail-breadcrumb" aria-label="เส้นทางนำทาง"><Link to="/projects"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>โปรเจกต์</Link><span aria-hidden="true">/</span><span aria-current="page">{project.name}</span></nav>
@@ -101,7 +110,7 @@ export default function ProjectDetail() {
       onCloseTask={closeWorkspaceTask}
       onClearTaskAction={() => setTaskAction('')}
       onConsumeCreate={() => setCreateTaskRequested(false)}
-      taskWorkEntries={selectedTaskId ? taskWorkEntries[`${project.id}:${selectedTaskId}`] || { comments: [], timeLogs: [] } : { comments: [], timeLogs: [] }}
+      taskWorkEntries={selectedTaskId ? taskWork[String(selectedTaskId)] || { comments: [], timeLogs: [] } : { comments: [], timeLogs: [] }}
       onAddTaskComment={(taskId, entry) => addTaskWorkEntry(taskId, 'comments', entry)}
       onAddTaskTimeLog={(taskId, entry) => addTaskWorkEntry(taskId, 'timeLogs', entry)}
       actorId={actorId}

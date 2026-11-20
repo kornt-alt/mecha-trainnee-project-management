@@ -47,7 +47,7 @@ export default function SecurityIncidents() {
           </Form.Select>
           <Form.Select aria-label="กรองระดับความสำคัญของเหตุการณ์" value={priority} onChange={(event) => updateFilters({ priority: event.target.value })}>
             <option value="">ทุกระดับความสำคัญ</option>
-            <option value="urgent">ด่วนมาก</option>
+            <option value="urgent">เร่งด่วน</option>
             <option value="high">สูง</option>
             <option value="normal">ปกติ</option>
           </Form.Select>
