@@ -8,7 +8,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **อ่านก่อนแก้โค้ด:** `AGENTS.md` (กฎ agent: Superpowers workflow บังคับ, protected areas, git safety) · `coding-rules.md` (กฎทีม + Reuse First) · `README.md` (คู่มือน้อง) · notes ของ feature เช่น `frontend/WORKLOAD_IMPLEMENTATION_NOTES.md`, `frontend/workspace-changes.md`
 
-## ⚠️ Phase ปัจจุบัน: FRONTEND-ONLY (mock data)
+## ⚠️ Phase ปัจจุบัน: frontend = mock (น้อง) · backend = Phase A เสร็จ (Korn)
+
+- **สัญญากลาง frontend ↔ backend: `docs/api-contract.md`** — shape JSON = shape mock data, ตารางสิทธิ์, รายการเส้น ✅/⏳ · แก้ API ต้องแก้เอกสารนี้ด้วย
+- backend Phase A (2026-11-20): schema ครบ, login (รหัสพนักงาน / บัตร / สมัคร), ADMIN จัดการผู้ใช้, GET ทุกหมวด + visibility (guest = public เท่านั้น) · **Phase B = เส้นเขียน** ย้ายกฎจาก `MockDataContext.js` ตามตารางในสัญญา (ตอนนี้ตอบ 501 จาก `middleware/notImplemented.js`)
+- Korn อนุญาตให้ agent แตะ `backend/` เมื่อสั่งงาน backend (ยกเว้นจากข้อห้ามใน `AGENTS.md`) · ห้ามแตะ `frontend/src` ตอนทำงาน backend
 
 - หน้าเกือบทั้งหมดอ่าน/เขียนข้อมูลผ่าน `frontend/src/context/MockDataContext.js` (`useMockData()`) ซึ่งเก็บ state ใน memory จาก `frontend/src/data/*.js` — รีเฟรชแล้วรีเซ็ต · การเชื่อม API จริงเลื่อนไป "Phase API Integration"
 - ข้อยกเว้น: `Home.js`, `About.js` เรียก `useLoad('/health')` · `Projects.js` เรียก `/projects` จริงแต่ **ใช้ผล API ก็ต่อเมื่อได้ array ไม่ว่าง** ไม่งั้น fallback เป็น mock (`isApiConnected`) — อย่าทำให้ฟีเจอร์ mock พึ่ง API
@@ -26,10 +30,12 @@ CI=true npx react-scripts test --watchAll=false src/utils/notificationCenterUtil
 npx playwright test                         # e2e ใน frontend/tests/ (เปิด npm start ให้เองถ้ายังไม่รัน)
 npx playwright test tests/projects.spec.js  # ไฟล์เดียว
 
-# backend (ยังไม่ได้ใช้จริงใน phase นี้)
+# backend
 cd backend
 npm run dev          # nodemon, port 3011 · API ที่ /PROJECT-MANAGEMENT/api
-npm run db:apply     # รัน db/schema.sql ผ่าน mysql2 (เครื่อง server ไม่มี mysql CLI)
+npm run db:apply     # รัน db/schema.sql ผ่าน mysql2 (เครื่อง server ไม่มี mysql CLI) — รันซ้ำได้
+npm run db:seed      # ⚠️ ล้างทุกตาราง แล้วใส่ข้อมูลจาก frontend/src/data/mockData.js (dev เท่านั้น) · SEED_PASSWORD=… -- --yes ไม่ถาม
+npm run user:add -- <userid> "<ชื่อ>" [ADMIN|USER]   # + user:passwd | user:disable | user:card | user:role | user:list
 ```
 
 `package.json` ฝั่ง frontend ไม่มี script `test` — เรียก `react-scripts test` ตรงตามข้างบน · Playwright spec ดัก `**/api/projects**` ให้ abort เพื่อบังคับ mock mode
@@ -45,17 +51,27 @@ npm run db:apply     # รัน db/schema.sql ผ่าน mysql2 (เครื
 - `utils/api.js` — ตัวเรียก backend ตัวเดียว (`api.*`, `useLoad` กัน response เก่าทับใหม่ด้วย requestId) · `utils/config.js` — `API_ORIGIN`, `APP_BASE`, `PROJECT_STATUSES`, `PROJECT_CATEGORIES`, `TASK_CATEGORIES`
 - สี: ตัวแปรใน `styles/tokens.css` เท่านั้น (`--blue`, `--workspace-*`, `--chart-*`, `--task-urgent-*`) · สีกราฟผ่าน `utils/categoryColors.js`
 
-**Backend** (Express 4 CommonJS + mysql2/MariaDB) — มีแค่หมวดตัวอย่าง `projects`: `routes/projects.js` → `services/projects.js` (validate, `STATUSES`, `view()` snake→camel) → `db/projects.js` (SQL, `EDITABLE` whitelist) · `middleware/errorHandler.js` (`AppError(msg, status)`, `wrap`) · `config/env.js` อ่าน `.env` ที่เดียว, ขาด `DB_HOST/DB_USER/DB_NAME` = exit 1 · `/health` ตอบ `db: up|down` · กฎ backend ละเอียดอยู่ใน `coding-rules.md`
+**Backend** (Express 4 CommonJS + mysql2/MariaDB 10.3) — ไม่มี test framework, ทดสอบด้วยสคริปต์ fetch กับ DB dev จริง
+- ชั้นละไฟล์: `routes/<หมวด>.js` (`wrap` + `res.json`, `AppError`) → `services/<หมวด>.js` (กฎ + `view()` snake→camel; entity เล็กรวมใน `services/views.js`) → `db/<หมวด>.js` (SQL parameterize ที่เดียว)
+- auth ลอกจาก `MECHA2_QC_GAUGE_SYSTEM`: `services/auth.js` (bcryptjs, JWT, `publicUser` ไม่มี password/rfid), `middleware/auth.js` (`requireLogin` / `requireAdmin` / `optionalLogin` = guest ได้ `req.user = null` — ค้น DB ทุก request), `middleware/rateLimit.js`, `routes/auth.js`, `routes/users.js` (ADMIN), `scripts/user.js` · login ด้วย `userid` (รหัสพนักงาน = `employeeId` ฝั่ง frontend) ไม่มีคอลัมน์ username
+- **visibility ที่เดียว `services/visibility.js`** (`visibleWhere(user, alias)`) — ทุก query ที่อ่านโปรเจกต์ต้องผ่าน · ข้อมูลลูก (`db/tasks.js`, `db/workspace.js`) ไม่เช็คสิทธิ์เอง → `routes/projects.js` เรียก `mustSee()` ก่อนเสมอ · ไม่มีสิทธิ์ = 404
+- metrics โปรเจกต์คำนวณตอนอ่าน (subquery ใน `db/projects.js` + `services/projects.js metrics()`) สูตรเดียวกับ `calculateProjectMetrics()` ฝั่ง frontend
+- คอลัมน์ JSON (history, allocations, attachments, closure, activity meta) parse ที่ `utils/json.js` · `GROUP_CONCAT` → array ด้วย `splitList`
+- `config/env.js` อ่าน `.env` ที่เดียว · REQUIRED: `DB_HOST/DB_USER/DB_NAME/JWT_SECRET` (ขาด = exit 1) · `/health` ตอบ `db: up|down` · กฎ backend ละเอียดใน `coding-rules.md`
 
 ## ⚠️ ค่าที่ต้องตรงกันหลายที่
 
 - `APP_BASE = /PROJECT-MANAGEMENT`: `backend/config/env.js` (+ `.env`) · `frontend/src/utils/config.js` · `homepage` ใน `frontend/package.json` · config Apache (นอก repo) · URL ใน `frontend/tests/*.spec.js`
 - สถานะโปรเจกต์ (`planning | in_progress | on_hold | done | cancelled`): `backend/db/schema.sql` · `backend/services/projects.js` · `frontend/src/utils/config.js` · สี `.status-<key>` ใน `frontend/src/index.css`
-- สถานะ task (`not_started | in_progress | pending_review | completed`) เป็นของ mock — อยู่ใน `MockDataContext.js` + `data/mockData.js`
+- สถานะ task (`not_started | in_progress | pending_review | completed`): `MockDataContext.js` · `backend/db/schema.sql` · `backend/services/tasks.js`
+- role (`ADMIN | USER`): `backend/db/schema.sql` · `backend/services/auth.js`
+- shape ของ entity: `frontend/src/data/mockData.js` ↔ `backend/services/*.js view()` ↔ `docs/api-contract.md`
 
 ## Gotchas
 
 - root `.gitignore` มี `*.html` — ไฟล์ HTML **ใหม่** จะไม่ขึ้น git (`frontend/public/index.html` ถูก track ไว้ก่อนแล้วจึงยังขึ้น) · `frontend/build/` ถูก track อยู่ (ทั้งที่ skill บอกให้ ignore) — ห้ามแก้ตาม `AGENTS.md`
+- **DB user ของระบบไม่มีสิทธิ์ DROP** (มีแค่ SELECT/INSERT/UPDATE/DELETE/CREATE/ALTER) → ห้ามใช้ `DROP` / `TRUNCATE` ใน schema หรือสคริปต์ · เปลี่ยนโครงตารางด้วย `ALTER TABLE … ADD/DROP COLUMN IF EXISTS` (ดูบล็อกอัปเกรด `projects` ใน schema.sql) · seed ใช้ `DELETE` + `ALTER … AUTO_INCREMENT`
+- รัน backend + `db:seed` บนเครื่องไหน `Projects.js` บนเครื่องนั้นจะสลับไปใช้ข้อมูล API (array ไม่ว่าง) ขณะหน้าอื่นยังเป็น mock — เป็นเรื่องปกติช่วง dev
 - คอลัมน์ DATE ฝั่ง backend อ่านด้วย `DATE_FORMAT(…, '%Y-%m-%d')` — ไม่งั้น mysql2 แปลงเป็น Date แล้ว timezone เลื่อนวัน
 - Playwright: โปรเจกต์ 1 ใน mock data มีงานตัวอย่าง 8 งาน — เทสที่ต้องการ workspace ว่างใช้โปรเจกต์ 5 / 3 · `npm run build` จะล้าง `frontend/build/` (ถูก track) ก่อน compile — ตรวจ build ด้วย `BUILD_PATH=<นอก repo>` แทน
 - `README.md` หัวข้อ 7 (แบบฝึก "เพิ่มหมวด tasks") เขียนตอนโครงเปล่า — ตอนนี้มี `components/Tasks.js` + route `/tasks` (mock) แล้ว ทำตามตรง ๆ จะชนไฟล์เดิม

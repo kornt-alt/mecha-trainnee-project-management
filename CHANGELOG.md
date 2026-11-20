@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+### Added
+- backend Phase A — พร้อมเริ่ม dev backend:
+  - `docs/api-contract.md` สัญญากลาง frontend ↔ backend: shape ข้อมูลทุก entity (ตรงกับ mock data), ตารางสิทธิ์, รายการเส้นที่ทำแล้ว / รอ Phase B พร้อมกฎที่ต้องย้ายจาก `MockDataContext`
+  - `db/schema.sql` ครบทุกตาราง: users (= พนักงาน), departments, teams, projects (+ `visibility` public/private), project_members, tasks, checklist, collaborators, labels, deliverables, activities, notifications, logs — อัปเกรดตาราง `projects` เดิมด้วย ALTER (DB user ไม่มีสิทธิ์ DROP)
+  - ระบบ login ตามแบบ MECHA2_QC_GAUGE: รหัสพนักงาน + รหัสผ่าน, แตะบัตร (รหัสบัตรเก็บเป็น text), สมัครเอง (ได้แค่ USER), `/auth/me`, ADMIN จัดการผู้ใช้ (`/users`), rate limit, CLI `npm run user:*`
+  - การมองเห็นโปรเจกต์: guest เห็นเฉพาะ public · USER เห็น public + private ที่เป็น Owner / Team Lead / สมาชิก · ADMIN เห็นทั้งหมด · ไม่มีสิทธิ์ = 404
+  - GET: `/projects`, `/projects/:id` (+ metrics), `/projects/:id/tasks|deliverables|activities`, `/employees`, `/departments`, `/teams`, `/labels`, `/notifications` · เส้นบันทึกตอบ 501 รอ Phase B
+  - `npm run db:seed` ใส่ข้อมูลตัวอย่างจาก `frontend/src/data/mockData.js` (id เดียวกับ mock, ADMIN = emp-009)
+
+### Changed
+- backend ตัวอย่างหมวด `projects` เดิม (POST/PATCH/DELETE แบบโครงเปล่า) ถูกแทนด้วยโครงใหม่ตามสัญญา
+- `JWT_SECRET` เป็นค่าบังคับใน `backend/.env`
+
 ### Fixed
 - frontend build ไม่ผ่าน (`'formatThaiDateTime' is not defined` ใน `Header.js`) จากการ merge `page/login` เข้ากับ `design_frontend` — แอปเปิดไม่ได้ทั้งระบบ
 - `App.js` กลับมา render `RoutedApplication` พร้อม `NotificationCenterProvider` → หน้าแจ้งเตือน / เหตุการณ์ความปลอดภัย / บันทึกการตรวจสอบ / ประวัติการส่งออก และ login modal ที่หน้าแรกใช้งานได้อีกครั้ง (เดิมเมนูเหล่านี้ตกไปหน้า 404) · หน้า Project Workspace (`/projects/:id`) ยังเป็นหน้าเต็มจอนอก Layout ตามเดิม

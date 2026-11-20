@@ -12,6 +12,7 @@ const cors = require('cors');
 const env = require('./config/env');
 const { ping } = require('./db/pool');
 const { errorHandler, notFoundApi } = require('./middleware/errorHandler');
+const { notImplemented } = require('./middleware/notImplemented');
 
 const app = express();
 const API = `${env.APP_BASE}/api`;
@@ -23,8 +24,14 @@ app.use(cors());
 
 app.get(`${API}/health`, health);
 
+app.use(`${API}/auth`, require('./routes/auth'));
+app.use(`${API}/users`, require('./routes/users'));
 app.use(`${API}/projects`, require('./routes/projects'));
+app.use(`${API}/notifications`, require('./routes/notifications'));
+app.use(API, require('./routes/reference')); // /employees, /departments, /teams, /labels
 
+// เส้นเขียนที่ยังไม่ทำตอบ 501 (รอ Phase B) — ต้องอยู่หลัง router จริง
+app.use(API, notImplemented);
 // ต้องอยู่หลัง route ทั้งหมด — เส้นที่ไม่มีจริงใต้ /api ตอบ JSON ไม่ใช่ HTML
 app.use(API, notFoundApi);
 app.use(errorHandler);

@@ -77,6 +77,7 @@ DB_HOST=xxx.xxx.xxx.xxx
 DB_USER=xxxx
 DB_PASSWORD=xxxx
 DB_NAME=project_management
+JWT_SECRET=xxxx      # สุ่มเอง: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 > ⚠️ ไฟล์ `.env` มีรหัสผ่าน **ห้ามส่งให้ใคร ห้าม commit ขึ้น git** (มี `.gitignore` กันไว้แล้ว)
@@ -84,8 +85,11 @@ DB_NAME=project_management
 ```bash
 npm install          # ติดตั้ง library (ครั้งแรก / ตอนมีคนเพิ่ม library)
 npm run db:apply     # สร้างตารางจาก db/schema.sql (รันซ้ำได้ ไม่ลบข้อมูลเดิม)
+npm run db:seed      # ⚠️ ล้างข้อมูลแล้วใส่ข้อมูลตัวอย่างจาก mock (เครื่อง dev เท่านั้น) — ถามรหัสผ่านที่จะตั้งให้พนักงานตัวอย่าง
 npm run dev          # เปิด backend — แก้โค้ดแล้ว restart ให้เอง
 ```
+
+หลัง seed: login ด้วยรหัสพนักงานใน mock (เช่น `emp-009` = ADMIN, `emp-008` = Project Owner) + รหัสผ่านที่ตั้งตอน seed
 
 เห็นแบบนี้ = ใช้ได้
 
@@ -567,20 +571,22 @@ git commit
 
 ## 11. API ที่มีอยู่
 
-ทุกเส้นขึ้นต้นด้วย `/PROJECT-MANAGEMENT/api`
+รายละเอียดเต็ม (shape ของข้อมูล, สิทธิ์, เส้นที่กำลังทำ) อยู่ใน **[docs/api-contract.md](docs/api-contract.md)** — ใช้เป็นตัวตั้งตอนเชื่อมหน้าเว็บกับ API
+
+ทุกเส้นขึ้นต้นด้วย `/PROJECT-MANAGEMENT/api` · ตอนนี้ทำแล้วเฉพาะ **อ่านข้อมูล + login** (เส้นบันทึกตอบ `501` ระหว่างพี่ทำ)
 
 | method | path | ทำอะไร |
 |---|---|---|
 | GET | `/health` | เช็คระบบ → `{ ok, appBase, db: "up" \| "down" }` |
-| GET | `/projects?status=` | รายการโปรเจกต์ (กรองสถานะได้ ไม่ใส่ = ทั้งหมด) |
-| GET | `/projects/:id` | โปรเจกต์เดียว |
-| POST | `/projects` | เพิ่ม `{ name, owner, status, startDate, dueDate, description }` |
-| PATCH | `/projects/:id` | แก้เฉพาะ field ที่ส่งมา |
-| DELETE | `/projects/:id` | ลบ |
+| POST | `/auth/login` · `/auth/login-card` · `/auth/register` | เข้าสู่ระบบ (รหัสพนักงาน+รหัสผ่าน / บัตร) · สมัคร |
+| GET | `/auth/me` | ข้อมูลผู้ใช้จาก token |
+| GET | `/projects?status=` · `/projects/:id` | โปรเจกต์ที่มีสิทธิ์เห็น (ไม่ login = เฉพาะ public) |
+| GET | `/projects/:id/tasks` · `/deliverables` · `/activities` | ข้อมูลใน workspace ของโปรเจกต์ |
+| GET | `/employees` · `/departments` · `/teams` · `/labels` | ข้อมูลอ้างอิง |
+| GET | `/notifications` | แจ้งเตือนของตัวเอง (ต้อง login) |
 
-- error ตอบเป็น `{ "error": "ข้อความ" }` เสมอ
-- สถานะ: `planning` วางแผน · `in_progress` กำลังทำ · `on_hold` พักไว้ · `done` เสร็จแล้ว · `cancelled` ยกเลิก
-- วันที่ส่ง / รับเป็น `YYYY-MM-DD`
+- ส่ง token เป็น header `Authorization: Bearer <token>`
+- error ตอบเป็น `{ "error": "ข้อความ" }` เสมอ · วันที่ส่ง / รับเป็น `YYYY-MM-DD`
 
 ---
 

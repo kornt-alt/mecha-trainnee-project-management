@@ -7,12 +7,21 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "db:apply": "node db/migrate.js schema.sql"
+    "db:apply": "node db/migrate.js schema.sql",
+    "db:seed": "node scripts/seedMock.js",
+    "user:add": "node scripts/user.js add",
+    "user:passwd": "node scripts/user.js passwd",
+    "user:disable": "node scripts/user.js disable",
+    "user:card": "node scripts/user.js card",
+    "user:role": "node scripts/user.js role",
+    "user:list": "node scripts/user.js list"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
     "mysql2": "^3.24.5"
   },
   "devDependencies": {

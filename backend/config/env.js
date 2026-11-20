@@ -7,7 +7,8 @@
 require('dotenv').config();
 
 // DB_PASSWORD ไม่อยู่ในลิสต์เพราะ user ที่ตั้งแบบไม่มีรหัสผ่านก็มีจริง
-const REQUIRED = ['DB_HOST', 'DB_USER', 'DB_NAME'];
+// JWT_SECRET ห้ามมีค่า default ที่เดาได้ (บทเรียนจาก MECHA1_DAILY_RECORD)
+const REQUIRED = ['DB_HOST', 'DB_USER', 'DB_NAME', 'JWT_SECRET'];
 
 const missing = REQUIRED.filter((key) => !process.env[key]);
 if (missing.length > 0) {
@@ -30,6 +31,11 @@ const env = {
   DB_PASSWORD: process.env.DB_PASSWORD || '',
   DB_NAME: process.env.DB_NAME,
   DB_POOL_MAX: parseInt(process.env.DB_POOL_MAX, 10) || 10,
+
+  // ลายเซ็น JWT — เปลี่ยนค่านี้ = ทุกคนต้อง login ใหม่
+  JWT_SECRET: process.env.JWT_SECRET,
+  // อายุ token (ชั่วโมง) — 12 = หนึ่งกะ
+  JWT_HOURS: Number(process.env.JWT_HOURS) > 0 ? Number(process.env.JWT_HOURS) : 12,
 };
 
 module.exports = env;
