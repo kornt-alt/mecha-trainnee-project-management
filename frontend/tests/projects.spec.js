@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { loginAs } from './helpers/session';
+import { loginAs, switchUser } from './helpers/session';
 
 const PROJECT_URL = '/PROJECT-MANAGEMENT/projects';
 
@@ -21,6 +21,7 @@ test.beforeEach(async ({ page }) => {
   await expect(
     page.getByRole('button', { name: /เพิ่มโปรเจกต์/ }).first()
   ).toBeVisible();
+  // emp-001 (USER) เห็นเฉพาะโปรเจกต์ public 3 อัน — private 6–7 ไม่ใช่ของเขา (utils/access.js)
   await expect(page.locator('.project-card-item')).toHaveCount(3);
 });
 
@@ -43,7 +44,8 @@ async function openWorkspaceProject(page, projectId) {
 
   if (new URL(page.url()).pathname.includes('/projects/')) {
     await page.locator('.project-detail-breadcrumb a').click();
-    await expect(page.locator('.project-card-item')).toHaveCount(3);
+    // จำนวนโปรเจกต์ขึ้นกับสิทธิ์ของผู้ใช้ตอนนั้น (ADMIN เห็น private ด้วย) — รอแค่ให้รายการโหลด
+    await expect(page.locator('.project-card-item').first()).toBeVisible();
   }
 
   const projectLinks = page.locator('.project-card-navigation-link');
@@ -62,11 +64,10 @@ async function createWorkspaceTask(page, {
   priority = 'medium',
   actorId = 'emp-008',
   dueDate = '2026-12-20',
-  plannedHours = null,
-  allocationHours = {},
+  size = null, // 'เล็ก' | 'กลาง' | 'ใหญ่' (ไม่ส่ง = ค่าเริ่มต้นกลาง)
 } = {}) {
   await openWorkspaceProject(page, projectId);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(actorId);
+  await switchUser(page, actorId);
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const memberSelect = page.getByLabel('เลือกสมาชิกเพื่อเพิ่ม');
   if (await memberSelect.locator(`option[value="${reviewerId}"]`).count()) {
@@ -84,15 +85,7 @@ async function createWorkspaceTask(page, {
   if (collaborators.length) await dialog.locator('#workspace-task-collaborators').selectOption(collaborators);
   await dialog.locator('#workspace-task-priority').selectOption(priority);
   await dialog.locator('#workspace-task-due').fill(dueDate);
-  if (plannedHours !== null) {
-    await openMoreTaskOptions(dialog);
-    await dialog.locator('#workspace-task-hours').fill(String(plannedHours));
-    for (const [employeeId, hours] of Object.entries(allocationHours)) {
-      const option = dialog.locator(`#workspace-task-assignee option[value="${employeeId}"], #workspace-task-collaborators option[value="${employeeId}"]`).first();
-      const employeeName = (await option.textContent()).trim();
-      await dialog.getByLabel(`ชั่วโมงที่วางแผนสำหรับ ${employeeName}`).fill(String(hours));
-    }
-  }
+  if (size) await dialog.getByRole('group', { name: 'ขนาดงาน' }).getByRole('button', { name: new RegExp(`^${size}`) }).click();
   await dialog.getByRole('button', { name: 'สร้างงาน' }).click();
   const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
   await expect(taskRow).toBeVisible();
@@ -101,7 +94,7 @@ async function createWorkspaceTask(page, {
 
 async function addWorkspaceMember(page, projectId, memberId, ownerId = 'emp-008') {
   await openWorkspaceProject(page, projectId);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(ownerId);
+  await switchUser(page, ownerId);
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const existingMember = page.locator(`.workspace-member-row .project-detail-avatar[data-person-id="${memberId}"]`);
   if (await existingMember.count()) return;
@@ -591,7 +584,7 @@ test('Project Workspace: Tasks tab shows an empty state for a project without ta
   await expect(page.locator('.project-board-column')).toHaveCount(4);
   await expect(page.locator('.project-board-column-empty')).toHaveCount(4);
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   await expect(page.locator('.workspace-member-row')).toHaveCount(1);
   await expect(page.locator('.workspace-member-role.is-owner')).toHaveText('Owner');
@@ -611,7 +604,7 @@ test('Project Workspace: Tasks tab shows an empty state for a project without ta
 test('Project Workspace: Task form shows one modal body and limits reviewers to Project Team members', async ({ page }) => {
   await addWorkspaceMember(page, 1, 'emp-002');
   await addWorkspaceMember(page, 1, 'emp-009');
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   const tasksTab = page.getByRole('tab', { name: /^งาน/ });
   await tasksTab.click();
   await expect(tasksTab).toHaveAttribute('aria-selected', 'true');
@@ -624,7 +617,8 @@ test('Project Workspace: Task form shows one modal body and limits reviewers to 
   const reviewerIds = await dialog.locator('#workspace-task-reviewer option').evaluateAll((options) => (
     options.map((option) => option.value).filter(Boolean)
   ));
-  expect(reviewerIds).toEqual(['emp-002', 'emp-009']);
+  // ตัวเลือกแรกคือ "ตรวจเอง" (ค่า = ผู้รับผิดชอบ) ตามด้วยสมาชิกคนอื่นในทีม
+  expect(reviewerIds).toEqual(['emp-008', 'emp-002', 'emp-009']);
 
   await dialog.locator('.workspace-checklist-template-actions').getByRole('button', { name: '+ พัฒนา' }).click();
   const checklistRows = dialog.locator('.workspace-checklist-builder-row');
@@ -706,38 +700,40 @@ test('Project Workspace: Tasks tab fits mobile screens without browser errors', 
   expect(browserErrors).toEqual([]);
 });
 
-test('Workload: Team cards show their assigned members independently of Employee filters', async ({ page }) => {
+test('Workload: แสดงสมาชิกทุกคน สลับดูตามทีม และกรองทีมได้', async ({ page }) => {
   await page.goto('/PROJECT-MANAGEMENT/workload');
   await expect(page.getByRole('heading', { name: /ภาระงานของทีม/ })).toBeVisible();
-
-  const plannedWorkload = page.locator('.workload-kpi').filter({ hasText: 'Planned Workload' });
-  await expect(plannedWorkload.locator('.workload-kpi-value')).toHaveText('0 ชม.');
-  const utilization = page.locator('.workload-kpi').filter({ hasText: 'Team Utilization' });
-  await expect(utilization.locator('.workload-kpi-value')).toHaveText('0.0%');
-  await expect(page.locator('.workload-employee-row')).toHaveCount(20);
-  await expect(page.locator('.workload-employee-number').first()).toContainText('0.0');
+  // USER (emp-001) เห็นเฉพาะตัวเอง + คนในโปรเจกต์ที่ตัวเองเห็น — ไม่ใช่ทั้งบริษัท
+  await expect(page.locator('.workload-member')).toHaveCount(4);
+  // ADMIN เห็นทุกคน
+  await switchUser(page, 'emp-008');
+  await expect(page.locator('.workload-member')).toHaveCount(20);
+  await expect(page.locator('.workload-kpi[data-kpi="สมาชิก"]')).toContainText('20');
+  // ไม่มีส่วนที่อิงชั่วโมงแล้ว
+  await expect(page.getByText('Planned Workload')).toHaveCount(0);
 
   const expectedTeams = [
     { name: 'IT', members: ['Kittipat Samran', 'Napat Chaiyaphon', 'Sarin Numnonda', 'Supachai Meesuk', 'Korn Tawonphon', 'Nattapong Vejjakiva', 'Thitikan Bunserm'] },
     { name: 'AI', members: ['Thanakorn Wiset', 'Jirayu Phuangmalai', 'Prapat Suriyawong', 'Ekkachai Rompho', 'Goragod Wannasiri', 'Sarawut Phutthinat', 'New AI Engineer'] },
-    { name: 'Electrical', members: ['Wichai Prasertkul', 'Bodin Kittikorn', 'Veerapat Chokchai', 'Rattanakorn Phusit', 'Phumin Jareonsuk', 'New Electrical Trainee'] },
+    // Thitikan อยู่ 2 ทีม (IT + Electrical) — คนหนึ่งอยู่ได้หลายทีม
+    { name: 'Electrical', members: ['Wichai Prasertkul', 'Bodin Kittikorn', 'Veerapat Chokchai', 'Rattanakorn Phusit', 'Phumin Jareonsuk', 'New Electrical Trainee', 'Thitikan Bunserm'] },
   ];
-  await page.getByRole('tab', { name: 'Teams' }).click();
+  await page.getByRole('button', { name: 'ตามทีม' }).click();
   const teamCards = page.locator('.workload-team-card');
   await expect(teamCards).toHaveCount(expectedTeams.length);
   for (const [index, expectedTeam] of expectedTeams.entries()) {
     const teamCard = teamCards.nth(index);
     await expect(teamCard.locator('.workload-team-card-name')).toHaveText(expectedTeam.name);
     await expect(teamCard.locator('.workload-team-card-emp')).toHaveText(`${expectedTeam.members.length} คน`);
-    await expect(teamCard.locator('.workload-team-member')).toHaveText(expectedTeam.members);
+    const names = await teamCard.locator('.workload-team-member > span:first-child').allTextContents();
+    expect([...names].sort()).toEqual([...expectedTeam.members].sort());
   }
 
-  await page.getByLabel('กรอง Section (แผนก)').selectOption('dept-3');
-  await page.getByRole('tab', { name: 'Employees' }).click();
-  await expect(page.locator('.workload-employee-row')).toHaveCount(7);
-  await page.getByRole('tab', { name: 'Teams' }).click();
-  await expect(teamCards.nth(0).locator('.workload-team-card-emp')).toHaveText('7 คน');
-  await expect(teamCards.nth(0).locator('.workload-team-member')).toHaveText(expectedTeams[0].members);
+  await page.getByLabel('กรองทีม').selectOption({ label: 'IT' });
+  await page.getByRole('button', { name: 'รายคน' }).click();
+  await expect(page.locator('.workload-member')).toHaveCount(7);
+  await page.getByLabel('ค้นหาสมาชิก').fill('Kittipat');
+  await expect(page.locator('.workload-member')).toHaveCount(1);
 });
 
 test('Project Workspace: task selection opens inline detail from every tab and preserves the Work Page return state', async ({ page }) => {
@@ -794,24 +790,20 @@ test('Project Workspace: task selection opens inline detail from every tab and p
   await expect(taskDetail.getByRole('heading', { name: taskTitle })).toBeVisible();
   await expect(taskDetail.locator('.workspace-checklist-edit')).toHaveCount(0);
   const bodyOverflow = await page.locator('body').evaluate((element) => element.style.overflow);
-  await taskDetail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  const workPage = page.locator('.workspace-task-work-page');
+  const workPage = page.locator('.workspace-task-detail');
   await expect(workPage).toBeVisible();
-  for (const heading of ['เช็กลิสต์', 'ความคิดเห็น', 'บันทึกเวลาทำงาน', 'ประวัติของงานนี้']) {
+  for (const heading of ['เช็กลิสต์', 'ความคิดเห็น', 'ระยะเวลาแต่ละสถานะ', 'ประวัติของงานนี้']) {
     await expect(workPage.getByRole('heading', { name: new RegExp(heading) })).toBeVisible();
   }
   const commentText = `Work page comment ${Date.now()}`;
   await workPage.getByLabel('เขียนความคิดเห็น').fill(commentText);
   await workPage.getByRole('button', { name: 'ส่งความคิดเห็น' }).click();
   await expect(workPage.locator('.workspace-task-comments')).toContainText(commentText);
-  const timeNote = `Work page time log ${Date.now()}`;
-  await workPage.getByLabel('ชั่วโมง').fill('1.5');
-  await workPage.getByLabel('ทำอะไร').fill(timeNote);
-  await workPage.getByRole('button', { name: /บันทึกเวลา/ }).click();
-  await expect(workPage.locator('.workspace-task-time-list')).toContainText(timeNote);
+  // ไม่มีช่องกรอกชั่วโมงแล้ว — ระยะเวลาแต่ละสถานะระบบจับเอง (งานนี้ยังไม่เริ่ม = อยู่ที่ "ยังไม่เริ่ม")
+  await expect(workPage.locator('.workspace-task-durations .is-current')).toContainText('ยังไม่เริ่ม');
+  await expect(workPage.getByLabel('ชั่วโมง', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(await page.locator('body').evaluate((element) => element.style.overflow)).toBe(bodyOverflow);
-  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
   taskDetail = getWorkspaceTaskDetail(page);
   await expect(taskDetail.getByRole('heading', { name: taskTitle })).toBeVisible();
   await expect(selectedTaskRow).toHaveClass(/selected/);
@@ -827,10 +819,7 @@ test('Project Workspace: task selection opens inline detail from every tab and p
   await selectedTaskRow.click();
   taskDetail = getWorkspaceTaskDetail(page);
   await expect(taskDetail.getByRole('heading', { name: taskTitle })).toBeVisible();
-  await taskDetail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
   await expect(page.locator('.workspace-task-comments')).toContainText(commentText);
-  await expect(page.locator('.workspace-task-time-list')).toContainText(timeNote);
-  await page.locator('.workspace-task-work-toolbar').getByRole('button', { name: 'กลับไปรายการงาน' }).click();
 
   const pendingReviewTaskRow = page.locator('.project-tasks-row.status-pending_review').filter({ hasText: reviewTaskTitle });
   await pendingReviewTaskRow.click();
@@ -952,15 +941,14 @@ test('Project Workspace: inline detail matches reference dimensions and wraps at
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
     await page.screenshot({ path: `/tmp/mecha-task-detail-${width}.png`, fullPage: true });
 
-    await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-    const workPage = page.locator('.workspace-task-work-page');
+    const workPage = page.locator('.workspace-task-detail');
     await expect(workPage).toBeVisible();
     await expect(workPage.getByRole('heading', { name: /เช็กลิสต์/ })).toBeVisible();
     await expect(workPage.getByRole('heading', { name: /ความคิดเห็น/ })).toBeVisible();
-    await expect(workPage.getByRole('heading', { name: 'บันทึกเวลาทำงาน' })).toBeVisible();
+    await expect(workPage.getByRole('heading', { name: 'ระยะเวลาแต่ละสถานะ' })).toBeVisible();
     await expect(workPage.getByRole('heading', { name: 'ประวัติของงานนี้' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await page.screenshot({ path: `/tmp/mecha-task-work-page-${width}.png`, fullPage: true });
+    
   }
 });
 
@@ -1231,7 +1219,7 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   await page.getByRole('tab', { name: /^งาน/ }).click();
 
   const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-001');
+  await switchUser(page, 'emp-001');
   await taskRow.click();
   const detailDialog = getWorkspaceTaskDetail(page);
   const checklistTitle = `ตรวจสอบ workflow ${Date.now()}`;
@@ -1243,14 +1231,14 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังทำ');
 
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
+  await switchUser(page, 'emp-002');
   await taskRow.click();
   const otherMemberDialog = getWorkspaceTaskDetail(page);
   await expect(otherMemberDialog.locator('.workspace-checklist-actions')).toHaveCount(0);
   await expect(otherMemberDialog.locator('.workspace-checklist li input[type="checkbox"]')).toBeDisabled();
   await otherMemberDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await taskRow.click();
   const ownerDialog = getWorkspaceTaskDetail(page);
   const editableChecklistItem = ownerDialog.locator('.workspace-checklist li').first();
@@ -1260,7 +1248,7 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   await expect(ownerDialog.locator('.workspace-checklist')).toContainText('Owner edit');
   await ownerDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-001');
+  await switchUser(page, 'emp-001');
   await taskRow.click();
   const submitDialog = getWorkspaceTaskDetail(page);
   // ไม่มีขั้น "เริ่มงาน" — งานเป็น "กำลังทำ" แล้วตั้งแต่ติ๊ก checklist ข้างบน
@@ -1271,7 +1259,7 @@ test('Project Workspace: checklist ownership and Task Review use the required wo
   await expect(submitDialog.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
   await submitDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await switchUser(page, 'emp-009');
   await taskRow.click();
   const reviewerDialog = getWorkspaceTaskDetail(page);
   await reviewerDialog.getByRole('button', { name: 'อนุมัติ' }).click();
@@ -1290,14 +1278,14 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
   await openWorkspaceProject(page, 1);
   await page.getByRole('tab', { name: /^งาน/ }).click();
   const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-001');
+  await switchUser(page, 'emp-001');
   await taskRow.click();
   let detailDialog = getWorkspaceTaskDetail(page);
   await detailDialog.getByRole('button', { name: 'เริ่มงาน' }).click();
   await detailDialog.getByRole('button', { name: 'ส่งตรวจ' }).click();
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await switchUser(page, 'emp-009');
   await taskRow.click();
   detailDialog = getWorkspaceTaskDetail(page);
   const requestChanges = detailDialog.getByRole('button', { name: 'ขอแก้ไข' });
@@ -1307,7 +1295,7 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
   await expect(detailDialog.locator('.task-detail-status')).toContainText('กำลังทำ');
   await detailDialog.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-001');
+  await switchUser(page, 'emp-001');
   await taskRow.click();
   detailDialog = getWorkspaceTaskDetail(page);
   await detailDialog.getByRole('button', { name: 'ส่งตรวจ' }).click();
@@ -1330,7 +1318,7 @@ test('Project Workspace: request changes and withdrawal require reasons and retu
 test('Project Workspace: Team, Deliverables, Timeline and Activity share project records', async ({ page }) => {
   const deliverableTitle = `Deliverable ${Date.now()}`;
   await page.goto(`${PROJECT_URL}/3`);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const memberSelect = page.getByLabel('เลือกสมาชิกเพื่อเพิ่ม');
   await memberSelect.selectOption({ index: 1 });
@@ -1367,11 +1355,9 @@ test('Project Workspace: reassignment requires a reason and updates the shared T
     assigneeId: 'emp-001',
     reviewerId: 'emp-002',
     collaborators: ['emp-009'],
-    plannedHours: 12,
-    allocationHours: { 'emp-001': 6, 'emp-009': 6 },
   });
   await openWorkspaceProject(page, 3);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^งาน/ }).click();
   const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
   await taskRow.click();
@@ -1391,49 +1377,39 @@ test('Project Workspace: reassignment requires a reason and updates the shared T
   await expect(page.locator('.workspace-reference-activity-list')).toContainText('เปลี่ยนผู้รับผิดชอบ');
 });
 
-test('Project Workspace: editing and deleting planned hours keeps Workload in sync', async ({ page }) => {
-  const title = `Planned allocation lifecycle ${Date.now()}`;
+test('Workload: คนที่มีงานเลยกำหนด 2 งานเป็น "งานเกิน" อยู่บนสุด คลิกแล้วเห็นงานและเปิดงานในโปรเจกต์ได้', async ({ page }) => {
+  const stamp = Date.now();
   await addWorkspaceMember(page, 3, 'emp-001');
-  await addWorkspaceMember(page, 3, 'emp-009');
-  await createWorkspaceTask(page, {
-    projectId: 3,
-    title,
-    assigneeId: 'emp-001',
-    reviewerId: 'emp-002',
-    collaborators: ['emp-009'],
-    plannedHours: 12,
-    allocationHours: { 'emp-001': 6, 'emp-009': 6 },
-  });
+  // งานใหญ่ 2 งานเลยกำหนด = เลยกำหนดรวม 16 แต้ม (เกณฑ์งานเกิน ≥ 8 แต้ม)
+  await createWorkspaceTask(page, { projectId: 3, title: `Overdue A ${stamp}`, assigneeId: 'emp-001', reviewerId: 'emp-008', dueDate: '2026-01-10', size: 'ใหญ่' });
+  await createWorkspaceTask(page, { projectId: 3, title: `Overdue B ${stamp}`, assigneeId: 'emp-001', reviewerId: 'emp-008', dueDate: '2026-01-12', size: 'ใหญ่' });
 
-  await openWorkspaceProject(page, 3);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
-  await page.getByRole('tab', { name: /^งาน/ }).click();
-  const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
-  await taskRow.click();
-  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'แก้ไขงาน' }).click();
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.getByRole('link', { name: 'Workload', exact: true }).first().click();
+  // ข้อมูลตัวอย่างมีคนงานเกินอยู่แล้ว — หาแถวของ Kittipat แล้วเช็กว่าอยู่ในกลุ่ม "งานเกิน" (กลุ่มบนสุด)
+  const top = page.locator('.workload-member').filter({ hasText: 'Kittipat Samran' });
+  await expect(top.locator('.workload-level')).toHaveAttribute('data-level', 'over');
+  const levels = await page.locator('.workload-member .workload-level').evaluateAll((items) => items.map((item) => item.dataset.level));
+  const order = { over: 0, heavy: 1, normal: 2, free: 3 };
+  expect([...levels].sort((x, y) => order[x] - order[y])).toEqual(levels);
+  // แถวแสดงเหตุผลแรก — อาจเป็น "x เท่าของค่ากลาง" หรือ "เลยกำหนด n งาน (x แต้ม)" แล้วแต่ข้อไหนเข้าก่อน
+  await expect(top.locator('.workload-member-level small')).toHaveText(/เท่าของค่ากลาง|เลยกำหนด \d+ งาน \(\d+(\.\d)? แต้ม\)/);
+  await expect(top.locator('.workload-points b')).toHaveText(/\d+/);
 
-  const editDialog = page.getByRole('dialog').last();
-  await editDialog.locator('#workspace-task-hours').fill('14');
-  await editDialog.getByLabel('ชั่วโมงที่วางแผนสำหรับ Kittipat Samran').fill('7');
-  await editDialog.getByLabel('ชั่วโมงที่วางแผนสำหรับ Korn Tawonphon').fill('7');
-  await editDialog.getByRole('button', { name: 'บันทึกงาน' }).click();
-
-  await taskRow.click();
-  const detail = getWorkspaceTaskDetail(page);
-  await detail.getByRole('button', { name: 'ลบงาน' }).click();
-  await confirmWorkspaceTaskAction(page);
-  await expect(taskRow).toHaveCount(0);
-
-  await page.goto('/PROJECT-MANAGEMENT/workload');
-  const plannedWorkload = page.locator('.workload-kpi').filter({ hasText: 'Planned Workload' });
-  await expect(plannedWorkload.locator('.workload-kpi-value')).toHaveText('0 ชม.');
+  await top.locator('.workload-member-row').click();
+  const taskButton = top.getByRole('button', { name: new RegExp(`Overdue A ${stamp}`) });
+  await expect(taskButton).toContainText('เลยกำหนด');
+  await expect(taskButton).toContainText('ใหญ่ · 8 แต้ม');
+  await taskButton.click();
+  await expect(page).toHaveURL(/\/projects\/3$/);
+  await expect(getWorkspaceTaskDetail(page).getByRole('heading', { name: `Overdue A ${stamp}` })).toBeVisible();
 });
 
 test('Project Workspace: creating and deleting a Task updates the same Board and Activity records', async ({ page }) => {
   const title = `Workspace CRUD Task ${Date.now()}`;
   await page.goto(`${PROJECT_URL}/1`);
   await addWorkspaceMember(page, 1, 'emp-001');
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^งาน/ }).click();
   await page.getByRole('button', { name: 'เพิ่มงาน', exact: true }).click();
   const formDialog = page.getByRole('dialog').last();
@@ -1467,7 +1443,7 @@ test('Project Workspace: unfinished primary Tasks show the inline removal notice
   await addWorkspaceMember(page, 3, 'emp-009');
   await createWorkspaceTask(page, { projectId: 3, title, assigneeId: 'emp-001', reviewerId: 'emp-002' });
   await openWorkspaceProject(page, 3);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   await page.getByLabel('เลือก Team Leader').selectOption('emp-009');
   const leadDialog = page.getByRole('dialog').last();
@@ -1504,11 +1480,9 @@ test('Project Workspace: collaborator-only Tasks do not block member removal', a
     assigneeId: 'emp-009',
     reviewerId: 'emp-002',
     collaborators: ['emp-001'],
-    plannedHours: 8,
-    allocationHours: { 'emp-001': 4, 'emp-009': 4 },
   });
   await openWorkspaceProject(page, 3);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
 
   const memberRow = page.locator('.workspace-member-row').filter({ hasText: 'Kittipat Samran' });
@@ -1538,7 +1512,7 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   const projectLink = page.locator('.project-card-item').filter({ hasText: projectName }).locator('.project-card-navigation-link');
   const projectId = (await projectLink.getAttribute('href')).split('/').pop();
   await projectLink.click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(ownerId);
+  await switchUser(page, ownerId);
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const leaderId = ownerId === 'emp-008' ? 'emp-009' : 'emp-008';
   await page.getByLabel('เลือก Team Leader').selectOption(leaderId);
@@ -1562,21 +1536,21 @@ test('Project Workspace: Project Closure requires Owner review, Team Leader appr
   await taskDetail.getByRole('button', { name: 'เริ่มงาน' }).click();
   await taskDetail.getByRole('button', { name: 'ส่งตรวจ' }).click();
   await taskDetail.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(leaderId);
+  await switchUser(page, leaderId);
   await taskRow.click();
   taskDetail = getWorkspaceTaskDetail(page);
   await taskDetail.getByRole('button', { name: 'อนุมัติ' }).click();
   await confirmWorkspaceTaskAction(page);
   await taskDetail.getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
   await page.getByRole('tab', { name: /^ภาพรวม/ }).click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(ownerId);
+  await switchUser(page, ownerId);
 
   // ขั้นตอนใหม่: Owner ส่งครั้งเดียว → Team Lead อนุมัติ = ปิดทันที (เดิม 5 ขั้น ยืนยันทุกขั้น)
   await expect(closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' })).toBeEnabled();
   await closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption(leaderId);
+  await switchUser(page, leaderId);
   await closure.getByRole('button', { name: 'อนุมัติและปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
 
@@ -1603,9 +1577,9 @@ test('Project Workspace: task metadata edits appear in all views and support fil
 
   // UX-09: แก้รายละเอียดผ่านฟอร์ม "แก้ไขงาน" ที่เดียว (หน้าทำงานไม่มี panel แก้ซ้ำแล้ว)
   await taskRow.click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-003');
+  await switchUser(page, 'emp-003');
   await expect(getWorkspaceTaskDetail(page).getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
+  await switchUser(page, 'emp-002');
   await getWorkspaceTaskDetail(page).getByRole('button', { name: 'แก้ไขงาน' }).click();
   const editDialog = page.getByRole('dialog').last();
   await editDialog.locator('#workspace-task-priority').selectOption('high');
@@ -1627,14 +1601,13 @@ test('Project Workspace: task metadata edits appear in all views and support fil
   await expect(editDialog).toHaveCount(0);
 
   await taskRow.click();
-  await getWorkspaceTaskDetail(page).getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  const workPage = page.locator('.workspace-task-work-page');
+  const workPage = page.locator('.workspace-task-detail');
   await expect(workPage.locator('.workspace-task-details-panel')).toHaveCount(0);
-  const priorityBadge = workPage.locator('.workspace-task-work-tags .workspace-priority-badge.priority-high');
+  const priorityBadge = workPage.locator('.workspace-task-detail-meta .workspace-priority-badge.priority-high');
   await expect(priorityBadge).toHaveCSS('background-color', 'rgb(255, 235, 200)');
   await expect(priorityBadge).toHaveCSS('color', 'rgb(122, 58, 6)');
+  await workPage.locator('.workspace-task-history-panel > summary').click();
   await expect(workPage.locator('.workspace-task-history')).toContainText('แก้ไขรายละเอียดงาน');
-  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
   await getWorkspaceTaskDetail(page).getByRole('button', { name: 'ปิดรายละเอียดงาน' }).click();
 
   const metadata = taskRow.locator('.workspace-task-metadata');
@@ -1698,29 +1671,26 @@ test('Project Workspace: Work Page editing follows assignee permissions and task
   await addWorkspaceMember(page, 1, 'emp-002');
   const title = `Workspace detail permissions ${Date.now()}`;
   const taskRow = await createWorkspaceTask(page, { title, assigneeId: 'emp-002', reviewerId: 'emp-009' });
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-003');
+  await switchUser(page, 'emp-003');
   await taskRow.click();
   let detail = getWorkspaceTaskDetail(page);
-  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  let workPage = page.locator('.workspace-task-work-page');
+  let workPage = page.locator('.workspace-task-detail');
   await expect(workPage.locator('.workspace-task-details-panel')).toHaveCount(0);
   await expect(workPage.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
-  await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-002');
+  await switchUser(page, 'emp-002');
   detail = getWorkspaceTaskDetail(page);
   await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toBeVisible();
   await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
   await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
   await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await switchUser(page, 'emp-009');
   detail = getWorkspaceTaskDetail(page);
   await detail.getByRole('button', { name: 'อนุมัติ' }).click();
   await confirmWorkspaceTaskAction(page);
   await expect(detail.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
-  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  workPage = page.locator('.workspace-task-work-page');
+  workPage = page.locator('.workspace-task-detail');
   await expect(workPage.getByRole('button', { name: 'แก้ไขงาน' })).toHaveCount(0);
 });
 
@@ -1743,11 +1713,9 @@ test('Project Workspace: selected task details and Work Page fit desktop, tablet
     expect(layout.detail.right).toBeLessThanOrEqual(layout.viewport + 1);
     if (width <= 991) expect(layout.detail.top).toBeGreaterThanOrEqual(layout.main.bottom - 1);
 
-    await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-    const workPage = page.locator('.workspace-task-work-page');
-    await expect(workPage.getByRole('heading', { name: 'บันทึกเวลาทำงาน' })).toBeVisible();
+    const workPage = page.locator('.workspace-task-detail');
+    await expect(workPage.getByRole('heading', { name: 'ระยะเวลาแต่ละสถานะ' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width);
-    await workPage.getByRole('button', { name: 'กลับไปรายการงาน' }).click();
     await expect(getWorkspaceTaskDetail(page).getByRole('heading', { name: title })).toBeVisible();
   }
 });
@@ -1825,7 +1793,7 @@ test('Project Workspace: Checklist progress never overrides review or completed 
   await expect(detail.locator('.task-detail-status')).toHaveClass(/status-pending_review/);
   await expect(detail.locator('.workspace-checklist li').filter({ hasText: checklistTitle }).getByRole('checkbox')).toBeDisabled();
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await switchUser(page, 'emp-009');
   detail = getWorkspaceTaskDetail(page);
   await detail.getByRole('button', { name: 'อนุมัติ' }).click();
   await confirmWorkspaceTaskAction(page);
@@ -1845,8 +1813,9 @@ test('Project Workspace and Task Work Page history lists scroll within bounded s
     await detail.getByRole('button', { name: 'เพิ่ม Checklist' }).click();
   }
 
-  await detail.getByRole('button', { name: 'เปิดหน้าทำงาน' }).click();
-  const workHistory = page.locator('.workspace-task-work-page .workspace-task-history');
+  // ประวัติพับไว้ใน <details> — กางก่อน (แผงเดียว ไม่มีหน้าทำงานแยกแล้ว)
+  await detail.locator('.workspace-task-history-panel > summary').click();
+  const workHistory = detail.locator('.workspace-task-history');
   const workMetrics = await workHistory.evaluate((element) => ({
     clientHeight: element.clientHeight,
     scrollHeight: element.scrollHeight,
@@ -1869,7 +1838,6 @@ test('Project Workspace and Task Work Page history lists scroll within bounded s
   expect(narrowWorkMetrics.clientHeight).toBeLessThanOrEqual(360);
   expect(narrowWorkMetrics.overflowY).toBe('auto');
 
-  await page.locator('.workspace-task-work-toolbar').getByRole('button', { name: 'กลับไปรายการงาน' }).click();
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
   const projectHistory = page.locator('.workspace-reference-activity-list');
   const projectMetrics = await projectHistory.evaluate((element) => ({
@@ -1890,7 +1858,7 @@ test('Project Workspace and Task Work Page history lists scroll within bounded s
 test('Project Workspace: a project with deliverables can be closed once tasks and deliverables are done (UX-01)', async ({ page }) => {
   // โปรเจกต์ 1: Owner = emp-008, Team Lead = emp-009, มีสิ่งส่งมอบ 3 รายการ — เดิมปิดไม่ได้เพราะไม่มีปุ่มตรวจสิ่งส่งมอบ
   await openWorkspaceProject(page, 1);
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^บอร์ด/ }).click();
   const done = page.locator('.project-board-column[data-status="completed"]');
   for (const status of ['not_started', 'in_progress', 'pending_review']) {
@@ -1914,8 +1882,221 @@ test('Project Workspace: a project with deliverables can be closed once tasks an
   const closure = page.locator('.workspace-closure');
   await closure.getByRole('button', { name: 'ส่งขออนุมัติปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-009');
+  await switchUser(page, 'emp-009');
   await closure.getByRole('button', { name: 'อนุมัติและปิดโปรเจกต์' }).click();
   await page.getByRole('dialog').last().getByRole('button', { name: 'ยืนยัน' }).click();
   await expect(page.locator('.project-detail-status')).toHaveClass(/status-done/);
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ข้อมูลสำหรับผู้บริหาร — ได้จากการกดปุ่มปกติ ไม่ต้องกรอกเพิ่ม (utils/executiveMetrics.js)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Executive data: ระบบจับเวลาแต่ละสถานะเอง และสรุประยะเวลารวมเมื่องานผ่านการตรวจ', async ({ page }) => {
+  const title = `Status durations ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { projectId: 1, title });
+  await taskRow.click();
+  let detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
+  await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
+  await expect(detail.locator('.workspace-status-badge')).toHaveText('รอตรวจ');
+
+  let workPage = page.locator('.workspace-task-detail');
+  await expect(workPage.locator('.workspace-task-durations .is-current')).toContainText('รอตรวจ');
+  await expect(workPage.getByText('สรุปเวลารวมจะแสดงเมื่องานผ่านการตรวจ')).toBeVisible();
+
+  await switchUser(page, 'emp-009');
+  detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'อนุมัติ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  workPage = page.locator('.workspace-task-detail');
+  const durations = workPage.locator('.workspace-task-durations');
+  for (const label of ['ยังไม่เริ่ม', 'กำลังทำ', 'รอตรวจ']) await expect(durations).toContainText(label);
+  await expect(durations.locator('.is-current')).toHaveCount(0);
+  await expect(workPage.locator('#workspace-task-time-heading + span')).toContainText('รวม');
+
+  // หน้ารายงานใช้เวลาเฉลี่ยของงานที่เสร็จแล้ว
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.getByRole('link', { name: 'รายงาน', exact: true }).first().click();
+  const projectRow = page.locator('.executive-project-table tbody tr').filter({ hasText: 'แดชบอร์ดสถานะสายการผลิต' });
+  await expect(projectRow).toContainText('รอตรวจ');
+});
+
+test('Executive data: Owner ใส่งบและยอดจ่ายเดือนนี้ แล้วกล่องงบกับกราฟหน้าหลักมีข้อมูล', async ({ page }) => {
+  await openWorkspaceProject(page, 1);
+  await switchUser(page, 'emp-008');
+  await page.getByRole('button', { name: /แก้ไขโปรเจกต์/ }).first().click();
+  const dialog = page.getByRole('dialog').last();
+  await dialog.getByLabel(/งบประมาณ \(บาท\)/).fill('100000');
+  await dialog.getByRole('button', { name: 'บันทึก' }).click();
+  await expect(page).toHaveURL(/\/projects\/1$/);
+
+  const budget = page.locator('section[aria-labelledby="project-budget-title"]');
+  await expect(budget).toContainText('100,000 ฿');
+  await budget.getByLabel('ยอดจ่ายเดือนนี้ (บาท)').fill('25000');
+  await budget.getByRole('button', { name: 'บันทึกยอด' }).click();
+  await expect(budget.getByRole('status')).toContainText('บันทึกยอดเดือน');
+  await expect(budget).toContainText('25,000 ฿');
+  await expect(budget).toContainText('75,000 ฿');
+  await expect(budget.getByLabel('ใช้งบไป 25%')).toBeVisible();
+
+  // สมาชิกทั่วไปเห็นตัวเลขแต่ไม่มีช่องกรอก
+  await switchUser(page, 'emp-002');
+  await expect(budget.getByLabel('ยอดจ่ายเดือนนี้ (บาท)')).toHaveCount(0);
+
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.getByRole('link', { name: 'รายงาน', exact: true }).first().click();
+  const projectRow = page.locator('.executive-project-table tbody tr').filter({ hasText: 'แดชบอร์ดสถานะสายการผลิต' });
+  await expect(projectRow).toContainText('25,000 / 100,000');
+});
+
+test('Executive data: แจ้งติดปัญหาแล้วงานขึ้นใน "รอการตัดสินใจ" ของหน้ารายงาน และแก้แล้วหายไป', async ({ page }) => {
+  const title = `Blocked task ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { projectId: 1, title });
+  await taskRow.click();
+  const detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'แจ้งติดปัญหา' }).click();
+  await getWorkspaceTaskAction(page).getByLabel('ติดอะไร (ไม่บังคับ)').fill('รออะไหล่จากผู้ขาย');
+  await confirmWorkspaceTaskAction(page);
+  await expect(taskRow.locator('.task-blocked-badge')).toBeVisible();
+  await expect(page.locator('.project-detail-header .health-badge')).toHaveAttribute('data-health', /at_risk|late/);
+
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.getByRole('link', { name: 'รายงาน', exact: true }).first().click();
+  const decisions = page.getByLabel('รายการรอการตัดสินใจ');
+  const item = decisions.getByRole('button', { name: new RegExp(title) });
+  await expect(item).toContainText('รออะไหล่จากผู้ขาย');
+  await item.click();
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  const reopened = getWorkspaceTaskDetail(page);
+  await expect(reopened.getByRole('heading', { name: title })).toBeVisible();
+  await reopened.getByRole('button', { name: 'แก้ปัญหาแล้ว' }).click();
+  await expect(page.locator('.project-tasks-row').filter({ hasText: title }).locator('.task-blocked-badge')).toHaveCount(0);
+});
+
+test('Executive data: ป้ายสุขภาพโปรเจกต์แสดงบนการ์ด ตาราง และหน้ารายงานเรียงจากที่ต้องดูก่อน', async ({ page }) => {
+  const cards = page.locator('.project-card-item');
+  for (let index = 0; index < 3; index += 1) await expect(cards.nth(index).locator('.health-badge')).toBeVisible();
+  await page.getByRole('button', { name: /มุมมองตาราง/ }).click();
+  await expect(page.locator('.tracking-table th, table th').filter({ hasText: 'สุขภาพ' }).first()).toBeVisible();
+  await expect(page.locator('tbody tr .health-badge').first()).toBeVisible();
+
+  await page.getByRole('link', { name: 'รายงาน', exact: true }).first().click();
+  await expect(page.getByRole('heading', { name: 'ภาพรวมผู้บริหาร' })).toBeVisible();
+  const levels = await page.locator('.executive-project-table tbody .health-badge').evaluateAll((badges) => badges.map((badge) => badge.dataset.health));
+  const order = { late: 0, at_risk: 1, on_track: 2, done: 3 };
+  expect(levels.length).toBeGreaterThan(0);
+  expect([...levels].sort((a, b) => order[a] - order[b])).toEqual(levels);
+});
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ความลื่น: navbar ไม่หาย · เปลี่ยนผู้ใช้อยู่หน้าเดิม · แผงงานเดียว · แจ้งเตือนเปิดงาน
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Smooth: navbar และ header อยู่ในหน้าโปรเจกต์ด้วย และยังเห็นหลังเลื่อนลงบนมือถือ', async ({ page }) => {
+  await openWorkspaceProject(page, 1);
+  await expect(page.locator('.app-sidebar')).toBeVisible();
+  await expect(page.locator('.app-header')).toBeVisible();
+  await expect(page.getByLabel('เลือกผู้ใช้งานจำลอง')).toHaveCount(0);
+
+  await page.setViewportSize({ width: 390, height: 800 });
+  await page.mouse.wheel(0, 2000);
+  const toggle = page.getByRole('button', { name: 'เปิดเมนู' });
+  await expect(toggle).toBeInViewport();
+  await toggle.click();
+  await page.getByRole('link', { name: 'ตารางงาน', exact: true }).click();
+  await expect(page).toHaveURL(/\/tasks$/);
+  await expect(page.getByRole('button', { name: 'เปิดเมนู' })).toHaveAttribute('aria-expanded', 'false');
+  // ออกจากระบบบนมือถือได้ (เดิมเมนูผู้ใช้ถูกซ่อน)
+  await page.getByRole('button', { name: 'เปิดเมนู' }).click();
+  await page.locator('.sidebar-profile-btn').click();
+  await expect(page.getByRole('button', { name: 'ออกจากระบบ' })).toBeVisible();
+});
+
+test('Smooth: ออกจากระบบในหน้าโปรเจกต์แล้ว login คนใหม่ ยังอยู่หน้าเดิมพร้อมสิทธิ์ของคนใหม่', async ({ page }) => {
+  await openWorkspaceProject(page, 1);
+  await switchUser(page, 'emp-008');
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  await expect(page.locator('.project-workspace-actor-role')).toContainText('Project Owner');
+  await expect(page.getByRole('button', { name: /แก้ไขโปรเจกต์/ }).first()).toBeVisible();
+  await switchUser(page, 'emp-003');
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  await expect(page.locator('.project-workspace-actor-role')).not.toContainText('Project Owner');
+});
+
+test('Smooth: คลิกงานแล้วแผงเดียวมีครบ ไม่มีปุ่ม "เปิดหน้าทำงาน" และแก้ไขงานแล้วแผงยังเปิดอยู่', async ({ page }) => {
+  const title = `Single panel ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { projectId: 1, title });
+  await taskRow.click();
+  const detail = getWorkspaceTaskDetail(page);
+  await expect(detail.getByRole('button', { name: 'เปิดหน้าทำงาน' })).toHaveCount(0);
+  for (const heading of ['เช็กลิสต์', 'ความคิดเห็น', 'ระยะเวลาแต่ละสถานะ', 'ประวัติของงานนี้']) {
+    await expect(detail.getByRole('heading', { name: new RegExp(heading) })).toBeVisible();
+  }
+  await detail.getByRole('button', { name: 'แก้ไขงาน' }).click();
+  const editDialog = page.getByRole('dialog').last();
+  await editDialog.locator('#workspace-task-title').fill(`${title} edited`);
+  await editDialog.getByRole('button', { name: 'บันทึกงาน' }).click();
+  await expect(editDialog).toHaveCount(0);
+  await expect(getWorkspaceTaskDetail(page).getByRole('heading', { name: `${title} edited` })).toBeVisible();
+});
+
+test('Smooth: ส่งตรวจแล้วผู้ตรวจได้แจ้งเตือน กดแล้วเปิดงานนั้น และอนุมัติแล้วผู้รับผิดชอบได้แจ้งเตือน', async ({ page }) => {
+  const title = `Notify review ${Date.now()}`;
+  const taskRow = await createWorkspaceTask(page, { projectId: 1, title });
+  await taskRow.click();
+  const detail = getWorkspaceTaskDetail(page);
+  await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
+  await detail.getByRole('button', { name: 'ส่งตรวจ' }).click();
+
+  await switchUser(page, 'emp-009');
+  await page.locator('#dropdown-notifications').click();
+  const item = page.locator('.notification-item').filter({ hasText: 'มีงานรอคุณตรวจ' }).filter({ hasText: title });
+  await expect(item).toBeVisible();
+  await page.locator('.project-detail-breadcrumb a').click();
+  await page.locator('#dropdown-notifications').click();
+  await page.locator('.notification-item').filter({ hasText: title }).first().click();
+  await expect(page).toHaveURL(/\/projects\/1$/);
+  const reopened = getWorkspaceTaskDetail(page);
+  await expect(reopened.getByRole('heading', { name: title })).toBeVisible();
+  await reopened.getByRole('button', { name: 'อนุมัติ' }).click();
+  await confirmWorkspaceTaskAction(page);
+
+  await switchUser(page, 'emp-008');
+  await page.locator('#dropdown-notifications').click();
+  await expect(page.locator('.notification-item').filter({ hasText: 'งานของคุณผ่านการตรวจแล้ว' }).filter({ hasText: title })).toBeVisible();
+});
+
+test('Self review: เลือก "ตรวจเอง" แล้วกด "ทำเสร็จ" จบงานได้เลย ไม่ผ่านรอตรวจ · ฟอร์มไม่มีช่องชั่วโมง', async ({ page }) => {
+  const title = `Self review ${Date.now()}`;
+  await openWorkspaceProject(page, 1);
+  await switchUser(page, 'emp-008');
+  await page.getByRole('tab', { name: /^งาน/ }).click();
+  await page.getByRole('button', { name: 'เพิ่มงาน', exact: true }).click();
+  const dialog = page.getByRole('dialog').last();
+  await openMoreTaskOptions(dialog);
+  await expect(dialog.locator('#workspace-task-hours')).toHaveCount(0);
+  // ขนาดงาน: ค่าเริ่มต้น "กลาง" ไม่ต้องกด
+  await expect(dialog.getByRole('group', { name: 'ขนาดงาน' }).getByRole('button', { name: /^กลาง/ })).toHaveAttribute('aria-pressed', 'true');
+  await dialog.locator('#workspace-task-title').fill(title);
+  await dialog.locator('#workspace-task-assignee').selectOption('emp-008');
+  await dialog.locator('#workspace-task-reviewer').selectOption({ label: 'ตรวจเอง (ผู้รับผิดชอบ)' });
+  await expect(dialog.getByText('งานนี้ตรวจเอง')).toBeVisible();
+  await dialog.getByRole('button', { name: 'สร้างงาน' }).click();
+
+  const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
+  await expect(taskRow.locator('.task-size-badge')).toHaveText('กลาง');
+  await taskRow.click();
+  const detail = getWorkspaceTaskDetail(page);
+  await expect(detail.locator('.workspace-task-detail-meta')).toContainText('ตรวจเอง');
+  await detail.getByRole('button', { name: 'เริ่มงาน' }).click();
+  await expect(detail.getByRole('button', { name: 'ส่งตรวจ' })).toHaveCount(0);
+  await detail.getByRole('button', { name: 'ทำเสร็จ' }).click();
+  await confirmWorkspaceTaskAction(page);
+  await expect(detail.locator('.workspace-status-badge')).toHaveText('เสร็จแล้ว');
+  // ไม่เคยผ่าน "รอตรวจ"
+  await expect(detail.locator('.workspace-task-durations')).toContainText('รอตรวจ');
+  await expect(detail.locator('.workspace-task-durations div').filter({ hasText: 'รอตรวจ' })).toContainText('ไม่ถึง 1 ชม.');
+});
+

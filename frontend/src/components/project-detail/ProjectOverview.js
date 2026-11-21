@@ -1,27 +1,25 @@
-// frontend/src/components/project-detail/ProjectOverview.js — context-backed project overview
-import { Badge, Button, ProgressBar } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+// frontend/src/components/project-detail/ProjectOverview.js — แท็บภาพรวมโปรเจกต์ (KPI, ต้องจับตา, งาน, ทีม, งบประมาณ, การปิดโปรเจกต์)
+import { useState } from 'react';
+import { Badge, Button, Form, ProgressBar } from 'react-bootstrap';
+import { projectSpend } from '../../utils/executiveMetrics';
+import { TASK_STATUS_ORDER, taskStatusLabel } from '../../utils/labels';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { daysBetween, initials, shortThaiDate, today } from '../../utils/projectTrackingUtils';
 import { Plus } from '../common/Icons';
 import { WorkspaceTaskMetadata, WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 import ProjectClosure from './ProjectClosure';
 
-const TASK_STATUSES = [
-  { key: 'not_started', label: 'ยังไม่เริ่ม', color: 'var(--workspace-status-segment-neutral)' },
-  { key: 'in_progress', label: 'กำลังทำ', color: 'var(--workspace-status-segment-progress)' },
-  { key: 'pending_review', label: 'รอตรวจ', color: 'var(--workspace-status-segment-review)' },
-  { key: 'completed', label: 'เสร็จแล้ว', color: 'var(--workspace-status-segment-done)' },
-];
-
-const TASK_STATUS_LABELS = {
-  not_started: 'ยังไม่เริ่ม',
-  in_progress: 'กำลังทำ',
-  pending_review: 'รอตรวจ',
-  completed: 'เสร็จแล้ว',
+// ชื่อสถานะมาจาก utils/labels.js ที่เดียว — ที่นี่เก็บแค่สีของแถบ
+const STATUS_COLORS = {
+  not_started: 'var(--workspace-status-segment-neutral)',
+  in_progress: 'var(--workspace-status-segment-progress)',
+  pending_review: 'var(--workspace-status-segment-review)',
+  completed: 'var(--workspace-status-segment-done)',
 };
+const TASK_STATUSES = TASK_STATUS_ORDER.map((key) => ({ key, label: taskStatusLabel(key), color: STATUS_COLORS[key] }));
 
-const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
+const employeeById = (id) => currentEmployees().find((employee) => String(employee.id) === String(id));
 const formatDate = (value) => {
   if (!value) return '';
   const date = new Date(`${value}T00:00:00`);
@@ -37,7 +35,10 @@ function buildAttention(tasks, currentDay) {
 
     let kind = '';
     let detail = '';
-    if (daysUntilDue !== null && daysUntilDue < 0) {
+    if (task.blocked && task.status !== 'pending_review') {
+      kind = 'ติดปัญหา';
+      detail = task.blocked.reason || `แจ้งโดย ${employeeById(task.blocked.by)?.name || 'สมาชิก'}`;
+    } else if (daysUntilDue !== null && daysUntilDue < 0) {
       kind = 'เลยกำหนด';
       detail = `เลยกำหนด ${Math.abs(daysUntilDue)} วัน · ครบ ${shortThaiDate(task.dueDate)}`;
     } else if (task.status === 'pending_review') {
@@ -184,7 +185,7 @@ function AttentionPanel({ items, onOpenTask }) {
         <div className="project-detail-attention-list">
           {items.slice(0, 5).map(({ task, kind, detail }) => (
             <button type="button" className="project-detail-attention-row" key={task.id} onClick={() => onOpenTask(task)}>
-              <Badge bg="" className={`project-detail-attention-badge attention-${kind === 'เลยกำหนด' ? 'overdue' : kind === 'รอตรวจ' ? 'review' : 'upcoming'}`}>
+              <Badge bg="" className={`project-detail-attention-badge attention-${['เลยกำหนด', 'ติดปัญหา'].includes(kind) ? 'overdue' : kind === 'รอตรวจ' ? 'review' : 'upcoming'}`}>
                 {kind}
               </Badge>
               <span className="project-detail-attention-copy">
@@ -229,7 +230,7 @@ function TaskPreview({ tasks, labels, onOpenTask, onNavigateSection, onCreateTas
                   <WorkspaceTaskMetadata task={task} labels={labels} />
                 </span>
                 <span className={`workspace-status-badge project-detail-task-status status-${task.status}`}>
-                  {TASK_STATUS_LABELS[task.status] || 'ไม่ระบุสถานะ'}
+                  {taskStatusLabel(task.status)}
                 </span>
                 <TaskAssignee task={task} compact />
               </button>
@@ -280,11 +281,60 @@ function ProjectTeam({ project, tasks, onNavigateSection }) {
   );
 }
 
+// งบประมาณ: งบตั้งตอนสร้างโปรเจกต์ (plannedBudget) + ยอดจ่ายกรอกเดือนละ 1 ช่อง (setProjectMonthlyCost)
+// Owner / Team Lead เห็นช่องกรอก · คนอื่นเห็นตัวเลขอย่างเดียว
+const monthKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+const recentMonths = (count = 6) => Array.from({ length: count }, (_, index) => {
+  const date = new Date();
+  date.setDate(1);
+  date.setMonth(date.getMonth() - index);
+  return monthKey(date);
+});
+const thaiMonth = (key) => new Intl.DateTimeFormat('th-TH-u-ca-gregory', { month: 'short', year: 'numeric' }).format(new Date(`${key}-01T00:00:00`));
+const baht = (value) => `${Number(value || 0).toLocaleString('th-TH')} ฿`;
+
+function BudgetPanel({ project }) {
+  const { projectCosts, setProjectMonthlyCost, access } = useMockData();
+  const months = recentMonths();
+  const [month, setMonth] = useState(months[0]);
+  const existing = projectCosts.find((item) => String(item.projectId) === String(project.id) && item.month === month);
+  const [amount, setAmount] = useState('');
+  const [message, setMessage] = useState('');
+  const spend = projectSpend(project, projectCosts);
+  const canEdit = access.canManage(project);
+  const save = (event) => {
+    event.preventDefault();
+    const saved = setProjectMonthlyCost(project.id, month, amount === '' ? existing?.amount ?? 0 : amount);
+    setMessage(saved ? `บันทึกยอดเดือน ${thaiMonth(month)} แล้ว` : 'บันทึกไม่สำเร็จ — ตรวจตัวเลขและสิทธิ์ (Owner / Team Lead)');
+    if (saved) setAmount('');
+  };
+
+  if (!spend.budget && !spend.spent && !canEdit) return null;
+  return (
+    <section className="project-detail-panel" aria-labelledby="project-budget-title">
+      <h2 className="project-detail-panel-title" id="project-budget-title">งบประมาณ</h2>
+      <div className="project-budget-figures">
+        <span><small>งบ</small><strong>{spend.budget ? baht(spend.budget) : '—'}</strong></span>
+        <span><small>ใช้ไป</small><strong>{baht(spend.spent)}</strong></span>
+        <span><small>คงเหลือ</small><strong className={spend.remaining < 0 ? 'text-danger' : ''}>{spend.budget ? baht(spend.remaining) : '—'}</strong></span>
+      </div>
+      {spend.percent !== null && <ProgressBar now={Math.min(100, spend.percent)} variant={spend.percent > 90 ? 'danger' : 'primary'} label={`${spend.percent}%`} aria-label={`ใช้งบไป ${spend.percent}%`} />}
+      {!spend.budget && <p className="workspace-muted-copy mb-0">ยังไม่ได้ตั้งงบ — ใส่ได้ที่ “แก้ไขโปรเจกต์”</p>}
+      {canEdit && <Form onSubmit={save} className="project-budget-form">
+        <Form.Group><Form.Label htmlFor="project-cost-month" className="small mb-1">เดือน</Form.Label><Form.Select id="project-cost-month" size="sm" value={month} onChange={(event) => { setMonth(event.target.value); setAmount(''); setMessage(''); }}>{months.map((key) => <option key={key} value={key}>{thaiMonth(key)}</option>)}</Form.Select></Form.Group>
+        <Form.Group><Form.Label htmlFor="project-cost-amount" className="small mb-1">ยอดจ่ายเดือนนี้ (บาท)</Form.Label><Form.Control id="project-cost-amount" size="sm" type="number" min="0" step="100" placeholder={existing ? String(existing.amount) : '0'} value={amount} onChange={(event) => setAmount(event.target.value)} /></Form.Group>
+        <Button type="submit" size="sm" disabled={amount === ''}>บันทึกยอด</Button>
+      </Form>}
+      {message && <p className="small mt-2 mb-0" role="status">{message}</p>}
+    </section>
+  );
+}
+
 export default function ProjectOverview({ project, tasks, stats, onNavigateSection, onOpenTask, onCreateTask }) {
   const { deliverables, labels } = useMockData();
   const currentDay = today();
   const attention = buildAttention(tasks, currentDay);
-  const attentionOrder = { เลยกำหนด: 0, รอตรวจ: 1, ใกล้ครบ: 2 };
+  const attentionOrder = { ติดปัญหา: 0, เลยกำหนด: 1, รอตรวจ: 2, ใกล้ครบ: 3 };
   attention.sort((left, right) => attentionOrder[left.kind] - attentionOrder[right.kind]);
   const projectDeliverables = deliverables.filter((item) => String(item.projectId) === String(project.id));
 
@@ -314,6 +364,7 @@ export default function ProjectOverview({ project, tasks, stats, onNavigateSecti
         </div>
         <aside className="project-detail-overview-side">
           <ProjectTeam project={project} tasks={tasks} onNavigateSection={onNavigateSection} />
+          <BudgetPanel project={project} />
           <ProjectClosure projectId={project.id} tasks={tasks} deliverables={projectDeliverables} />
         </aside>
       </div>

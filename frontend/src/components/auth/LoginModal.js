@@ -1,22 +1,24 @@
 // frontend/src/components/auth/LoginModal.js — หน้าต่างเข้าสู่ระบบด้วยรหัสพนักงาน + animation บัตรพนักงาน
 //
-// ช่วงยังไม่ต่อ backend: ค้นรหัสจาก MOCK_EMPLOYEES (emp-001 …) รหัสผ่านอะไรก็ได้ → App.js ตั้งผู้ใช้ปัจจุบัน + เก็บ session
+// ช่วงยังไม่ต่อ backend: ค้นรหัสจาก currentEmployees() (emp-001 …) รหัสผ่านอะไรก็ได้ → App.js ตั้งผู้ใช้ปัจจุบัน + เก็บ session
 // ⚠️ ต่อ backend แล้วให้เรียก POST /auth/login ใน submitForm แทนการค้น mock (docs/api-contract.md)
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EmployeeIdCard from './EmployeeIdCard';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 
 // สีพื้นรูปบนบัตร — วนตามลำดับพนักงาน (mock ไม่มีรูปจริง)
 const CARD_TONES = ['#60a5fa', '#7dd3fc', '#93c5fd', '#a5b4fc', '#67e8f9', '#818cf8', '#38bdf8', '#c4b5fd'];
-const LOGIN_EMPLOYEES = MOCK_EMPLOYEES.map((person, index) => ({
+// ค้นจากรายชื่อล่าสุดทุกครั้ง (ผู้ใช้ที่เพิ่ม / แก้ในหน้าจัดการผู้ใช้ login ได้ทันที)
+const loginEmployees = () => currentEmployees().map((person, index) => ({
   id: person.id,
   name: person.name,
   position: person.position,
   department: person.department,
   tone: CARD_TONES[index % CARD_TONES.length],
+  isActive: person.isActive !== false,
 }));
-const ID_PATTERN = /^emp-\d{3}$/;
-const findEmployee = (value) => LOGIN_EMPLOYEES.find((item) => item.id === String(value).trim().toLowerCase()) || null;
+const ID_PATTERN = /^emp-\d{3,}$/;
+const findEmployee = (value) => loginEmployees().find((item) => item.id === String(value).trim().toLowerCase()) || null;
 
 const wait = (duration, signal) => {
   if (signal?.aborted) return Promise.resolve(false);
@@ -233,6 +235,8 @@ export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }
       nextErrors.employeeId = isCompleteId
         ? 'ไม่พบรหัสพนักงานนี้'
         : 'กรอกรหัสพนักงานให้ครบ เช่น emp-001';
+    } else if (!employee.isActive) {
+      nextErrors.employeeId = 'บัญชีนี้ถูกปิดใช้งาน ติดต่อผู้ดูแลระบบ';
     }
     if (!password) nextErrors.password = 'กรอกรหัสผ่าน';
     setErrors(nextErrors);

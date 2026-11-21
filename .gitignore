@@ -11,4 +11,4 @@ frontend/div,${JSON.stringify(title)})`)),"APP",JSON.stringify(await a.evaluate(
 .claude/
 
 CHANGELOG.md
-CHANGELOG.md
+CLAUDE.md

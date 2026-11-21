@@ -18,7 +18,8 @@ import { api, useLoad } from '../utils/api';
 import { PROJECT_CATEGORIES, PROJECT_STATUSES, statusLabel } from '../utils/config';
 import { PRIORITY_LABELS } from '../utils/labels';
 import { useMockData } from '../context/MockDataContext';
-import { MOCK_EMPLOYEES } from '../data/mockData';
+import { currentEmployees } from '../data/employeeStore';
+import { MOCK_DEPARTMENTS, MOCK_DIVISIONS } from '../data/mockData';
 import ProjectsTrackingTable from './ProjectsTrackingTable';
 import ProjectCard from './ProjectCard';
 import {
@@ -390,7 +391,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     if (initial.managerId) return String(initial.managerId);
 
     if (initial.owner) {
-      const matches = MOCK_EMPLOYEES.filter((e) => e.name === initial.owner);
+      const matches = currentEmployees().filter((e) => e.name === initial.owner);
       if (matches.length === 1) return String(matches[0].id);
     }
 
@@ -401,7 +402,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     name: initial.name ?? '',
     category: initial.category ?? '',
     managerId: initialManagerId,
-    owner: initial.owner ?? (MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(initialManagerId))?.name || ''),
+    owner: initial.owner ?? (currentEmployees().find((employee) => String(employee.id) === String(initialManagerId))?.name || ''),
     status: initial.id ? (initial.status ?? 'planning') : 'planning',
     priority: initial.priority ?? 'normal',
     teamLeadId: initial.teamLeadId ? String(initial.teamLeadId) : '',
@@ -413,7 +414,17 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     startDate: initial.startDate || (initial.id ? '' : today()),
     dueDate: initial.dueDate ?? '',
     description: initial.description ?? '',
+    plannedBudget: initial.plannedBudget ?? '',
+    // การเห็นโปรเจกต์ (utils/access.js): public = ทุกคนเห็น · private = เฉพาะคนในโปรเจกต์ + Management ในขอบเขต + ADMIN
+    // โปรเจกต์ใหม่เริ่มที่ private (ตรงกับ schema) — ผู้สร้างถูกใส่เป็นสมาชิกตอนบันทึก จึงไม่หลุดจากโปรเจกต์ที่ตัวเองสร้าง
+    visibility: initial.visibility || 'private',
+    // Section ที่เกี่ยวข้อง (ไม่บังคับ เลือกได้หลายอัน) — Management ของ Section นั้นเห็นโปรเจกต์ private นี้
+    sectionIds: Array.isArray(initial.sectionIds) ? initial.sectionIds.map(String) : [],
   });
+  const toggleSection = (sectionId) => setForm((previous) => ({
+    ...previous,
+    sectionIds: previous.sectionIds.includes(sectionId) ? previous.sectionIds.filter((id) => id !== sectionId) : [...previous.sectionIds, sectionId],
+  }));
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -430,7 +441,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     return list;
   })();
 
-  const isMatchedEmployee = MOCK_EMPLOYEES.some(
+  const isMatchedEmployee = currentEmployees().some(
     (e) => String(e.id) === form.managerId
   );
 
@@ -478,7 +489,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
 
     if (selectedId === legacyOptionValue) return;
 
-    const employee = MOCK_EMPLOYEES.find(
+    const employee = currentEmployees().find(
       (emp) => String(emp.id) === selectedId
     );
 
@@ -503,8 +514,10 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
   };
 
   // ค้นหาพนักงานด้วยชื่อหรือแผนก
-  const filteredEmployees = MOCK_EMPLOYEES.filter((emp) => {
+  const filteredEmployees = currentEmployees().filter((emp) => {
     const term = teamFilter.trim().toLowerCase();
+    // บัญชีที่ปิดแล้วเลือกเพิ่มไม่ได้ (คนที่อยู่ในทีมอยู่แล้วยังแสดงให้เอาออกได้)
+    if (emp.isActive === false && !form.teamMemberIds.includes(String(emp.id))) return false;
 
     if (!term) return true;
 
@@ -561,7 +574,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
 
   // Current Owner Object
   const currentOwnerObj = useMemo(() => {
-    return MOCK_EMPLOYEES.find((e) => String(e.id) === form.managerId);
+    return currentEmployees().find((e) => String(e.id) === form.managerId);
   }, [form.managerId]);
 
   // Helper avatar generator
@@ -632,13 +645,18 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
       errors.description = 'รายละเอียดต้องไม่เกิน 5,000 ตัวอักษร';
     }
 
+    const budgetText = String(form.plannedBudget ?? '').trim();
+    if (budgetText && !(Number(budgetText) >= 0)) {
+      errors.plannedBudget = 'งบประมาณต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป';
+    }
+
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors);
       return;
     }
 
     const validEmployeeIds = new Set(
-      MOCK_EMPLOYEES.map((emp) => String(emp.id))
+      currentEmployees().map((emp) => String(emp.id))
     );
 
     let teamMemberIds = [...new Set(
@@ -650,6 +668,10 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
     if (form.managerId && validEmployeeIds.has(form.managerId)) {
       teamMemberIds = [...new Set([...teamMemberIds, form.managerId])];
     }
+    // สร้างโปรเจกต์ใหม่: ผู้สร้างเป็นสมาชิกเสมอ (โปรเจกต์ private ที่ตั้ง Owner เป็นคนอื่น ผู้สร้างยังเห็น — utils/access.js)
+    if (!initial.id && actorId && validEmployeeIds.has(String(actorId))) {
+      teamMemberIds = [...new Set([...teamMemberIds, String(actorId)])];
+    }
 
     const payload = {
       ...form,
@@ -660,6 +682,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
       teamMemberIds,
       teamLeadId: form.teamLeadId && teamMemberIds.includes(form.teamLeadId) ? form.teamLeadId : null,
       status: initial.id ? form.status : 'planning',
+      plannedBudget: budgetText ? Number(budgetText) : null,
     };
 
     setSaving(true);
@@ -921,7 +944,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
                           {isLegacyOwner && (
                             <option value={legacyOptionValue}>{legacyOptionLabel}</option>
                           )}
-                          {MOCK_EMPLOYEES.map((emp) => (
+                          {currentEmployees().filter((emp) => emp.isActive !== false || String(emp.id) === String(form.managerId)).map((emp) => (
                             <option key={emp.id} value={String(emp.id)}>
                               {emp.name} - {emp.position} ({emp.department})
                             </option>
@@ -971,7 +994,7 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
                       onChange={(e) => setForm((prev) => ({ ...prev, teamLeadId: e.target.value }))}
                     >
                       <option value="">ยังไม่กำหนด</option>
-                      {MOCK_EMPLOYEES.filter((emp) => form.teamMemberIds.includes(String(emp.id))).map((emp) => (
+                      {currentEmployees().filter((emp) => form.teamMemberIds.includes(String(emp.id))).map((emp) => (
                         <option key={emp.id} value={emp.id}>{emp.name}</option>
                       ))}
                     </select>
@@ -1255,6 +1278,49 @@ function ProjectForm({ initial, actorId, onClose, onSaved, mockMode = false }) {
                         </span>
                       </div>
                     )}
+                  </div>
+
+                  {/* งบประมาณ — ไม่บังคับ · ใช้คำนวณ "งบใช้ไป" ในภาพรวมโปรเจกต์ / กราฟงบหน้าหลัก / หน้ารายงาน */}
+                  <div>
+                    <label htmlFor="project-planned-budget" className="form-label small fw-bold text-dark mb-1">
+                      งบประมาณ (บาท) <span className="text-muted fw-normal">· ไม่บังคับ</span>
+                    </label>
+                    <input
+                      id="project-planned-budget"
+                      type="number"
+                      min="0"
+                      step="1000"
+                      inputMode="numeric"
+                      className={`stepper-fld ${fieldErrors.plannedBudget ? 'is-invalid' : ''}`}
+                      placeholder="เช่น 50000"
+                      value={form.plannedBudget}
+                      onChange={set('plannedBudget')}
+                    />
+                    {fieldErrors.plannedBudget && <div className="text-danger small mt-1">{fieldErrors.plannedBudget}</div>}
+                  </div>
+
+                  {/* ใครเห็นโปรเจกต์นี้ — กฎอยู่ที่ utils/access.js */}
+                  <div className="project-form-access">
+                    <span id="project-visibility-label" className="form-label small fw-bold text-dark mb-1 d-block">การมองเห็น</span>
+                    <div role="group" aria-labelledby="project-visibility-label" className="project-form-visibility">
+                      {[['public', 'ทุกคนเห็น'], ['private', 'เฉพาะทีมโปรเจกต์']].map(([value, label]) => (
+                        <button key={value} type="button" aria-pressed={form.visibility === value} className={form.visibility === value ? 'is-selected' : ''} onClick={() => setForm((previous) => ({ ...previous, visibility: value }))}>{label}</button>
+                      ))}
+                    </div>
+                    <div className="text-muted small mt-1">{form.visibility === 'private' ? 'เห็นเฉพาะสมาชิก Owner Team Lead · Management ของ Section ที่เลือกหรือของสมาชิก · ผู้ดูแลระบบ' : 'ทุกคนที่เข้าระบบ (และผู้เยี่ยมชม) เห็นโปรเจกต์นี้'}</div>
+                    <span id="project-sections-label" className="form-label small fw-bold text-dark mt-2 mb-1 d-block">Section ที่เกี่ยวข้อง <span className="text-muted fw-normal">· ไม่บังคับ · เลือกได้หลายอัน</span></span>
+                    <div role="group" aria-labelledby="project-sections-label" className="project-form-sections">
+                      {MOCK_DIVISIONS.map((division) => (
+                        <div key={division.id} className="project-form-division">
+                          <span className="project-form-division-name">{division.name}</span>
+                          {MOCK_DEPARTMENTS.filter((section) => section.divisionId === division.id).map((section) => (
+                            <label key={section.id} className="project-form-section">
+                              <input type="checkbox" checked={form.sectionIds.includes(section.id)} onChange={() => toggleSection(section.id)} /> {section.name}
+                            </label>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   {/* Project Description Textarea */}

@@ -3,6 +3,8 @@
 import { Badge, Button, ProgressBar, Table } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
+import { projectHealth } from '../utils/executiveMetrics';
+import HealthBadge from './common/HealthBadge';
 import { statusLabel } from '../utils/config';
 import {
   isDelayed,
@@ -14,7 +16,7 @@ import {
 } from '../utils/projectTrackingUtils';
 
 export default function ProjectsTrackingTable({ projects: propProjects, onEdit, onDelete }) {
-  const { projects: contextProjects, tasks } = useMockData();
+  const { projects: contextProjects, tasks, projectCosts } = useMockData();
   const displayProjects = propProjects !== undefined ? propProjects : contextProjects;
 
   return (
@@ -31,6 +33,7 @@ export default function ProjectsTrackingTable({ projects: propProjects, onEdit, 
             <th>หมวดหมู่</th>
             <th>ความสำคัญ</th>
             <th>สถานะ</th>
+            <th>สุขภาพ</th>
             <th style={{ minWidth: 170 }}>ความคืบหน้า</th>
             <th>เริ่มต้น</th>
             <th>กำหนดส่ง</th>
@@ -44,6 +47,7 @@ export default function ProjectsTrackingTable({ projects: propProjects, onEdit, 
             const stats = statsFrom(related, p.status);
             const delayed = isDelayed(p);
             const priority = priorityOf(related, p);
+            const health = projectHealth(p, related, { costs: projectCosts });
             return (
               <tr key={p.id}>
                 {/* ── 1. ผู้รับผิดชอบ: อวตารอักษรย่อ + ชื่อ (เดิมแสดงอีเมล ไม่ตรงกับการ์ด) ── */}
@@ -82,6 +86,8 @@ export default function ProjectsTrackingTable({ projects: propProjects, onEdit, 
                     {statusLabel(p.status)}
                   </Badge>
                 </td>
+                {/* ── 5.1 สุขภาพโปรเจกต์ (คำนวณเอง · เหตุผลอยู่ใน tooltip) ── */}
+                <td><HealthBadge health={health} /></td>
                 {/* ── 6. ความคืบหน้า: แถบ + เปอร์เซ็นต์ + งานเสร็จ/ทั้งหมด ── */}
                 <td>
                   <div className="tracking-progress d-flex align-items-center gap-2">

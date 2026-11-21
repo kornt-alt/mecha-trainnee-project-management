@@ -50,6 +50,24 @@ export const DEFAULT_CHART_GEOMETRY = createChartGeometry();
 
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
 
+// การ์ดแคบกว่านี้ ป้ายแบบเส้นชี้ 2 ข้างจะเบียดวงจนเล็กมาก → ใช้วงกลางเต็ม + รายการใต้วงแทน
+export const LEGEND_LAYOUT_MAX_WIDTH = 460;
+
+/** วงโดนัทอย่างเดียว (ไม่มีป้ายข้าง) สำหรับการ์ดแคบ — รายการแสดงเป็น HTML ใต้วง */
+export const createRingOnlyGeometry = (containerWidth) => {
+  const width = Math.max(Math.round(containerWidth) || 300, 200);
+  const outerRadius = Math.round(clamp(width * 0.3, 70, 96));
+  const height = outerRadius * 2 + 24;
+  return createChartGeometry({
+    width,
+    height,
+    centerX: Math.round(width / 2),
+    centerY: Math.round(height / 2),
+    outerRadius,
+    innerRadius: Math.round(outerRadius * 0.68),
+  });
+};
+
 /**
  * Geometry tuned to the measured container width.
  * The SVG viewBox equals the rendered width so CSS-px text (foreignObject labels)
@@ -61,8 +79,9 @@ export const createResponsiveGeometry = (containerWidth) => {
   const width = Math.max(Math.round(containerWidth) || DEFAULT_CHART_GEOMETRY.width, 220);
   const scale = clamp(width / 760, 0.3, 1);
 
-  const labelWidth = Math.round(clamp(170 * scale, 64, 170));
-  const labelHeight = Math.round(clamp(48 * scale, 32, 48));
+  // ป้ายต้องกว้างพอให้ "1 โปรเจกต์ 33.3%" อยู่บรรทัดเดียว (เดิมต่ำสุด 64 → การ์ดหน้าหลักได้ ~100 ข้อความตกบรรทัดล้นกล่อง)
+  const labelWidth = Math.round(clamp(170 * scale, 120, 170));
+  const labelHeight = Math.round(clamp(48 * scale, 40, 48));
   const labelGap = Math.round(clamp(8 * scale, 4, 8));
   const labelMinSpacing = Math.round(clamp(52 * scale, 36, 52));
   const labelEdgePadding = 4;

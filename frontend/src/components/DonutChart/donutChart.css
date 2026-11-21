@@ -118,7 +118,7 @@
 }
 
 .donut-chart__callout--dimmed {
-  opacity: 0.25;
+  opacity: 0.5;
 }
 
 .donut-chart__connector {
@@ -180,11 +180,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
+  white-space: nowrap;
   padding-top: 2px;
   border-top: 1px solid var(--donut-label-divider);
 }
 
 .donut-chart__label-count {
+  white-space: nowrap;
   font-size: 10px;
   color: var(--donut-text-muted);
 }
@@ -193,6 +196,53 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   color: var(--slice-color);
+}
+
+/* ---------- รายการใต้วง (การ์ดแคบ < 460px) ---------- */
+.donut-chart__legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.donut-chart__legend-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto 48px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.15s ease, opacity 0.2s ease;
+}
+
+.donut-chart__legend-item--active,
+.donut-chart__legend-item:focus-visible {
+  background: var(--donut-label-divider);
+}
+
+.donut-chart__legend-item--dimmed {
+  opacity: 0.5;
+}
+
+.donut-chart__legend-name {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.donut-chart__legend-item .donut-chart__label-count {
+  font-size: 12px;
+}
+
+.donut-chart__legend-item .donut-chart__label-percent {
+  text-align: right;
 }
 
 /* ---------- คอลัมน์แคบ (geometry ย่อแล้ว): ลดฟอนต์/padding ของป้ายให้พอดีกล่อง ---------- */

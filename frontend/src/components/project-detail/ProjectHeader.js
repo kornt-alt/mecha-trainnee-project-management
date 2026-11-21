@@ -1,12 +1,13 @@
-// frontend/src/components/project-detail/ProjectHeader.js — project identity and actions
+// frontend/src/components/project-detail/ProjectHeader.js — หัวหน้าโปรเจกต์: ชื่อ สถานะ สุขภาพ คน วันส่ง ปุ่มแก้ไข / ปิดโปรเจกต์
 import { Badge, Button } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { statusLabel } from '../../utils/config';
 import { initials, ownerOf, today } from '../../utils/projectTrackingUtils';
 import { Pencil } from '../common/Icons';
+import HealthBadge from '../common/HealthBadge';
 
-const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
+const employeeById = (id) => currentEmployees().find((employee) => String(employee.id) === String(id));
 
 const formatDate = (value, includeYear = true) => {
   if (!value) return '';
@@ -31,11 +32,10 @@ function PersonSummary({ label, person }) {
   );
 }
 
-export default function ProjectHeader({ project, stats, priority, actorId, onActorChange, onOpenClosure }) {
+export default function ProjectHeader({ project, stats, priority, health, actorId, actorRoleLabel, onOpenClosure }) {
   const navigate = useNavigate();
   const owner = ownerOf(project) || (project.owner ? { name: project.owner } : null);
   const teamLead = project.teamLeadId ? employeeById(project.teamLeadId) : null;
-  const viewerOptions = MOCK_EMPLOYEES;
   const completion = Math.max(0, Math.min(100, stats.progress));
   const currentDay = today();
   const daysRemaining = project.dueDate ? daysBetween(currentDay, project.dueDate) : null;
@@ -59,12 +59,9 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
     if (String(project.managerId) === String(employeeId)) roles.push('Project Owner');
     if (String(project.teamLeadId || '') === String(employeeId)) roles.push('Team Leader');
     if ((project.teamMemberIds || []).some((id) => String(id) === String(employeeId))) roles.push('สมาชิก');
-    return roles.length ? roles.join(' · ') : 'พนักงาน';
+    // ไม่ได้อยู่ในโปรเจกต์ → บทบาทตามสิทธิ์ (ผู้ดูแลระบบ / Management / ผู้ชม — utils/access.js projectRoleOf)
+    return roles.length ? roles.join(' · ') : (actorRoleLabel || 'พนักงาน');
   };
-  const viewerLabel = (person) => `${actorRole(person.id)} · ${person.name.split(' ')[0]}`;
-  const viewerValue = viewerOptions.some((person) => String(person.id) === String(actorId))
-    ? actorId
-    : actorId;
   const deadlineText = daysRemaining === null
     ? 'ยังไม่ได้กำหนดวันส่ง'
     : daysRemaining < 0 && !isTerminal
@@ -82,19 +79,8 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
         <div className="project-workspace-banner-glow project-workspace-banner-glow-secondary" aria-hidden="true" />
         <div className="project-workspace-banner-content">
           <span className="project-workspace-banner-title">PROJECT WORKSPACE</span>
-          <div className="project-workspace-actor">
-            <label htmlFor="workspace-actor">ดูในฐานะ</label>
-            <select
-              id="workspace-actor"
-              className="vw"
-              aria-label="เลือกผู้ใช้งานจำลอง"
-              value={viewerValue}
-              onChange={(event) => onActorChange(event.target.value)}
-              style={{ height: 36, padding: '0 14px', borderRadius: 99, border: '1px solid rgba(255,255,255,.55)', background: 'rgba(255,255,255,.2)', color: '#fff', fontFamily: 'inherit', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-            >
-              {viewerOptions.map((person) => <option key={person.id} value={person.id}>{viewerLabel(person)}</option>)}
-            </select>
-          </div>
+          {/* บอกบทบาทของคนที่ login ในโปรเจกต์นี้ (เดิมมีตัวเลือก "ดูในฐานะ" ซ้ำกับ login — ลบแล้ว เปลี่ยนผู้ใช้ด้วยการออกจากระบบ) */}
+          {employeeById(actorId) && <span className="project-workspace-actor-role">คุณ: {actorRole(actorId)}</span>}
         </div>
       </div>
       <div className="project-detail-header-body">
@@ -104,6 +90,7 @@ export default function ProjectHeader({ project, stats, priority, actorId, onAct
               <Badge bg="" className={`project-detail-badge project-detail-status status-${project.status}`}>
                 {project.displayStatusLabel || statusLabel(project.status)}
               </Badge>
+              {health && <HealthBadge health={health} className="project-detail-badge" />}
               {priority.label !== '-' && (
                 <Badge bg="" className={`project-detail-badge project-detail-priority variant-${priority.variant}`}>
                   ความสำคัญ: {priority.label}

@@ -2,11 +2,9 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Row, Col, Spinner } from 'react-bootstrap';
 import { useLoad } from '../utils/api';
-import { MOCK_EMPLOYEES } from '../data/mockData';
+import { currentEmployees } from '../data/employeeStore';
 import { useMockData } from '../context/MockDataContext';
-import { MOCK_PROJECT_COST_ITEMS } from '../data/mockProjectCosts';
-import UnfinishedTasks from './dashboard/UnfinishedTasks';
-import MyWork, { groupMyTasks } from './dashboard/MyWork';
+import MyWork from './dashboard/MyWork';
 import SummaryCards from './dashboard/SummaryCards';
 import DonutChart from './DonutChart/DonutChart';
 import { buildProjectStatusItems } from './DonutChart/donutChartData';
@@ -19,8 +17,8 @@ import { Info, CircleAlert } from './common/Icons';
 export default function Home() {
   // Projects + Tasks จาก MockDataContext — dashboard จะอัปเดตตามการแก้ไขในหน้าอื่นทันที (mock-only phase)
   // API integration ยังเป็น phase ถัดไป ตอนนี้ context คือแหล่งข้อมูลจริงของ Dashboard
-  const { projects, tasks, actorId } = useMockData();
-  const actor = MOCK_EMPLOYEES.find((person) => String(person.id) === String(actorId));
+  const { projects, tasks, actorId, projectCosts } = useMockData();
+  const actor = currentEmployees().find((person) => String(person.id) === String(actorId));
 
   // 1. เรียก API ตรวจสอบสถานะ backend/DB (เก็บไว้ทำ alert สถานะการเชื่อมต่อ — ไม่ใช้เป็นแหล่งข้อมูลจนกว่าจะเข้า Phase API Integration)
   const { data: healthData, error: healthError, loading: healthLoading } = useLoad('/health');
@@ -30,14 +28,12 @@ export default function Home() {
   const isBackendConnected = !healthError && healthData && healthData.status === 'ok';
   const isDbReady = isBackendConnected && healthData.db === 'up';
 
-  // ตัวเลขบน banner นับเฉพาะงานของคนที่ login (เดิมนับงานทุกคนรวมกัน)
-  const myTasks = groupMyTasks(tasks, actorId);
-
   // ตัวเลือกช่วงเวลาย้อนหลังของกราฟเปรียบเทียบงบประมาณและค่าใช้จ่ายจริง (ค่าเริ่มต้น 6 เดือน)
   const [budgetRangeMonths, setBudgetRangeMonths] = useState(6);
   const { categories: budgetCategories, rangeNotice: budgetRangeNotice } = useMemo(
-    () => buildBudgetCategories(projects, MOCK_PROJECT_COST_ITEMS, budgetRangeMonths),
-    [projects, budgetRangeMonths],
+    // ยอดจ่ายจริงมาจากที่ Owner / Team Lead กรอกเดือนละครั้งในภาพรวมโปรเจกต์ (MockDataContext.projectCosts)
+    () => buildBudgetCategories(projects, projectCosts, budgetRangeMonths),
+    [projects, projectCosts, budgetRangeMonths],
   );
 
   return (
@@ -57,17 +53,6 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="welcome-stats-pill d-none d-lg-flex align-items-center gap-3 bg-white text-ink p-3 rounded shadow-sm">
-            <div className="welcome-stat-item text-center">
-              <span className="d-block small text-muted">งานของฉัน</span>
-              <span className="fw-bold text-primary h5 mb-0">{myTasks.assigned.length}</span>
-            </div>
-            <div className="vr" />
-            <div className="welcome-stat-item text-center">
-              <span className="d-block small text-muted">ใกล้ / เลยกำหนด</span>
-              <span className="fw-bold text-danger h5 mb-0">{myTasks.due.length}</span>
-            </div>
-          </div>
         </div>
       </div>
 
@@ -103,7 +88,7 @@ export default function Home() {
       {/* ── การ์ดสรุปโปรเจกต์ ─────────── */}
       <SummaryCards projects={projects} />
 
-      {/* ── สามบล็อกหลักเรียงซ้าย→ขวา: สถานะโปรเจกต์ · Workload พนักงาน · งานที่ยังไม่เสร็จ ── */}
+      {/* ── ภาพรวม: สถานะโปรเจกต์ · Workload พนักงาน · หมวดหมู่ (รายการงานทั้งหมดดูที่เมนู "ตารางงาน" — เอากล่องงานค้างที่ซ้ำออกแล้ว) ── */}
       <Row className="g-4 dashboard-blocks-row">
       {/* คอลัมน์ที่ 1 */}
         <Col xl={4} lg={6} xs={12} className="chart-col"> {/* แนะนำ xs={12} เพื่อให้จอมือถือเต็มจอ */}
@@ -115,12 +100,7 @@ export default function Home() {
           <EmployeeWorkloadChart />
         </Col>
 
-      {/* คอลัมน์ที่ 3 */}
-        <Col xl={8} lg={6} xs={12}>
-          <UnfinishedTasks tasks={tasks} />
-        </Col>
-
-        <Col xl={4} lg={6} xs={12}>
+        <Col xs={12}>
           <ProjectCategoryTreemap projects={projects} />
         </Col>
     </Row>

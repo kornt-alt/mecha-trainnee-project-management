@@ -2105,6 +2105,13 @@ body {
   }
 }
 
+/* ── แถวโลโก้ + ปุ่มเมนูมือถือ (Layout.js) ── */
+.app-brand-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.app-brand-row .app-brand { flex: 1; min-width: 0; }
+.app-menu-toggle { display: none; align-items: center; justify-content: center; width: 40px; height: 40px; flex-shrink: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--ink); font-size: 1.2rem; line-height: 1; }
+.app-menu-toggle:hover, .app-menu-toggle:focus-visible { border-color: var(--blue); color: var(--blue); }
+/* ⚠️ rule พื้นฐานของปุ่ม ☰ ต้องอยู่ก่อน media query ด้านล่าง — อยู่ท้ายไฟล์จะทับ display ในจอเล็ก */
+
 /* ── Responsive Rules ─────────────────────────────────────────────────── */
 
 @media (max-width: 991px) {
@@ -2112,23 +2119,46 @@ body {
     flex-direction: column;
   }
 
+  /* แถบบนติดหัวจอเสมอ (เดิม position: relative เลื่อนหายไปกับหน้า) */
   .app-sidebar {
     width: 100%;
     height: auto;
-    position: relative;
+    max-height: 100vh;
+    position: sticky;
+    top: 0;
     border-right: none;
     border-bottom: 1px solid var(--line);
-    padding: 12px 16px;
+    padding: 8px 16px;
+    z-index: 1030;
   }
 
-  .app-nav {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 6px;
+  .app-brand-row .app-brand {
+    padding: 4px 0;
+    margin-bottom: 0;
+    border-bottom: none;
   }
 
+  .app-menu-toggle {
+    display: inline-flex;
+  }
+
+  /* เมนูพับไว้ กด ☰ ถึงแสดง (เดิมกางทุกเมนูเต็มหัวจอ + ซ่อนเมนูผู้ใช้ ทำให้ออกจากระบบไม่ได้) */
+  .app-sidebar-menu,
   .app-sidebar-footer {
     display: none;
+  }
+
+  .app-sidebar.is-menu-open .app-sidebar-menu,
+  .app-sidebar.is-menu-open .app-sidebar-footer {
+    display: block;
+  }
+
+  .app-sidebar.is-menu-open .app-sidebar-menu {
+    padding-top: 8px;
+  }
+
+  .app-sidebar.is-menu-open {
+    overflow-y: auto;
   }
 
   .app-header {
@@ -3024,3 +3054,22 @@ body {
 .my-work-item-title { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
 .my-work-item-meta { font-size: 0.8rem; color: var(--muted, #64748b); }
 .my-work-empty, .my-work-more { font-size: 0.85rem; color: var(--muted, #64748b); margin: 0; }
+
+/* ── หน้ารายงาน: ภาพรวมผู้บริหาร (components/reports/ExecutiveOverview.js) ── */
+.executive-decision-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; max-height: 360px; overflow-y: auto; }
+.executive-decision-list button { width: 100%; text-align: left; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.executive-decision-list button:hover, .executive-decision-list button:focus-visible { border-color: var(--blue); background: var(--blue-tint); }
+.executive-decision-list small { color: var(--muted, #64748b); overflow-wrap: anywhere; }
+.executive-decision-kind { align-self: flex-start; font-size: 0.72rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; background: var(--amber-tint); color: #92400E; }
+.executive-decision-kind.kind-blocked { background: var(--red-tint); color: var(--red); }
+.executive-decision-kind.kind-closure { background: var(--blue-tint); color: var(--blue); }
+.executive-health-reason { max-width: 220px; white-space: normal; }
+
+/* ฟอร์มโปรเจกต์: การมองเห็น + Section ที่เกี่ยวข้อง (utils/access.js) */
+.project-form-visibility { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+.project-form-visibility button { border: 1.5px solid var(--line, #cbd5e1); background: #fff; border-radius: 10px; padding: 6px 14px; font-size: 13.5px; font-weight: 600; color: var(--ink, #0f172a); }
+.project-form-visibility button.is-selected { border-color: var(--blue, #2f5bd0); background: #e3ecff; color: #1b3a8a; }
+.project-form-sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; }
+.project-form-division { display: flex; flex-direction: column; gap: 4px; }
+.project-form-division-name { font-size: 12px; font-weight: 700; color: var(--muted, #64748b); text-transform: uppercase; letter-spacing: .02em; }
+.project-form-section { display: flex; align-items: center; gap: 6px; font-size: 13.5px; cursor: pointer; }

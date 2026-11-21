@@ -5,11 +5,11 @@
 // ⚠️ กฎฝั่ง context อยู่ที่ MockDataContext.updateProject (closure) — แก้ขั้นตอนต้องแก้ทั้งสองที่ + docs/api-contract.md
 import { useState } from 'react';
 import { Alert, Button, Card, Form, Modal } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { statusLabel } from '../../utils/config';
 
-const personName = (id) => MOCK_EMPLOYEES.find((person) => String(person.id) === String(id))?.name || id;
+const personName = (id) => currentEmployees().find((person) => String(person.id) === String(id))?.name || id;
 
 export default function ProjectClosure({ projectId, tasks, deliverables }) {
   const { projects, actorId, updateProject } = useMockData();

@@ -10,7 +10,7 @@ export const CURRENT_USER = {
   fullName: 'Kittipat Samran',
   title: 'Mecha Trainee Engineer',
   departmentId: 'dept-1',
-  department: 'Mechanical Automation & Software',
+  department: 'PRODUCTION ENGINEER',
   email: 'kittipat.s@mecha.local',
   notificationsCount: 0,
 };
@@ -18,34 +18,43 @@ export const CURRENT_USER = {
 // ── 2. การแจ้งเตือน (Notifications) ─────────────────────────────────────
 export const NOTIFICATIONS = [];
 
-// ── 3. แผนก (Departments) ───────────────────────────────────────────────
+// ── 3. โครงองค์กร Division → Section → Team (กฎการเห็นข้อมูลใน utils/access.js) ──
+export const MOCK_DIVISIONS = [
+  { id: 'div-1', name: 'MECHA1', code: 'M/P 1' },
+  { id: 'div-2', name: 'MECHA2', code: 'M/P 2' },
+  { id: 'div-3', name: 'MSE', code: 'MSE' },
+];
+
+// Section = แผนก (ตาราง departments ฝั่ง backend) · divisionId บอกว่าอยู่ใต้ Division ไหน
 export const MOCK_DEPARTMENTS = [
-  { id: 'dept-1', name: 'Mechanical Automation & Software', code: 'MAS' },
-  { id: 'dept-2', name: 'Electrical & Control', code: 'EC' },
-  { id: 'dept-3', name: 'Mechanical', code: 'MECH' },
-  { id: 'dept-4', name: 'Quality Assurance', code: 'QA' },
-  { id: 'dept-5', name: 'Documentation & Training', code: 'DOC' },
+  { id: 'dept-1', name: 'PRODUCTION ENGINEER', code: 'PE', divisionId: 'div-1' },
+  { id: 'dept-2', name: 'Electrical & Control', code: 'EC', divisionId: 'div-1' },
+  { id: 'dept-3', name: 'Mechanical', code: 'MECH', divisionId: 'div-1' },
+  { id: 'dept-4', name: 'Quality Assurance', code: 'QA', divisionId: 'div-2' },
+  { id: 'dept-5', name: 'Documentation & Training', code: 'DOC', divisionId: 'div-2' },
+  { id: 'dept-6', name: 'Materials & Supply Chain', code: 'MSC', divisionId: 'div-3' },
 ];
 
 // ── 3.1 ทีม (Teams) ─────────────────────────────────────────────────────
 // Membership is independent of department and references employees by stable ID.
+// sectionId = ทีมอยู่ใต้ Section ไหน · คนหนึ่งอยู่ได้หลายทีม (emp-020 อยู่ทั้ง IT และ Electrical)
 export const MOCK_TEAMS = [
-  { id: 'team-001', name: 'IT', memberEmployeeIds: ['emp-001', 'emp-002', 'emp-003', 'emp-008', 'emp-009', 'emp-015', 'emp-020'] },
-  { id: 'team-002', name: 'AI', memberEmployeeIds: ['emp-005', 'emp-011', 'emp-017', 'emp-021', 'emp-026', 'emp-032', 'emp-033'] },
-  { id: 'team-003', name: 'Electrical', memberEmployeeIds: ['emp-007', 'emp-013', 'emp-028', 'emp-019', 'emp-024', 'emp-034'] },
+  { id: 'team-001', name: 'IT', sectionId: 'dept-1', memberEmployeeIds: ['emp-001', 'emp-002', 'emp-003', 'emp-008', 'emp-009', 'emp-015', 'emp-020'] },
+  { id: 'team-002', name: 'AI', sectionId: 'dept-3', memberEmployeeIds: ['emp-005', 'emp-011', 'emp-017', 'emp-021', 'emp-026', 'emp-032', 'emp-033'] },
+  { id: 'team-003', name: 'Electrical', sectionId: 'dept-2', memberEmployeeIds: ['emp-007', 'emp-013', 'emp-028', 'emp-019', 'emp-024', 'emp-034', 'emp-020'] },
 ];
 
 // ── 4. พนักงาน (Employees) ───────────────────────────────────────────────
-// คงพนักงานเดิม 20 คนและข้อมูลทุกฟิลด์ไว้
-export const MOCK_EMPLOYEES = [
+// คงพนักงานเดิม 20 คนและข้อมูลทุกฟิลด์ไว้ · field บัญชี (role / isActive / rfid / sectionIds / scope) เติมใน withAccount ข้างล่าง
+const RAW_EMPLOYEES = [
   // IT department (7 employees: 5 regular, 2 trainees)
-  { id: 'emp-001', name: 'Kittipat Samran', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Trainee', email: 'kittipat.s@mecha.local' },
-  { id: 'emp-002', name: 'Napat Chaiyaphon', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Software Developer', email: 'napat.c@mecha.local' },
-  { id: 'emp-003', name: 'Sarin Numnonda', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Frontend Developer', email: 'sarin.n@mecha.local' },
-  { id: 'emp-008', name: 'Supachai Meesuk', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Supervisor', email: 'supachai.m@mecha.local' },
-  { id: 'emp-009', name: 'Korn Tawonphon', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Senior Developer', email: 'korn.t@mecha.local' },
-  { id: 'emp-015', name: 'Nattapong Vejjakiva', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Trainee', email: 'nattapong.v@mecha.local' },
-  { id: 'emp-020', name: 'Thitikan Bunserm', departmentId: 'dept-1', department: 'Mechanical Automation & Software', position: 'Full-stack Developer', email: 'thitikan.b@mecha.local' },
+  { id: 'emp-001', name: 'Kittipat Samran', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Trainee', email: 'kittipat.s@mecha.local' },
+  { id: 'emp-002', name: 'Napat Chaiyaphon', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Software Developer', email: 'napat.c@mecha.local' },
+  { id: 'emp-003', name: 'Sarin Numnonda', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Frontend Developer', email: 'sarin.n@mecha.local' },
+  { id: 'emp-008', name: 'Supachai Meesuk', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Supervisor', email: 'supachai.m@mecha.local' },
+  { id: 'emp-009', name: 'Korn Tawonphon', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Senior Developer', email: 'korn.t@mecha.local' },
+  { id: 'emp-015', name: 'Nattapong Vejjakiva', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Trainee', email: 'nattapong.v@mecha.local' },
+  { id: 'emp-020', name: 'Thitikan Bunserm', departmentId: 'dept-1', department: 'PRODUCTION ENGINEER', position: 'Full-stack Developer', email: 'thitikan.b@mecha.local' },
 
   // AI department (7 regular employees)
   { id: 'emp-005', name: 'Thanakorn Wiset', departmentId: 'dept-3', department: 'Mechanical', position: 'Mechanical Engineer', email: 'thanakorn.w@mecha.local' },
@@ -65,6 +74,31 @@ export const MOCK_EMPLOYEES = [
   { id: 'emp-034', name: 'New Electrical Trainee', departmentId: 'dept-2', department: 'Electrical & Control', position: 'Trainee', email: 'newelectra@mecha.local' },
 ];
 
+// บัญชีผู้ใช้ (shape เดียวกับ GET /users ใน docs/api-contract.md)
+//   role: ADMIN (เห็นทุกอย่าง + เมนูผู้ดูแล) | MANAGEMENT (เห็นและจัดการโปรเจกต์ในขอบเขต scope) | USER
+//   sectionIds = สังกัดได้หลาย Section (departmentId = สังกัดหลัก อยู่ใน sectionIds เสมอ)
+//   scope = ขอบเขตของ MANAGEMENT: ติ๊ก Division = ทุก Section ข้างใต้
+const ACCOUNT_OVERRIDES = {
+  'emp-008': { role: 'ADMIN' },
+  'emp-009': { role: 'ADMIN' },
+  'emp-005': { role: 'MANAGEMENT', scope: { divisionIds: ['div-1'], sectionIds: [] } }, // เห็นทั้ง Engineering
+  'emp-007': { role: 'MANAGEMENT', scope: { divisionIds: [], sectionIds: ['dept-2'] } }, // เห็นเฉพาะ Electrical & Control
+  'emp-020': { sectionIds: ['dept-1', 'dept-5'] }, // สังกัด 2 Section
+};
+const withAccount = (employee) => {
+  const override = ACCOUNT_OVERRIDES[employee.id] || {};
+  return {
+    ...employee,
+    role: 'USER',
+    isActive: true,
+    rfid: null,
+    ...override,
+    sectionIds: override.sectionIds || [employee.departmentId],
+    scope: override.scope || { divisionIds: [], sectionIds: [] },
+  };
+};
+export const MOCK_EMPLOYEES = RAW_EMPLOYEES.map(withAccount);
+
 // ── 5. ข้อมูลโปรเจกต์ดิบ (Raw Projects) ──────────────────────────────────
 // Keep the reference fixture scoped to project 1; unrelated projects remain unchanged.
 const RAW_PROJECTS = [
@@ -74,6 +108,8 @@ const RAW_PROJECTS = [
     category: 'ระบบองค์กร',
     displayStatusLabel: 'กำลังดำเนินการ',
     departmentId: 'dept-1',
+    visibility: 'public', // โปรเจกต์ตัวอย่างเดิม 3 อันเปิดให้ทุกคนเห็น · ตัวอย่าง private ดูโปรเจกต์ 6–7
+    sectionIds: ['dept-1'],
     managerId: 'emp-008',
     teamLeadId: 'emp-009',
     teamMemberIds: ['emp-008', 'emp-009', 'emp-002'],
@@ -93,6 +129,8 @@ const RAW_PROJECTS = [
     name: 'รายงานผลการฝึกงาน Mecha',
     category: 'เอกสารและการฝึกอบรม',
     departmentId: 'dept-5',
+    visibility: 'public',
+    sectionIds: ['dept-5'],
     managerId: 'emp-008',
     owner: 'Kittipat / Supachai',
     status: 'planning',
@@ -106,6 +144,8 @@ const RAW_PROJECTS = [
     name: 'เว็บไซต์องค์กร Mecha 2026',
     category: 'ระบบองค์กร',
     departmentId: 'dept-1',
+    visibility: 'public',
+    sectionIds: ['dept-1'],
     managerId: 'emp-008',
     owner: 'Lalita / Kittipat',
     status: 'on_hold',
@@ -113,6 +153,42 @@ const RAW_PROJECTS = [
     startDate: '2026-09-01',
     dueDate: '2026-11-15',
     description: 'เว็บไซต์แนะนำองค์กรและบริการ พร้อมระบบจัดการเนื้อหา',
+  },
+  // ตัวอย่างการเห็นตามโครงองค์กร: private ของ Section Electrical — emp-007 (MANAGEMENT เฉพาะ dept-2) และ emp-005 (ทั้ง div-1) เห็น
+  {
+    id: 6,
+    name: 'ปรับปรุงตู้ควบคุมสายพาน',
+    category: 'ระบบไฟฟ้า',
+    departmentId: 'dept-2',
+    visibility: 'private',
+    sectionIds: ['dept-2'],
+    managerId: 'emp-013',
+    teamLeadId: 'emp-028',
+    teamMemberIds: ['emp-013', 'emp-028', 'emp-019'],
+    owner: 'Bodin Kittikorn',
+    status: 'in_progress',
+    priority: 'medium',
+    plannedBudget: 60000,
+    startDate: '2026-10-15',
+    dueDate: '2027-01-31',
+    description: 'เปลี่ยน PLC และเดินสายใหม่ในตู้ควบคุมสายพานลำเลียง',
+  },
+  // ไม่ติด Section — ดึงคนข้าม Division มารวม · MANAGEMENT เห็นผ่านสมาชิกที่อยู่ในขอบเขตตัวเอง
+  {
+    id: 7,
+    name: 'คู่มือตรวจรับเครื่องจักรใหม่',
+    category: 'เอกสารและการฝึกอบรม',
+    departmentId: 'dept-4',
+    visibility: 'private',
+    sectionIds: [],
+    managerId: 'emp-021',
+    teamMemberIds: ['emp-021', 'emp-024'],
+    owner: 'Ekkachai Rompho',
+    status: 'planning',
+    priority: 'low',
+    startDate: '2026-12-01',
+    dueDate: '2027-02-28',
+    description: 'รวมขั้นตอนตรวจรับเครื่องจักรจากผู้ขาย ใช้ร่วมกันระหว่างฝ่ายช่างและ QA',
   },
 ];
 // Project 1 uses the exact task records supplied with the Workspace reference.

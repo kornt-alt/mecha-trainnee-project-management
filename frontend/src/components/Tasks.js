@@ -16,9 +16,7 @@ import {
   Row,
   Table,
 } from 'react-bootstrap';
-import {
-  MOCK_EMPLOYEES,
-} from '../data/mockData';
+import { currentEmployees } from '../data/employeeStore';
 import { useMockData } from '../context/MockDataContext';
 import TaskFormModal from './project-detail/TaskFormModal';
 import { PRIORITY_LABELS, TASK_STATUS_LABELS, priorityLabel } from '../utils/labels';
@@ -304,7 +302,7 @@ export default function Tasks() {
                 <tbody>
                   {filteredTasks.map((task) => {
                     const isTaskOverdue = task.dueDate < todayStr && task.status !== 'completed';
-                    const assignee = MOCK_EMPLOYEES.find((e) => e.id === task.assigneeId);
+                    const assignee = currentEmployees().find((e) => e.id === task.assigneeId);
 
                     return (
                       <tr key={task.id}>

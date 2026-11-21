@@ -1,16 +1,31 @@
 // frontend/src/context/MockDataContext.js — Shared in-memory Project Workspace records.
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DEPARTMENTS, MOCK_DELIVERABLES, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, MOCK_TEAMS, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
+import { CURRENT_USER, MOCK_ACTIVITIES, MOCK_DEPARTMENTS, MOCK_DELIVERABLES, MOCK_DIVISIONS, MOCK_EMPLOYEES, MOCK_TASKS, MOCK_PROJECTS_FALLBACK, MOCK_TEAMS, NOTIFICATIONS, applyTaskSync } from '../data/mockData';
 import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 import { taskStatusLabel } from '../utils/labels';
+import { MOCK_PROJECT_COST_ITEMS } from '../data/mockProjectCosts';
+import { USER_ROLES, canManageProject, canSeeProject, peopleInView, projectRoleOf } from '../utils/access';
+import { useLoginSession } from '../utils/session';
+import { findCurrentEmployee, setCurrentEmployees } from '../data/employeeStore';
 
 export const MockDataContext = createContext(null);
 
 const now = () => new Date().toISOString();
 const projectKey = (id) => String(id);
-const employeeName = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id))?.name || id;
-const employeeExists = (id) => MOCK_EMPLOYEES.some((employee) => String(employee.id) === String(id));
+// รายชื่อพนักงานล่าสุด (state ใน Provider — จัดการได้จากหน้าจัดการผู้ใช้) · Provider อัปเดต data/employeeStore.js ทุก render
+const findEmployee = findCurrentEmployee;
+const employeeName = (id) => findEmployee(id)?.name || id;
+const employeeExists = (id) => Boolean(findEmployee(id));
+const MIN_PASSWORD = 6; // ต้องตรงกับ backend/services/auth.js
+// สิทธิ์ตามโครงองค์กร (utils/access.js) ของผู้ใช้ปัจจุบัน — state = stateRef.current
+const accessContext = (state) => ({ employees: state.employees, org: { divisions: MOCK_DIVISIONS, sections: MOCK_DEPARTMENTS, teams: state.teams } });
+const viewerOf = (state) => (state.viewerId ? state.employees.find((employee) => String(employee.id) === String(state.viewerId)) || null : null);
+// จัดการโปรเจกต์ได้ (Owner / Lead / ADMIN / MANAGEMENT ในขอบเขต)
+const managesProject = (state, project) => canManageProject(project, viewerOf(state), accessContext(state));
+// ADMIN หรือ MANAGEMENT ในขอบเขต — ได้สิทธิ์เท่า Project Owner (ยกเว้นขั้นตอนปิดโปรเจกต์ที่เป็นหน้าที่ของ Owner / Lead ตัวจริง)
+const ownsByScope = (state, project) => ['ADMIN', 'MANAGEMENT'].includes(viewerOf(state)?.role) && managesProject(state, project);
 const taskStatuses = new Set(['not_started', 'in_progress', 'pending_review', 'completed']);
+const taskSizes = new Set(['small', 'medium', 'large']); // ขนาดงาน (ไม่มีค่า = medium) → แต้มภาระงาน
 const deliverableStatuses = new Set(['pending', 'in_progress', 'completed']);
 const isValidDate = (value) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ''))) return false;
@@ -38,6 +53,7 @@ function initialTasks() {
     checklist: Array.isArray(task.checklist) ? task.checklist.map((item) => ({ ...item })) : [],
     assignmentHistory: Array.isArray(task.assignmentHistory) ? [...task.assignmentHistory] : [],
     reviewHistory: Array.isArray(task.reviewHistory) ? [...task.reviewHistory] : [],
+    statusHistory: Array.isArray(task.statusHistory) ? task.statusHistory.map((entry) => ({ ...entry })) : [],
   }));
 }
 
@@ -71,18 +87,27 @@ function taskEvents(previous, next, projectById, actorId, makeId) {
 
 export function MockDataProvider({ children }) {
   const [projectsState, setProjectsState] = useState(() => [...MOCK_PROJECTS_FALLBACK]);
-  const [teamsState] = useState(() => MOCK_TEAMS.map((team) => ({ ...team, memberEmployeeIds: [...(team.memberEmployeeIds || [])] })));
+  const [teamsState, setTeamsState] = useState(() => MOCK_TEAMS.map((team) => ({ ...team, memberEmployeeIds: [...(team.memberEmployeeIds || [])] })));
+  // บัญชีผู้ใช้ (จัดการที่ /admin/users) — shape ตรงกับ GET /users
+  const [employeesState, setEmployeesState] = useState(() => MOCK_EMPLOYEES.map((employee) => ({ ...employee })));
+  setCurrentEmployees(employeesState);
+  const session = useLoginSession();
   const [tasksState, setTasksState] = useState(initialTasks);
   const [deliverablesState, setDeliverablesState] = useState(() => MOCK_DELIVERABLES.map((item) => ({ ...item })));
   const [labelsState, setLabelsState] = useState([]);
   const [activityState, setActivityState] = useState(() => MOCK_ACTIVITIES.map((event) => ({ ...event })));
   const [notificationsState, setNotificationsState] = useState(() => [...NOTIFICATIONS]);
-  // ความคิดเห็น / บันทึกเวลาของงาน — { [taskId]: { comments: [], timeLogs: [] } } (UX-09: เดิมอยู่ใน state ของหน้า หายเมื่อออกจากหน้า)
+  // ความคิดเห็นของงาน — { [taskId]: { comments: [] } } (UX-09: เดิมอยู่ใน state ของหน้า หายเมื่อออกจากหน้า)
+  // เลิกเก็บบันทึกเวลา (timeLogs) แล้ว — ระยะเวลาแต่ละสถานะคำนวณจาก task.statusHistory แทน
   const [taskWorkState, setTaskWorkState] = useState({});
+  // ยอดใช้จ่ายรายเดือนต่อโปรเจกต์ — [{ projectId, month: 'YYYY-MM', amount }] (กราฟงบหน้าหลัก + กล่องงบในภาพรวมโปรเจกต์ + หน้ารายงาน)
+  const [projectCostsState, setProjectCostsState] = useState(() => MOCK_PROJECT_COST_ITEMS.map((item) => ({ ...item })));
   const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
-  const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId });
+  // ผู้ชมสำหรับกฎการเห็น: ผู้เยี่ยมชม (ปิดหน้าต่าง login) หรือยังไม่ login = null → เห็นเฉพาะ public
+  const viewerId = session?.employeeId ? actorId : null;
+  const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId, employees: employeesState, teams: teamsState, viewerId });
   const sequenceRef = useRef(0);
-  stateRef.current = { ...stateRef.current, projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId };
+  stateRef.current = { ...stateRef.current, projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId, employees: employeesState, teams: teamsState, viewerId };
 
   const makeId = useCallback((prefix = 'evt') => `${prefix}-${++sequenceRef.current}`, []);
   const recordActivity = useCallback((event) => {
@@ -128,16 +153,36 @@ export function MockDataProvider({ children }) {
     setNotificationsState(stateRef.current.notifications);
     return item;
   }, [makeId]);
-  // kind = 'comments' | 'timeLogs' · entry มี actorId / timestamp มาจากหน้าเว็บ
+  // kind = 'comments' · entry มี actorId / timestamp มาจากหน้าเว็บ
   const addTaskWorkEntry = useCallback((taskId, kind, entry) => {
-    if (!['comments', 'timeLogs'].includes(kind) || !entry) return null;
+    if (kind !== 'comments' || !entry) return null;
     const key = String(taskId);
     setTaskWorkState((current) => {
-      const existing = current[key] || { comments: [], timeLogs: [] };
+      const existing = current[key] || { comments: [] };
       return { ...current, [key]: { ...existing, [kind]: [...existing[kind], entry] } };
     });
     return entry;
   }, []);
+  // กรอกยอดจ่ายเดือนละ 1 ช่อง — Owner / Team Lead เท่านั้น · เดือนเดิมกรอกซ้ำ = แทนค่าเดิม (ไม่บวกเพิ่ม)
+  const setProjectMonthlyCost = useCallback((projectId, month, amount) => {
+    const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
+    const value = Number(amount);
+    if (!project || !/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month || '')) || !Number.isFinite(value) || value < 0) return null;
+    if (!managesProject(stateRef.current, project)) return null;
+    const entry = { projectId: project.id, month, amount: value };
+    setProjectCostsState((current) => [...current.filter((item) => !(projectKey(item.projectId) === projectKey(projectId) && item.month === month)), entry]);
+    recordActivity({ projectId: project.id, type: 'project_cost_recorded', description: `บันทึกยอดใช้จ่ายเดือน ${month} = ${value.toLocaleString('th-TH')} บาท` });
+    return entry;
+  }, [recordActivity]);
+  // แจ้งเตือนงานให้คนที่ต้องทำอะไรต่อ — ไม่แจ้งตัวผู้กระทำเอง · กดในกระดิ่งแล้วเปิดงานนั้น (Header.js)
+  const notifyTaskPerson = useCallback((employeeId, title, task) => {
+    if (!employeeId || String(employeeId) === String(stateRef.current.actorId)) return;
+    addNotification({
+      employeeId: String(employeeId), title,
+      message: `“${task.title}” · โดย ${employeeName(stateRef.current.actorId)}`,
+      time: new Date().toLocaleString('th-TH'), projectId: task.projectId, taskId: task.id,
+    });
+  }, [addNotification]);
   const markNotificationsRead = useCallback((employeeId) => {
     const next = stateRef.current.notifications.map((item) => (
       String(item.employeeId) === String(employeeId) ? { ...item, unread: false } : item
@@ -167,7 +212,7 @@ export function MockDataProvider({ children }) {
       const old = previousById.get(projectKey(project.id));
       if (!old) {
         recordActivity({ projectId: project.id, type: 'project_created', description: `สร้างโปรเจกต์ “${project.name}”` });
-      } else if (old.name !== project.name || old.description !== project.description || old.status !== project.status || old.dueDate !== project.dueDate || old.startDate !== project.startDate || old.category !== project.category || old.priority !== project.priority || String(old.managerId) !== String(project.managerId) || String(old.teamLeadId || '') !== String(project.teamLeadId || '') || JSON.stringify(old.teamMemberIds || []) !== JSON.stringify(project.teamMemberIds || []) || old.requiresDeliverables !== project.requiresDeliverables || old.deliverableDescription !== project.deliverableDescription) {
+      } else if (old.name !== project.name || old.description !== project.description || old.status !== project.status || old.dueDate !== project.dueDate || old.startDate !== project.startDate || old.category !== project.category || old.priority !== project.priority || String(old.managerId) !== String(project.managerId) || String(old.teamLeadId || '') !== String(project.teamLeadId || '') || JSON.stringify(old.teamMemberIds || []) !== JSON.stringify(project.teamMemberIds || []) || old.requiresDeliverables !== project.requiresDeliverables || old.deliverableDescription !== project.deliverableDescription || old.plannedBudget !== project.plannedBudget) {
         const statusChanged = old.status !== project.status;
         recordActivity({ projectId: project.id, type: statusChanged ? 'project_status_changed' : 'project_updated', description: statusChanged ? `เปลี่ยนสถานะโปรเจกต์ “${project.name}” เป็น ${project.status}` : `แก้ไขข้อมูลโปรเจกต์ “${project.name}”` });
       }
@@ -241,10 +286,11 @@ export function MockDataProvider({ children }) {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(values.projectId));
     if (!project) return null;
     if (!String(values.title || '').trim() || !employeeExists(values.assigneeId) || !employeeExists(values.reviewerId) || !isValidDate(values.dueDate)) return null;
-    if (String(values.assigneeId) === String(values.reviewerId)) return null;
+    // ผู้ตรวจ = ผู้รับผิดชอบได้ (ตรวจเอง) — งานแบบนี้จบด้วย "ทำเสร็จ" ไม่ผ่านรอตรวจ
     if ((values.status || 'not_started') !== 'not_started') return null;
+    if (values.size && !taskSizes.has(values.size)) return null;
     const projectMembers = new Set([...(project.teamMemberIds || []).map(String), String(project.managerId || ''), String(project.teamLeadId || '')]);
-    if (!projectMembers.has(String(stateRef.current.actorId))) return null;
+    if (!projectMembers.has(String(stateRef.current.actorId)) && !managesProject(stateRef.current, project)) return null;
     if (!projectMembers.has(String(values.assigneeId))) return null;
     if (!projectMembers.has(String(values.reviewerId))) return null;
     if ((values.collaborators || []).some((id) => !employeeExists(id) || !projectMembers.has(String(id)) || String(id) === String(values.assigneeId))) return null;
@@ -269,12 +315,15 @@ export function MockDataProvider({ children }) {
       collaborators: [...new Set((values.collaborators || []).map(String).filter((id) => String(id) !== String(values.assigneeId)))],
       plannedAllocations: allocations.filter((allocation) => Number(allocation.hours) > 0).map((allocation) => ({ employeeId: String(allocation.employeeId), hours: Number(allocation.hours) })),
       checklist, assignmentHistory: [], reviewHistory: [],
+      // ประวัติสถานะ (ระบบบันทึกเอง) → statusDurations() ใน utils/executiveMetrics.js
+      statusHistory: [{ status: values.status || 'not_started', at: now(), by: String(stateRef.current.actorId) }],
       createdBy: stateRef.current.actorId, createdAt: now(),
     };
     updateTasksAndSyncProjects((tasks) => [task, ...tasks], [task.projectId], { recordEvents: false });
     recordActivity({ projectId: task.projectId, taskId: task.id, type: 'task_created', description: `สร้างงาน “${task.title}”` });
+    notifyTaskPerson(task.assigneeId, 'คุณได้รับมอบหมายงานใหม่', task);
     return task;
-  }, [recordActivity, updateTasksAndSyncProjects]);
+  }, [notifyTaskPerson, recordActivity, updateTasksAndSyncProjects]);
 
   const updateTask = useCallback((taskId, updater, event) => {
     const current = stateRef.current.tasks.find((task) => String(task.id) === String(taskId));
@@ -306,10 +355,12 @@ export function MockDataProvider({ children }) {
     const assignmentChanged = String(current.assigneeId) !== String(nextTask.assigneeId);
     if (assignmentChanged) {
       nextTask.collaborators = (nextTask.collaborators || []).filter((id) => String(id) !== String(nextTask.assigneeId));
+      // งานตรวจเอง: เปลี่ยนผู้รับผิดชอบ → ผู้ตรวจย้ายตามคนใหม่ (ยังเป็นงานตรวจเอง)
+      if (String(current.reviewerId) === String(current.assigneeId) && !Object.prototype.hasOwnProperty.call(patch, 'reviewerId')) nextTask.reviewerId = nextTask.assigneeId;
     }
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(current.projectId));
     if (!project || !String(nextTask.title || '').trim() || !employeeExists(nextTask.assigneeId) || !employeeExists(nextTask.reviewerId) || !isValidDate(nextTask.dueDate)) return null;
-    if (String(nextTask.assigneeId) === String(nextTask.reviewerId)) return null;
+    if (nextTask.size && !taskSizes.has(nextTask.size)) return null;
     if (!taskStatuses.has(nextTask.status) || (nextTask.startDate && !isValidDate(nextTask.startDate)) || (nextTask.startDate && nextTask.dueDate < nextTask.startDate)) return null;
     const projectMembers = new Set([...(project.teamMemberIds || []).map(String), String(project.managerId || ''), String(project.teamLeadId || '')]);
     if (!projectMembers.has(String(nextTask.assigneeId))) return null;
@@ -329,7 +380,7 @@ export function MockDataProvider({ children }) {
     if (current.status === 'completed' && nextTask.status !== 'completed') return null;
     const previousChecklist = new Map((current.checklist || []).map((item) => [String(item.id), item]));
     const nextChecklist = Array.isArray(nextTask.checklist) ? nextTask.checklist : [];
-    const isOwner = String(stateRef.current.actorId) === String(project.managerId);
+    const isOwner = String(stateRef.current.actorId) === String(project.managerId) || ownsByScope(stateRef.current, project);
     if (nextChecklist.some((item) => !String(item.title || '').trim() || !employeeExists(item.createdBy) || !employeeExists(item.ownerId || item.createdBy))) return null;
     for (const previousItem of current.checklist || []) {
       const nextItem = nextChecklist.find((item) => String(item.id) === String(previousItem.id));
@@ -342,9 +393,9 @@ export function MockDataProvider({ children }) {
     if ((nextTask.labelIds || []).some((id) => !stateRef.current.labels.some((label) => String(label.id) === String(id)))) return null;
     if ((nextTask.attachments || []).some((item) => !validAttachment(item))) return null;
     const actor = String(stateRef.current.actorId);
-    const isProjectOwner = actor === String(project.managerId);
+    const isProjectOwner = actor === String(project.managerId) || ownsByScope(stateRef.current, project);
     const isTeamLeader = actor === String(project.teamLeadId);
-    const isProjectParticipant = projectMembers.has(actor) || actor === String(current.assigneeId)
+    const isProjectParticipant = projectMembers.has(actor) || isProjectOwner || actor === String(current.assigneeId)
       || actor === String(current.reviewerId) || (current.collaborators || []).some((id) => String(id) === actor);
     const checklistEvent = eventType.startsWith('checklist_');
     if (checklistEvent && (!isProjectParticipant || Object.keys(patch).some((key) => key !== 'checklist'))) return null;
@@ -373,6 +424,12 @@ export function MockDataProvider({ children }) {
           && (actor === String(current.assigneeId) || (current.collaborators || []).some((id) => String(id) === actor)))
           || (eventType === 'task_review_submitted_by_project_lead' && (isProjectOwner || isTeamLeader)))) {
         // Submission requires a valid reviewer and an authorized actor.
+      } else if (current.status === 'in_progress' && nextTask.status === 'completed'
+        && eventType === 'task_completed_self_review'
+        && String(current.reviewerId) === String(current.assigneeId)
+        && (actor === String(current.assigneeId) || isProjectOwner || isTeamLeader)
+        && historyEntry?.action === 'approved' && String(historyEntry.actorId) === actor && Boolean(historyEntry.timestamp)) {
+        // งานตรวจเอง: ผู้รับผิดชอบ (หรือ O / L) กด "ทำเสร็จ" จบได้เลย ไม่ผ่านรอตรวจ
       } else if (current.status === 'pending_review' && nextTask.status === 'completed'
         && ((eventType === 'task_review_approved' && actor === String(current.reviewerId))
           || (eventType === 'task_review_approved_by_project_lead' && (isProjectOwner || isTeamLeader)))
@@ -383,7 +440,7 @@ export function MockDataProvider({ children }) {
       } else if (current.status === 'pending_review' && nextTask.status === 'in_progress'
         && ['task_changes_requested', 'task_review_withdrawn'].includes(eventType)
         && (eventType === 'task_changes_requested' ? actor === String(current.reviewerId)
-          : actor === String(current.reviewSubmittedBy) || actor === String(project.managerId) || actor === String(project.teamLeadId))
+          : actor === String(current.reviewSubmittedBy) || isProjectOwner || isTeamLeader)
         && String(event?.reason || '').trim()
         && historyEntry?.action === (eventType === 'task_changes_requested' ? 'changes_requested' : 'withdrawn')
         && String(historyEntry.actorId) === actor && String(historyEntry.reviewerId) === String(current.reviewerId)
@@ -413,9 +470,17 @@ export function MockDataProvider({ children }) {
         taskId: current.id,
       }));
     }
+    // จับเวลาแต่ละสถานะอัตโนมัติ — ทุกทางที่เปลี่ยนสถานะผ่าน updateTask (ปุ่ม, ลากบอร์ด, ติ๊กเช็กลิสต์) จึงบันทึกครบ
+    if (current.status !== nextTask.status) {
+      nextTask.statusHistory = [...(current.statusHistory || []), { status: nextTask.status, at: now(), by: actor }];
+    }
     updateTasksAndSyncProjects((tasks) => tasks.map((task) => String(task.id) === String(taskId) ? nextTask : task), [current.projectId], { recordEvents: false });
     if (event) recordActivity({ projectId: current.projectId, taskId: current.id, ...event });
     if (checklistStatusEvent) recordActivity({ projectId: current.projectId, taskId: current.id, ...checklistStatusEvent });
+    // แจ้งคนที่ต้องทำต่อ — ไม่ต้องคอยเข้ามาเช็กเอง
+    if (current.status === 'in_progress' && nextTask.status === 'pending_review') notifyTaskPerson(nextTask.reviewerId, 'มีงานรอคุณตรวจ', nextTask);
+    if (current.status === 'pending_review' && nextTask.status === 'completed') notifyTaskPerson(nextTask.assigneeId, 'งานของคุณผ่านการตรวจแล้ว', nextTask);
+    if (current.status === 'pending_review' && nextTask.status === 'in_progress' && eventType === 'task_changes_requested') notifyTaskPerson(nextTask.assigneeId, 'งานของคุณถูกส่งกลับให้แก้ไข', nextTask);
     const oldCollaborators = new Set((current.collaborators || []).map(String));
     const nextCollaborators = new Set((nextTask.collaborators || []).map(String));
     nextCollaborators.forEach((id) => {
@@ -428,7 +493,7 @@ export function MockDataProvider({ children }) {
       recordActivity({ projectId: current.projectId, taskId: current.id, type: 'task_reviewer_changed', description: `เปลี่ยนผู้ตรวจงานของ “${nextTask.title}” เป็น ${employeeName(nextTask.reviewerId)}` });
     }
     return nextTask;
-  }, [addNotification, recordActivity, updateTasksAndSyncProjects]);
+  }, [addNotification, notifyTaskPerson, recordActivity, updateTasksAndSyncProjects]);
 
   const deleteTask = useCallback((taskId, event) => {
     const task = stateRef.current.tasks.find((item) => String(item.id) === String(taskId));
@@ -437,7 +502,7 @@ export function MockDataProvider({ children }) {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(task.projectId));
     if (!project) return false;
     const actor = String(stateRef.current.actorId);
-    if (actor !== String(project.managerId) && actor !== String(project.teamLeadId) && actor !== String(task.createdBy)) return false;
+    if (!managesProject(stateRef.current, project) && actor !== String(task.createdBy)) return false;
     updateTasksAndSyncProjects((tasks) => tasks.filter((item) => String(item.id) !== String(taskId)), [task.projectId], { recordEvents: false });
     recordActivity({ projectId: task.projectId, taskId: task.id, type: 'task_deleted', description: `ลบงาน “${task.title}”`, ...event });
     return true;
@@ -496,7 +561,7 @@ export function MockDataProvider({ children }) {
   const addProjectMember = useCallback((projectId, employeeId, reason = '') => {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
     if (!project || !employeeExists(employeeId)) return null;
-    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return null;
+    if (!managesProject(stateRef.current, project)) return null;
     const members = [...new Set((project.teamMemberIds || []).map(String))];
     if (members.includes(String(employeeId)) || String(project.managerId) === String(employeeId) || String(project.teamLeadId) === String(employeeId)) return null;
     return updateProject(projectId, { teamMemberIds: [...members, String(employeeId)] }, {
@@ -507,7 +572,7 @@ export function MockDataProvider({ children }) {
   const assignTeamLeader = useCallback((projectId, employeeId, reason) => {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
     if (!project || (employeeId && !employeeExists(employeeId)) || !String(reason || '').trim()) return null;
-    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return null;
+    if (!managesProject(stateRef.current, project)) return null;
     const members = new Set((project.teamMemberIds || []).map(String));
     if (employeeId) members.add(String(employeeId));
     return updateProject(projectId, { teamLeadId: employeeId || null, teamMemberIds: [...members] }, {
@@ -518,7 +583,7 @@ export function MockDataProvider({ children }) {
   const removeProjectMember = useCallback((projectId, employeeId, replacementId, reason) => {
     const project = stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId));
     if (!project || !String(reason || '').trim() || !employeeExists(employeeId)) return { error: 'ตรวจสอบข้อมูลสมาชิกและระบุเหตุผลก่อนดำเนินการ' };
-    if (![project.managerId, project.teamLeadId].some((id) => String(id) === String(stateRef.current.actorId))) return { error: 'คุณไม่มีสิทธิ์จัดการสมาชิกโปรเจกต์นี้' };
+    if (!managesProject(stateRef.current, project)) return { error: 'คุณไม่มีสิทธิ์จัดการสมาชิกโปรเจกต์นี้' };
     if ([project.managerId, project.teamLeadId].some((id) => String(id) === String(employeeId))) return { error: 'ต้องเปลี่ยน Project Owner หรือ Team Leader ก่อนนำบุคคลนี้ออก' };
     const memberIds = new Set((project.teamMemberIds || []).map(String));
     if (!memberIds.has(String(employeeId))) return { error: 'ไม่พบสมาชิกในโปรเจกต์นี้' };
@@ -530,16 +595,17 @@ export function MockDataProvider({ children }) {
     const remainingMembers = [...memberIds].filter((id) => id !== String(employeeId));
     const eligibleReplacement = remainingMembers.includes(String(replacementId)) || [project.managerId, project.teamLeadId].some((id) => String(id) === String(replacementId));
     if (outstanding.length && (!eligibleReplacement || String(replacementId) === String(employeeId))) return { error: 'เลือกสมาชิกโปรเจกต์คนอื่นเพื่อรับงานค้างก่อนนำสมาชิกออก' };
-    if (outstanding.length && (!employeeExists(replacementId) || outstanding.some((task) => String(task.reviewerId) === String(replacementId)))) {
+    if (outstanding.length && (!employeeExists(replacementId) || outstanding.some((task) => String(task.reviewerId) === String(replacementId) && String(task.reviewerId) !== String(task.assigneeId)))) {
       return { error: 'ผู้รับผิดชอบแทนต้องเป็นพนักงานที่มีอยู่และไม่ใช่ผู้ตรวจของงานที่โอน' };
     }
-    if (projectTasks.some((task) => task.status !== 'completed' && String(task.reviewerId) === String(employeeId))) return { error: 'สมาชิกเป็นผู้ตรวจของงานหนึ่งรายการขึ้นไป กรุณาเปลี่ยนผู้ตรวจแต่ละงานก่อนนำออก' };
+    if (projectTasks.some((task) => task.status !== 'completed' && String(task.reviewerId) === String(employeeId) && String(task.assigneeId) !== String(employeeId))) return { error: 'สมาชิกเป็นผู้ตรวจของงานหนึ่งรายการขึ้นไป กรุณาเปลี่ยนผู้ตรวจแต่ละงานก่อนนำออก' };
     const oldTasks = stateRef.current.tasks;
     const nextTasks = oldTasks.map((task) => {
       if (projectKey(task.projectId) !== projectKey(projectId) || task.status === 'completed') return task;
       const patch = {};
       if (String(task.assigneeId) === String(employeeId) && task.status !== 'completed') {
         patch.assigneeId = String(replacementId);
+        if (String(task.reviewerId) === String(employeeId)) patch.reviewerId = String(replacementId); // งานตรวจเอง → คนรับแทนตรวจเอง
         patch.collaborators = (task.collaborators || []).filter((id) => (
           String(id) !== String(employeeId) && String(id) !== String(replacementId)
         ));
@@ -577,6 +643,103 @@ export function MockDataProvider({ children }) {
     return { project: stateRef.current.projects.find((item) => projectKey(item.id) === projectKey(projectId)) };
   }, [addNotification, recordActivity, updateProject]);
 
+  // ── จัดการผู้ใช้ (ADMIN) — กฎตรงกับ backend/routes/users.js · mock ไม่เก็บรหัสผ่าน เก็บแค่เวลาที่ตั้ง ──
+  // คืน { ok: true, user } หรือ { error: 'ข้อความไทย' }
+  const validateUser = (values, currentId) => {
+    const name = String(values.name ?? '').trim();
+    if (!name) return 'ชื่อห้ามว่าง';
+    if (!USER_ROLES.includes(values.role)) return 'เลือกสิทธิ์ผู้ใช้';
+    const sectionIds = [...new Set((values.sectionIds || []).map(String))];
+    if (!sectionIds.length) return 'เลือกสังกัดอย่างน้อย 1 Section';
+    if (sectionIds.some((id) => !MOCK_DEPARTMENTS.some((section) => section.id === id))) return 'ไม่พบ Section ที่เลือก';
+    if (values.departmentId && !sectionIds.includes(String(values.departmentId))) return 'Section หลักต้องอยู่ในสังกัดที่เลือก';
+    if ((values.teamIds || []).some((id) => !stateRef.current.teams.some((team) => String(team.id) === String(id)))) return 'ไม่พบทีมที่เลือก';
+    if (values.role === 'MANAGEMENT') {
+      const scope = values.scope || {};
+      if (!(scope.divisionIds || []).length && !(scope.sectionIds || []).length) return 'Management ต้องเลือกขอบเขตที่เห็นอย่างน้อย 1 Division หรือ Section';
+    }
+    const rfid = String(values.rfid ?? '').trim();
+    if (rfid && stateRef.current.employees.some((employee) => String(employee.id) !== String(currentId) && String(employee.rfid || '') === rfid)) return 'รหัสบัตรนี้ผูกกับบัญชีอื่นแล้ว';
+    const email = String(values.email ?? '').trim();
+    if (email && !/^[^\s@]+@[^\s@]+$/.test(email)) return 'รูปแบบอีเมลไม่ถูกต้อง';
+    return null;
+  };
+  const toAccount = (values, base = {}) => {
+    const sectionIds = [...new Set((values.sectionIds || []).map(String))];
+    const departmentId = String(values.departmentId || sectionIds[0]);
+    return {
+      ...base,
+      name: String(values.name).trim(),
+      position: String(values.position ?? '').trim(),
+      email: String(values.email ?? '').trim(),
+      role: values.role,
+      sectionIds,
+      departmentId,
+      department: MOCK_DEPARTMENTS.find((section) => section.id === departmentId)?.name || '',
+      scope: values.role === 'MANAGEMENT'
+        ? { divisionIds: [...new Set((values.scope?.divisionIds || []).map(String))], sectionIds: [...new Set((values.scope?.sectionIds || []).map(String))] }
+        : { divisionIds: [], sectionIds: [] },
+      rfid: String(values.rfid ?? '').trim() || null,
+    };
+  };
+  const saveTeamsFor = (employeeId, teamIds) => {
+    if (!Array.isArray(teamIds)) return;
+    const wanted = new Set(teamIds.map(String));
+    const next = stateRef.current.teams.map((team) => {
+      const members = (team.memberEmployeeIds || []).map(String).filter((id) => id !== String(employeeId));
+      return { ...team, memberEmployeeIds: wanted.has(String(team.id)) ? [...members, String(employeeId)] : members };
+    });
+    stateRef.current.teams = next;
+    setTeamsState(next);
+  };
+  const isAdminActor = () => stateRef.current.employees.find((employee) => String(employee.id) === String(stateRef.current.actorId))?.role === 'ADMIN';
+  const createUser = (values) => {
+    if (!isAdminActor()) return { error: 'เฉพาะผู้ดูแลระบบเท่านั้น' };
+    const existingIds = stateRef.current.employees.map((employee) => String(employee.id));
+    const nextNumber = Math.max(0, ...existingIds.map((id) => Number(String(id).replace(/\D/g, '')) || 0)) + 1;
+    const id = String(values.id || '').trim().toLowerCase() || `emp-${String(nextNumber).padStart(3, '0')}`;
+    if (!/^emp-\d{3,}$/.test(id)) return { error: 'รหัสพนักงานต้องเป็นรูปแบบ emp-001' };
+    if (existingIds.includes(id)) return { error: 'รหัสพนักงานนี้มีอยู่แล้ว' };
+    if (String(values.password || '').length < MIN_PASSWORD) return { error: `รหัสผ่านต้องมีอย่างน้อย ${MIN_PASSWORD} ตัวอักษร` };
+    const problem = validateUser(values, id);
+    if (problem) return { error: problem };
+    const user = toAccount(values, { id, isActive: true, passwordSetAt: now(), createdAt: now() });
+    stateRef.current.employees = [...stateRef.current.employees, user];
+    setCurrentEmployees(stateRef.current.employees);
+    setEmployeesState(stateRef.current.employees);
+    saveTeamsFor(id, values.teamIds || []);
+    return { ok: true, user };
+  };
+  const updateUser = (userId, values) => {
+    if (!isAdminActor()) return { error: 'เฉพาะผู้ดูแลระบบเท่านั้น' };
+    const current = stateRef.current.employees.find((employee) => String(employee.id) === String(userId));
+    if (!current) return { error: 'ไม่พบผู้ใช้' };
+    const merged = { ...current, ...values };
+    const problem = validateUser(merged, current.id);
+    if (problem) return { error: problem };
+    const isSelf = String(userId) === String(stateRef.current.actorId);
+    if (isSelf && (merged.role !== 'ADMIN' || merged.isActive === false)) return { error: 'ลดสิทธิ์หรือปิดบัญชีของตัวเองไม่ได้' };
+    if (values.password !== undefined && String(values.password).length < MIN_PASSWORD) return { error: `รหัสผ่านต้องมีอย่างน้อย ${MIN_PASSWORD} ตัวอักษร` };
+    const user = {
+      ...toAccount(merged, current),
+      isActive: merged.isActive !== false,
+      ...(values.password !== undefined ? { passwordSetAt: now() } : {}),
+      updatedAt: now(),
+    };
+    delete user.password;
+    stateRef.current.employees = stateRef.current.employees.map((employee) => (String(employee.id) === String(userId) ? user : employee));
+    setCurrentEmployees(stateRef.current.employees);
+    setEmployeesState(stateRef.current.employees);
+    if (values.teamIds) saveTeamsFor(userId, values.teamIds);
+    return { ok: true, user };
+  };
+  const createUserRef = useRef(createUser);
+  const updateUserRef = useRef(updateUser);
+  createUserRef.current = createUser;
+  updateUserRef.current = updateUser;
+  const stableCreateUser = useCallback((values) => createUserRef.current(values), []);
+  const stableUpdateUser = useCallback((userId, values) => updateUserRef.current(userId, values), []);
+
   const createLabel = useCallback((values) => {
     const name = String(values.name || '').trim();
     if (!name) return null;
@@ -605,18 +768,62 @@ export function MockDataProvider({ children }) {
     return true;
   }, []);
 
+  // ── กรองการเห็นตามสิทธิ์ (utils/access.js) ก่อนส่งให้ทุกหน้า — หน้าใหม่ไม่ต้องกรองซ้ำ ──
+  // state ดิบอยู่ใน stateRef ให้ validation ข้างบนใช้ · setProjects / setTasks รับ updater ที่ทำงานบนข้อมูลดิบ
+  const visibleProjects = useMemo(() => {
+    const viewer = viewerId ? employeesState.find((employee) => String(employee.id) === String(viewerId)) || null : null;
+    const ctx = { employees: employeesState, org: { divisions: MOCK_DIVISIONS, sections: MOCK_DEPARTMENTS, teams: teamsState } };
+    return projectsState.filter((project) => canSeeProject(project, viewer, ctx));
+  }, [projectsState, employeesState, teamsState, viewerId]);
+  const visible = useMemo(() => {
+    const ids = new Set(visibleProjects.map((project) => projectKey(project.id)));
+    const seen = (item) => ids.has(projectKey(item.projectId));
+    const tasks = tasksState.filter(seen);
+    const taskIds = new Set(tasks.map((task) => String(task.id)));
+    return {
+      tasks,
+      deliverables: deliverablesState.filter(seen),
+      activity: activityState.filter((event) => event.projectId == null || seen(event)),
+      projectCosts: projectCostsState.filter(seen),
+      taskWork: Object.fromEntries(Object.entries(taskWorkState).filter(([taskId]) => taskIds.has(String(taskId)))),
+      // แจ้งเตือนที่ผูกโปรเจกต์ที่มองไม่เห็นแล้ว (เช่น ถูกนำออกจากทีม) ไม่แสดง
+      notifications: notificationsState.filter((item) => item.projectId == null || seen(item)),
+    };
+  }, [visibleProjects, tasksState, deliverablesState, activityState, projectCostsState, taskWorkState, notificationsState]);
+  const org = useMemo(() => ({ divisions: MOCK_DIVISIONS, sections: MOCK_DEPARTMENTS, teams: teamsState }), [teamsState]);
+  const peopleInViewList = useMemo(() => {
+    const viewer = viewerId ? employeesState.find((employee) => String(employee.id) === String(viewerId)) || null : null;
+    return peopleInView(viewer, { employees: employeesState, org }, visibleProjects);
+  }, [employeesState, org, viewerId, visibleProjects]);
+  // สิทธิ์ของผู้ใช้ปัจจุบันต่อโปรเจกต์ — หน้าเว็บใช้ซ่อน/แสดงปุ่ม (กฎเดียวกับที่ context เช็กตอนบันทึก)
+  const access = useMemo(() => {
+    const viewer = viewerId ? employeesState.find((employee) => String(employee.id) === String(viewerId)) || null : null;
+    const ctx = { employees: employeesState, org };
+    return {
+      canManage: (project) => canManageProject(project, viewer, ctx),
+      ownsByScope: (project) => ['ADMIN', 'MANAGEMENT'].includes(viewer?.role) && canManageProject(project, viewer, ctx),
+      roleIn: (project) => projectRoleOf(project, viewer, ctx),
+      isAdmin: viewer?.role === 'ADMIN' && viewer?.isActive !== false,
+    };
+  }, [employeesState, org, viewerId]);
+
   const value = useMemo(() => ({
-    employees: MOCK_EMPLOYEES, departments: MOCK_DEPARTMENTS,
-    projects: projectsState, teams: teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
-    tasks: tasksState, setTasks: setTasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
-    deliverables: deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable,
+    employees: employeesState, departments: MOCK_DEPARTMENTS, divisions: MOCK_DIVISIONS, org,
+    viewer: viewerId ? employeesState.find((employee) => String(employee.id) === String(viewerId)) || null : null,
+    createUser: stableCreateUser, updateUser: stableUpdateUser, access,
+    // คนที่ผู้ใช้ปัจจุบันเห็นภาระงาน (Workload / หน้าหลัก / รายงาน) — employees ยังเป็นรายชื่อเต็มไว้ให้เลือกคนเข้าโปรเจกต์
+    peopleInView: peopleInViewList,
+    projects: visibleProjects, teams: teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember,
+    tasks: visible.tasks, setTasks: setTasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
+    deliverables: visible.deliverables, createDeliverable, updateDeliverable, deleteDeliverable,
     labels: labelsState, createLabel, updateLabel, deleteLabel,
-    activity: activityState, recordActivity,
-    notifications: notificationsState, addNotification, markNotificationsRead,
-    taskWork: taskWorkState, addTaskWorkEntry,
+    activity: visible.activity, recordActivity,
+    notifications: visible.notifications, addNotification, markNotificationsRead,
+    taskWork: visible.taskWork, addTaskWorkEntry,
+    projectCosts: visible.projectCosts, setProjectMonthlyCost,
     actorId, setActorId,
-  }), [projectsState, teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, tasksState, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
-    deliverablesState, createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, activityState, recordActivity, notificationsState, addNotification, markNotificationsRead, taskWorkState, addTaskWorkEntry, actorId, setActorId]);
+  }), [access, peopleInViewList, employeesState, org, viewerId, stableCreateUser, stableUpdateUser, visibleProjects, visible, setProjectMonthlyCost, teamsState, setProjects, updateProject, addProjectMember, assignTeamLeader, removeProjectMember, updateTasksAndSyncProjects, createTask, updateTask, deleteTask,
+    createDeliverable, updateDeliverable, deleteDeliverable, labelsState, createLabel, updateLabel, deleteLabel, recordActivity, addNotification, markNotificationsRead, addTaskWorkEntry, actorId, setActorId]);
 
   return <MockDataContext.Provider value={value}>{children}</MockDataContext.Provider>;
 }

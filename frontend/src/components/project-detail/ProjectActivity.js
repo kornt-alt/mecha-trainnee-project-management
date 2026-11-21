@@ -1,7 +1,7 @@
 // Chronological project activity backed by the shared event stream.
 import { useMemo } from 'react';
 import { Card } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { initials } from '../../utils/projectTrackingUtils';
 
@@ -22,7 +22,7 @@ export default function ProjectActivity({ projectId }) {
     <Card className="workspace-panel"><Card.Body>
       <h2 className="workspace-reference-activity-title">ประวัติการดำเนินการ</h2>
       {events.length ? <div className="workspace-reference-activity-list workspace-history-scroll">{events.map((event) => {
-        const actor = MOCK_EMPLOYEES.find((person) => String(person.id) === String(event.actorId));
+        const actor = currentEmployees().find((person) => String(person.id) === String(event.actorId));
         return <article className="workspace-reference-activity-row" key={event.id}>
           <span className="project-detail-avatar" data-person-id={actor?.id} aria-hidden="true">{initials(actor?.name || event.actorId || '?')}</span>
           <span className="workspace-reference-activity-copy">

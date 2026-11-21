@@ -1,14 +1,14 @@
-// Project-scoped task list and detail workflow using shared MockDataContext records.
+// frontend/src/components/project-detail/ProjectTasks.js — แท็บงาน: รายการงาน + ตัวกรอง + แผงรายละเอียดงาน (แผงเดียว)
 import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Form } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { daysBetween, shortThaiDate, today } from '../../utils/projectTrackingUtils';
 import { TaskStatusBadge, WorkspaceTaskMetadata } from '../TaskBadges';
 import TaskDetailModal from '../TaskDetailModal';
 import TaskFormModal from './TaskFormModal';
 
-const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
+const employeeById = (id) => currentEmployees().find((employee) => String(employee.id) === String(id));
 const employeeName = (id) => employeeById(id)?.name;
 const statusFilters = [
   { key: 'all', label: 'ทั้งหมด' },
@@ -32,7 +32,6 @@ export default function ProjectTasks({
   onConsumeCreate,
   taskWorkEntries,
   onAddTaskComment,
-  onAddTaskTimeLog,
   actorId,
 }) {
   const { projects, tasks, labels, createTask, updateTask } = useMockData();
@@ -44,12 +43,6 @@ export default function ProjectTasks({
   const [labelFilter, setLabelFilter] = useState('all');
   const [editingTask, setEditingTask] = useState(null);
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [workPage, setWorkPage] = useState(false);
-
-  useEffect(() => {
-    setWorkPage(false);
-  }, [projectId, externalSelectedTaskId]);
-
   useEffect(() => {
     if (openCreate) {
       setEditingTask(null);
@@ -75,13 +68,11 @@ export default function ProjectTasks({
   const selectedTaskId = selectionIsControlled ? externalSelectedTaskId : internalSelectedTaskId;
   const selectedTask = projectTasks.find((task) => String(task.id) === String(selectedTaskId));
   const selectTask = (task) => {
-    setWorkPage(false);
     if (task && onOpenTask) onOpenTask(task);
     else if (onSelectedTaskChange) onSelectedTaskChange(task?.id ?? null);
     else setInternalSelectedTaskId(task?.id ?? null);
   };
   const closeTask = () => {
-    setWorkPage(false);
     if (onCloseTask) onCloseTask();
     else if (onSelectedTaskChange) onSelectedTaskChange(null);
     else setInternalSelectedTaskId(null);
@@ -99,7 +90,6 @@ export default function ProjectTasks({
   };
   useEffect(() => {
     if (externalSelectedTaskId && !selectedTask) {
-      setWorkPage(false);
       onCloseTask?.();
       onSelectedTaskChange?.(null);
     }
@@ -108,9 +98,9 @@ export default function ProjectTasks({
   if (!project) return <section className="project-detail-empty" role="status">ไม่พบโปรเจกต์สำหรับแสดงงาน</section>;
 
   return (
-    <section className={`project-tasks-panel is-reference${selectedTask ? ' has-selected-task' : ''}${workPage ? ' is-work-page' : ''}`} aria-label="งานในโปรเจกต์">
-      <div className={`project-tasks-content${workPage ? ' is-work-page' : ''}`}>
-        {!workPage && <div className="project-tasks-main">
+    <section className={`project-tasks-panel is-reference${selectedTask ? ' has-selected-task' : ''}`} aria-label="งานในโปรเจกต์">
+      <div className="project-tasks-content">
+        <div className="project-tasks-main">
           <div className="project-tasks-top-row">
             <div className="project-tasks-status-filters" role="group" aria-label="กรองงานตามสถานะ">
               {statusFilters.map((filter) => (
@@ -166,22 +156,17 @@ export default function ProjectTasks({
               </button>;
                 })}</div>}
           </Card.Body></Card>
-        </div>}
+        </div>
         {selectedTask && <TaskDetailModal
           key={`${project.id}:${selectedTask.id}`}
           task={selectedTask}
           projectId={project.id}
-          workspaceMode
-          workPage={workPage}
           initialAction={selectedTaskAction}
-          onOpenWork={() => setWorkPage(true)}
-          onCloseWork={() => setWorkPage(false)}
           onClearInitialAction={onClearTaskAction}
           onClose={closeTask}
-          onEdit={(task) => { setEditingTask(task); closeTask(); setShowTaskForm(true); }}
-          workEntries={taskWorkEntries || { comments: [], timeLogs: [] }}
+          onEdit={(task) => { setEditingTask(task); setShowTaskForm(true); }}
+          workEntries={taskWorkEntries || { comments: [] }}
           onAddComment={onAddTaskComment}
-          onAddTimeLog={onAddTaskTimeLog}
           actorId={actorId}
         />}
       </div>

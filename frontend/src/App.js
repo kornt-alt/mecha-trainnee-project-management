@@ -2,7 +2,7 @@
 //
 // เพิ่มหน้าใหม่: สร้าง components/<Page>.js → เพิ่ม <Route> ข้างล่าง → เพิ่มเมนูใน components/nav.js
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout';
 import Home from './components/Home';
 import About from './components/About';
@@ -20,6 +20,8 @@ import SecurityIncidentDetail from './components/notifications/SecurityIncidentD
 import AuditLog from './components/notifications/AuditLog';
 import ExportHistory from './components/notifications/ExportHistory';
 import ExportDetail from './components/notifications/ExportDetail';
+import UserManagement from './components/admin/UserManagement';
+import RequireAdmin from './components/admin/RequireAdmin';
 import { APP_BASE } from './utils/config';
 import { MockDataProvider, useMockData } from './context/MockDataContext';
 import { NotificationCenterProvider } from './context/NotificationCenterContext';
@@ -29,13 +31,11 @@ import { continueAsGuest, setLoginSession, useLoginSession } from './utils/sessi
 // ⚠️ ไม่ import CSS ที่นี่ — ทั้งแอป import ที่ src/index.js ที่เดียวเพื่อคุมลำดับ
 
 function RoutedApplication() {
-  const location = useLocation();
   const session = useLoginSession();
   const { setActorId } = useMockData();
-  // ลิงก์ตรงไปหน้าโปรเจกต์ (เช่น ส่งต่อโปรเจกต์ public) เปิดดูได้เลยโดยไม่เจอหน้าต่าง login ก่อน
-  const isProjectDetail = /^\/projects\/[^/]+/.test(location.pathname);
   // เด้งครั้งเดียวต่อ session — login แล้ว หรือกดปิด (ผู้เยี่ยมชม) จะไม่เด้งอีกจนกว่าจะออกจากระบบ (utils/session.js)
-  const showLogin = !session && !isProjectDetail;
+  // แสดงได้ทุกหน้า รวมหน้าโปรเจกต์ (ลิงก์ตรงยังดูได้ — กดปิดเป็นผู้เยี่ยมชม) · ออกจากระบบแล้วเด้งทับหน้าเดิม = ใช้เปลี่ยนผู้ใช้
+  const showLogin = !session;
   const [backgroundState, setBackgroundState] = useState('obscured');
   const isObscured = showLogin && backgroundState === 'obscured';
   const isRevealed = showLogin && backgroundState === 'revealed';
@@ -75,11 +75,13 @@ function RoutedApplication() {
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<NotificationCenter />} />
             <Route path="notifications/:notificationId" element={<NotificationDetail />} />
-            <Route path="security/incidents" element={<SecurityIncidents />} />
-            <Route path="security/incidents/:incidentId" element={<SecurityIncidentDetail />} />
-            <Route path="audit-log" element={<AuditLog />} />
-            <Route path="exports" element={<ExportHistory />} />
-            <Route path="exports/:exportId" element={<ExportDetail />} />
+            {/* หน้าผู้ดูแลระบบ — ไม่ใช่ ADMIN เห็นข้อความแทน (เมนูก็ซ่อนใน Layout) */}
+            <Route path="admin/users" element={<RequireAdmin><UserManagement /></RequireAdmin>} />
+            <Route path="security/incidents" element={<RequireAdmin><SecurityIncidents /></RequireAdmin>} />
+            <Route path="security/incidents/:incidentId" element={<RequireAdmin><SecurityIncidentDetail /></RequireAdmin>} />
+            <Route path="audit-log" element={<RequireAdmin><AuditLog /></RequireAdmin>} />
+            <Route path="exports" element={<RequireAdmin><ExportHistory /></RequireAdmin>} />
+            <Route path="exports/:exportId" element={<RequireAdmin><ExportDetail /></RequireAdmin>} />
             <Route
               path="settings"
               element={
@@ -90,10 +92,10 @@ function RoutedApplication() {
               }
             />
             <Route path="about" element={<About />} />
+            {/* Project Workspace อยู่ใน Layout ด้วย — เดิมอยู่นอก ทำให้ sidebar / Header / กระดิ่งหายเวลาเข้าโปรเจกต์ */}
+            <Route path="projects/:projectId" element={<ProjectDetail />} />
             <Route path="*" element={<NotFound />} />
           </Route>
-          {/* Project Workspace เป็นหน้าเต็มจอ — อยู่นอก Layout จึงไม่มี sidebar / Header */}
-          <Route path="projects/:projectId" element={<ProjectDetail />} />
         </Routes>
       </div>
       {showLogin && <LoginModal onBackgroundChange={setBackgroundState} onLoggedIn={handleLoggedIn} onDismiss={continueAsGuest} />}

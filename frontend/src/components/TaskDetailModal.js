@@ -1,13 +1,17 @@
-// Shared Task Detail modal with optional Project Workspace workflows.
+// frontend/src/components/TaskDetailModal.js — แผงรายละเอียดงานใน Project Workspace (แผงเดียวครบ: ปุ่ม เช็กลิสต์ ความคิดเห็น ระยะเวลา ประวัติ)
+// ข้อมูลสำหรับผู้บริหารเก็บจากการกดปุ่มปกติ: ระยะเวลาแต่ละสถานะจับเองจาก statusHistory · ปุ่ม "แจ้งติดปัญหา" ตั้ง task.blocked
+// (ไม่มีการกรอกชั่วโมงทำงานแล้ว)
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Button, Form, Modal, ProgressBar } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../data/mockData';
+import { Alert, Button, Form } from 'react-bootstrap';
+import { currentEmployees } from '../data/employeeStore';
 import { useMockData } from '../context/MockDataContext';
-import { TaskPriorityBadge, TaskStatusBadge, workspaceLabelColor as getWorkspaceLabelColor } from './TaskBadges';
-import { Folder, Plus, Trash2 } from './common/Icons';
+import { TaskBlockedBadge, TaskPriorityBadge, TaskStatusBadge, workspaceLabelColor as getWorkspaceLabelColor } from './TaskBadges';
+import { Plus, Trash2 } from './common/Icons';
 import { checklistProgressPercent } from '../utils/projectTrackingUtils';
+import { formatDuration, statusDurations } from '../utils/executiveMetrics';
+import { taskSizeLabel, taskStatusLabel } from '../utils/labels';
 
-const employee = (id) => MOCK_EMPLOYEES.find((item) => String(item.id) === String(id));
+const employee = (id) => currentEmployees().find((item) => String(item.id) === String(id));
 const checklistDate = (value) => {
   const date = new Date(value);
   return value && !Number.isNaN(date.getTime()) ? date.toLocaleString('th-TH') : '';
@@ -18,21 +22,15 @@ export default function TaskDetailModal({
   onClose,
   projectId,
   onEdit,
-  panelMode = false,
-  panelContainer,
-  workspaceMode = false,
-  workPage = false,
-  onOpenWork,
-  onCloseWork,
   initialAction = '',
   onClearInitialAction,
-  workEntries = { comments: [], timeLogs: [] },
+  workEntries = { comments: [] },
   onAddComment,
-  onAddTimeLog,
   actorId: workspaceActorId,
 }) {
   const {
     projects, tasks, labels, activity, actorId: contextActorId, updateTask, deleteTask,
+    access,
   } = useMockData();
   const actorId = workspaceActorId ?? contextActorId;
   const [checklistTitle, setChecklistTitle] = useState('');
@@ -45,22 +43,20 @@ export default function TaskDetailModal({
   const [confirmAction, setConfirmAction] = useState('');
   const [error, setError] = useState('');
   const [commentText, setCommentText] = useState('');
-  const [timeHours, setTimeHours] = useState('');
-  const [timeNote, setTimeNote] = useState('');
   const task = selectedTask ? tasks.find((item) => String(item.id) === String(selectedTask.id)
-    && (!workspaceMode || projectId == null || String(item.projectId) === String(projectId))) : null;
+    && (projectId == null || String(item.projectId) === String(projectId))) : null;
   const resolvedProjectId = projectId ?? task?.projectId;
   const project = projects.find((item) => String(item.id) === String(resolvedProjectId));
   const ownerId = project?.managerId;
   const teamLeadId = project?.teamLeadId;
-  const isOwner = String(actorId) === String(ownerId);
+  // ADMIN / Management ในขอบเขต = สิทธิ์เท่า Owner (utils/access.js)
+  const isOwner = String(actorId) === String(ownerId) || Boolean(project && access.ownsByScope(project));
   const isTeamLead = String(actorId) === String(teamLeadId);
   const isReviewLocked = task?.status === 'pending_review';
   const isTaskLocked = ['pending_review', 'completed'].includes(task?.status);
   const canManageAssignment = Boolean(resolvedProjectId && (isOwner || isTeamLead) && !isReviewLocked && task?.status !== 'completed');
   const canEditTask = Boolean(resolvedProjectId && !isReviewLocked && task?.status !== 'completed' && (
     isOwner || isTeamLead || String(actorId) === String(task?.assigneeId)
-    || (!workspaceMode && (task?.collaborators || []).some((id) => String(id) === String(actorId)))
   ));
   const canDeleteTask = Boolean(resolvedProjectId && !isReviewLocked && (
     isOwner || isTeamLead || String(actorId) === String(task?.createdBy)
@@ -69,13 +65,23 @@ export default function TaskDetailModal({
     || (task?.collaborators || []).some((id) => String(id) === String(actorId))));
   const canSubmitReview = Boolean(resolvedProjectId && task?.status === 'in_progress' && task?.reviewerId
     && (String(actorId) === String(task?.assigneeId) || (task?.collaborators || []).some((id) => String(id) === String(actorId))));
+  // งานตรวจเอง (ผู้ตรวจ = ผู้รับผิดชอบ): ไม่มีขั้นรอตรวจ — ปุ่ม "ทำเสร็จ" แทน "ส่งตรวจ"
+  const isSelfReview = Boolean(task?.assigneeId) && String(task?.reviewerId) === String(task?.assigneeId);
+  const canSelfComplete = Boolean(resolvedProjectId && isSelfReview && task?.status === 'in_progress'
+    && (String(actorId) === String(task?.assigneeId) || isOwner || isTeamLead));
   const canReview = Boolean(resolvedProjectId && isReviewLocked && String(actorId) === String(task?.reviewerId));
+  // แจ้งติดปัญหา: คนในงาน + Owner / Team Lead · งานรอตรวจ / เสร็จแล้วแจ้งไม่ได้ (งานถูกล็อก)
+  const canFlagBlocked = Boolean(resolvedProjectId && !isTaskLocked && (
+    isOwner || isTeamLead || String(actorId) === String(task?.assigneeId)
+    || (task?.collaborators || []).some((id) => String(id) === String(actorId))
+  ));
   const canWithdraw = Boolean(resolvedProjectId && isReviewLocked && (
     String(actorId) === String(task?.reviewSubmittedBy) || isOwner || isTeamLead
   ));
   const projectMembers = useMemo(() => {
     const ids = new Set([...(project?.teamMemberIds || []).map(String), String(ownerId || ''), String(teamLeadId || ''), String(task?.assigneeId || '')]);
-    return MOCK_EMPLOYEES.filter((person) => ids.has(String(person.id)));
+    // บัญชีที่ปิดเลือกเป็นผู้รับผิดชอบใหม่ไม่ได้ (ผู้รับผิดชอบปัจจุบันยังแสดง)
+    return currentEmployees().filter((person) => ids.has(String(person.id)) && (person.isActive !== false || String(person.id) === String(task?.assigneeId)));
   }, [project, ownerId, teamLeadId, task?.assigneeId]);
 
   useEffect(() => {
@@ -88,8 +94,6 @@ export default function TaskDetailModal({
     setConfirmAction(initialAction || '');
     setError('');
     setCommentText('');
-    setTimeHours('');
-    setTimeNote('');
   }, [selectedTask?.id, initialAction]);
 
   if (!task) return null;
@@ -165,9 +169,26 @@ export default function TaskDetailModal({
       if (!canSubmitReview) return setError('ผู้รับผิดชอบหลักหรือผู้ร่วมงานเท่านั้นที่ส่งงานตรวจได้');
       if (!task.reviewerId) return setError('กรุณากำหนดผู้ตรวจงานก่อนส่งตรวจ');
       reviewHistory.push({ action: 'submitted', actorId, reviewerId: task.reviewerId, timestamp: stamp });
-      update({ status: 'pending_review', reviewSubmittedBy: actorId, reviewSubmittedAt: stamp, reviewHistory }, {
+      // ส่งตรวจแล้วถือว่าปัญหาที่แจ้งไว้จบแล้ว (blocked: null)
+      const submitted = update({ status: 'pending_review', reviewSubmittedBy: actorId, reviewSubmittedAt: stamp, reviewHistory, blocked: null }, {
         type: 'task_review_submitted', description: `ส่งงาน “${task.title}” ให้ ${employee(task.reviewerId)?.name || 'ผู้ตรวจ'} ตรวจ`,
       });
+      if (!submitted) return;
+    } else if (action === 'block') {
+      if (!canFlagBlocked) return setError('คุณไม่มีสิทธิ์แจ้งปัญหาของงานนี้');
+      const cleanReason = reason.trim();
+      if (!update({ blocked: { reason: cleanReason, by: actorId, at: stamp } }, {
+        type: 'task_blocked', description: `แจ้งว่างาน “${task.title}” ติดปัญหา${cleanReason ? `: ${cleanReason}` : ''}`, reason: cleanReason || undefined,
+      })) return;
+    } else if (action === 'unblock') {
+      if (!canFlagBlocked) return setError('คุณไม่มีสิทธิ์แก้สถานะปัญหาของงานนี้');
+      if (!update({ blocked: null }, { type: 'task_unblocked', description: `แก้ปัญหาของงาน “${task.title}” แล้ว` })) return;
+    } else if (action === 'complete') {
+      if (!canSelfComplete) return setError('เฉพาะผู้รับผิดชอบงาน (หรือ Owner / Team Lead) ที่กดทำเสร็จได้');
+      reviewHistory.push({ action: 'submitted', actorId, reviewerId: task.reviewerId, timestamp: stamp }, { action: 'approved', actorId, reviewerId: task.reviewerId, timestamp: stamp });
+      if (!update({ status: 'completed', progress: 100, completedAt: stamp, reviewApprovedBy: actorId, reviewApprovedAt: stamp, reviewHistory, blocked: null }, {
+        type: 'task_completed_self_review', description: `ทำงาน “${task.title}” เสร็จ (ตรวจเอง)`,
+      })) return;
     } else if (action === 'approve') {
       if (!canReview) return setError('เฉพาะผู้ตรวจงานที่กำหนดเท่านั้นที่อนุมัติได้');
       reviewHistory.push({ action: 'approved', actorId, reviewerId: task.reviewerId, timestamp: stamp });
@@ -210,6 +231,8 @@ export default function TaskDetailModal({
     }
     if (action === 'start') setNotice('เริ่มงานแล้ว');
     if (action === 'submit') setNotice('ส่งตรวจแล้ว · ส่งผิดกด “ถอนจากการตรวจ” ได้');
+    if (action === 'block') setNotice('แจ้งติดปัญหาแล้ว · หัวหน้าจะเห็นในหน้ารายงาน');
+    if (action === 'unblock') setNotice('บันทึกว่าแก้ปัญหาแล้ว');
     setConfirmAction('');
     setReason('');
     setNextAssigneeId('');
@@ -229,26 +252,13 @@ export default function TaskDetailModal({
     setCommentText('');
   };
 
-  const addWorkspaceTimeLog = (event) => {
-    event.preventDefault();
-    const hours = Number(timeHours);
-    const note = timeNote.trim();
-    if (!(hours > 0) || !note) return;
-    onAddTimeLog?.(task.id, {
-      id: `time-${Date.now()}`,
-      actorId,
-      hours,
-      note,
-      timestamp: new Date().toISOString(),
-    });
-    setTimeHours('');
-    setTimeNote('');
-  };
 
   const actionDescription = {
+    block: 'แจ้งว่างานนี้ติดปัญหา — Owner / Team Lead และหน้ารายงานจะเห็นทันที',
     start: 'เปลี่ยนสถานะงานเป็นกำลังทำ',
     submit: 'ส่งงานให้ผู้ตรวจที่ระบุไว้ และล็อกการแก้ไขระหว่างรอตรวจ',
     approve: 'อนุมัติงานและเปลี่ยนสถานะเป็นเสร็จแล้ว (แก้ไขต่อไม่ได้)',
+    complete: 'ทำงานนี้เสร็จ (ตรวจเอง) — เปลี่ยนเป็นเสร็จแล้วทันที แก้ไขต่อไม่ได้',
     request_changes: 'ส่งงานกลับไปกำลังทำพร้อมเหตุผลที่ระบุ',
     withdraw: 'ถอนงานออกจากการตรวจและเปลี่ยนกลับเป็นกำลังทำ',
     reassign: 'บันทึกการเปลี่ยนผู้รับผิดชอบพร้อมเหตุผล',
@@ -260,8 +270,8 @@ export default function TaskDetailModal({
   const checklistDone = checklistItems.filter((item) => item.completed).length;
   const checklistPercent = checklistProgressPercent(checklistItems);
   const workComments = workEntries.comments || [];
-  const workTimeLogs = workEntries.timeLogs || [];
-  const totalLoggedHours = workTimeLogs.reduce((total, item) => total + Number(item.hours || 0), 0);
+  // ระยะเวลาแต่ละสถานะ (null = งานเก่าที่ไม่มีประวัติสถานะ)
+  const durations = statusDurations(task);
   const taskEvents = activity.filter((item) => String(item.taskId) === String(task.id)
     && String(item.projectId) === String(resolvedProjectId));
   const taskLockMessage = task.status === 'completed'
@@ -283,7 +293,6 @@ export default function TaskDetailModal({
   ].sort((left, right) => String(right.timestamp || '').localeCompare(String(left.timestamp || '')));
   const taskHistory = [...taskHistoryBase,
     ...workComments.map((comment) => ({ actorId: comment.actorId, description: `แสดงความคิดเห็นในงาน “${task.title}”`, timestamp: comment.timestamp })),
-    ...workTimeLogs.map((entry) => ({ actorId: entry.actorId, description: `บันทึกเวลาทำงาน ${entry.hours} ชม. ในงาน “${task.title}”`, timestamp: entry.timestamp })),
   ].sort((left, right) => String(right.timestamp || '').localeCompare(String(left.timestamp || '')));
   const assignee = employee(task.assigneeId);
   const reviewer = employee(task.reviewerId);
@@ -293,10 +302,14 @@ export default function TaskDetailModal({
       {canEditTask && onEdit && <Button variant="outline-primary" onClick={() => onEdit(task)}>แก้ไขงาน</Button>}
       {canStart && checklistItems.length === 0 && <Button variant="outline-primary" onClick={() => runAction('start')}>เริ่มงาน</Button>}
       {canDeleteTask && <Button variant="outline-danger" onClick={() => setConfirmAction('delete')}><Trash2 size={14} /> ลบงาน</Button>}
-      {canSubmitReview && <Button onClick={() => runAction('submit')}>ส่งตรวจ</Button>}
+      {canSubmitReview && !isSelfReview && <Button onClick={() => runAction('submit')}>ส่งตรวจ</Button>}
+      {canSelfComplete && <Button variant="success" onClick={() => setConfirmAction('complete')}>ทำเสร็จ</Button>}
       {canReview && <><Button variant="success" onClick={() => setConfirmAction('approve')}>อนุมัติ</Button><Button variant="outline-warning" onClick={() => setConfirmAction('request_changes')}>ขอแก้ไข</Button></>}
       {canWithdraw && <Button variant="outline-secondary" onClick={() => setConfirmAction('withdraw')}>ถอนจากการตรวจ</Button>}
       {canManageAssignment && <Button variant="outline-secondary" onClick={() => setConfirmAction('reassign')}>เปลี่ยนผู้รับผิดชอบ</Button>}
+      {canFlagBlocked && (task.blocked
+        ? <Button variant="outline-success" onClick={() => runAction('unblock')}>แก้ปัญหาแล้ว</Button>
+        : <Button variant="outline-danger" onClick={() => setConfirmAction('block')}>แจ้งติดปัญหา</Button>)}
     </div>
   );
   const workspaceActionPanel = confirmAction && (
@@ -308,6 +321,10 @@ export default function TaskDetailModal({
         {projectMembers.filter((person) => String(person.id) !== String(task.assigneeId)
           && String(person.id) !== String(task.reviewerId)).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
       </Form.Select>}
+      {confirmAction === 'block' && <Form.Group>
+        <Form.Label htmlFor="workspace-task-block-reason">ติดอะไร (ไม่บังคับ)</Form.Label>
+        <Form.Control id="workspace-task-block-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={200} placeholder="เช่น รออะไหล่จากผู้ขาย" />
+      </Form.Group>}
       {['request_changes', 'withdraw', 'reassign'].includes(confirmAction) && <Form.Group>
         <Form.Label htmlFor="workspace-task-action-reason">เหตุผล <span aria-hidden="true">*</span></Form.Label>
         <Form.Control id="workspace-task-action-reason" as="textarea" rows={3} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="ระบุเหตุผล (จำเป็น)..." />
@@ -315,12 +332,12 @@ export default function TaskDetailModal({
       {error && <Alert variant="danger" role="alert">{error}</Alert>}
       <div>
         <Button variant="outline-secondary" onClick={() => { setConfirmAction(''); setReason(''); setNextAssigneeId(''); setError(''); onClearInitialAction?.(); }}>ยกเลิก</Button>
-        <Button variant={confirmAction === 'delete' || confirmAction === 'delete_checklist' ? 'danger' : 'primary'} disabled={((confirmAction === 'request_changes' || confirmAction === 'withdraw') && !reason.trim()) || (confirmAction === 'reassign' && (!nextAssigneeId || !reason.trim()))} onClick={() => runAction()}>ยืนยัน</Button>
+        <Button variant={['delete', 'delete_checklist', 'block'].includes(confirmAction) ? 'danger' : 'primary'} disabled={((confirmAction === 'request_changes' || confirmAction === 'withdraw') && !reason.trim()) || (confirmAction === 'reassign' && (!nextAssigneeId || !reason.trim()))} onClick={() => runAction()}>ยืนยัน</Button>
       </div>
     </section>
   );
   const workspaceChecklist = (
-    <section className={`workspace-task-work-panel${workPage ? '' : ' workspace-task-compact-checklist'}`} aria-labelledby="workspace-task-checklist-heading">
+    <section className="workspace-task-work-panel workspace-task-compact-checklist" aria-labelledby="workspace-task-checklist-heading">
       <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-checklist-heading">เช็กลิสต์</h2><span>{checklistDone}/{checklistItems.length}</span></div>
       <div className="workspace-task-work-progress"><span style={{ width: `${checklistPercent}%` }} /></div>
       {checklistItems.length === 0 ? <p className="workspace-task-work-empty">ยังไม่มีรายการเช็กลิสต์ เพิ่มรายการแรกด้านล่าง</p> : (
@@ -331,180 +348,70 @@ export default function TaskDetailModal({
               {editingChecklistId === item.id
                 ? <Form onSubmit={(event) => { event.preventDefault(); saveChecklistTitle(item); }} className="workspace-checklist-edit"><Form.Control autoFocus aria-label={`แก้ไขรายการ ${item.title}`} value={editingChecklistTitle} onChange={(event) => setEditingChecklistTitle(event.target.value)} /><Button size="sm" type="submit" disabled={!editingChecklistTitle.trim()}>บันทึก</Button><Button size="sm" type="button" variant="outline-secondary" onClick={() => setEditingChecklistId(null)}>ยกเลิก</Button></Form>
                 : <Form.Check type="checkbox" label={item.title} checked={Boolean(item.completed)} disabled={!canEditItem} onChange={() => toggleChecklistItem(item)} />}
-              <small>{canEditItem ? (isOwner ? 'Project Owner' : 'รายการของคุณ') : `เป็นของ ${employee(item.ownerId || item.createdBy)?.name || 'สมาชิกอื่น'}`}{item.createdAt && ` · สร้าง ${checklistDate(item.createdAt)}`}{item.completedAt && ` · เสร็จ ${checklistDate(item.completedAt)}`}</small>
+              <small>{canEditItem ? (isOwner ? 'Project Owner' : 'รายการของคุณ') : `เป็นของ ${employee(item.ownerId || item.createdBy)?.name || 'สมาชิกอื่น'}`}{item.completedAt && ` · เสร็จ ${checklistDate(item.completedAt)}`}</small>
               {canEditItem && editingChecklistId !== item.id && <span className="workspace-checklist-actions"><Button size="sm" variant="link" onClick={() => { setEditingChecklistId(item.id); setEditingChecklistTitle(item.title); }}>แก้ไข</Button><Button size="sm" variant="link" className="text-danger" onClick={() => { setPendingChecklistDelete(item.id); setConfirmAction('delete_checklist'); }}>ลบ</Button></span>}
             </li>;
           })}
         </ul>
       )}
       {!isTaskLocked && (isOwner || String(actorId) === String(task.assigneeId) || (task.collaborators || []).some((id) => String(id) === String(actorId)) || String(actorId) === String(task.reviewerId) || (project?.teamMemberIds || []).some((id) => String(id) === String(actorId))) && <Form onSubmit={addChecklistItem} className="workspace-inline-form"><Form.Control aria-label="เพิ่มรายการ Checklist" value={checklistTitle} onChange={(event) => setChecklistTitle(event.target.value)} placeholder="เพิ่มรายการย่อย..." /><Button type="submit" aria-label="เพิ่ม Checklist"><Plus size={16} /> เพิ่ม</Button></Form>}
-      <p className="workspace-muted-copy">{isTaskLocked ? 'เช็กลิสต์ถูกล็อก' : isOwner ? 'คุณเป็น Project Owner จัดการเช็กลิสต์ได้ทุกรายการ' : 'สมาชิกแก้ไขได้เฉพาะรายการที่ตนสร้างหรือเป็นเจ้าของ'} · Checklist เสร็จครบแล้วก็ยังต้องส่งงานตรวจด้วยตนเอง</p>
+      <p className="workspace-muted-copy">{isTaskLocked ? 'เช็กลิสต์ถูกล็อก' : `ติ๊กข้อแรกแล้วงานเริ่มเอง · ครบแล้วกด “${isSelfReview ? 'ทำเสร็จ' : 'ส่งตรวจ'}”`}</p>
     </section>
   );
-  if (workspaceMode) {
-    if (workPage) {
-      return (
-        <section className="workspace-task-work-page" aria-label={`หน้าทำงาน ${task.title}`}>
-          <div className="workspace-task-work-toolbar">
-            <Button type="button" variant="outline-secondary" onClick={onCloseWork}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>กลับไปรายการงาน</Button>
-            <span>หน้าทำงาน · {project?.name || task.projectName}</span>
-          </div>
-          <section className="workspace-task-work-hero">
-            <div className="workspace-task-work-summary">
-              <div className="workspace-task-work-tags"><TaskStatusBadge task={task} className="task-detail-status" />{task.priority && <span className="workspace-task-work-priority">ความสำคัญ: <TaskPriorityBadge priority={task.priority} workspaceMode /></span>}{(task.labelIds || []).map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>
-              <h2>{task.title}</h2>
-              <p>{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
-              <div className="workspace-task-work-meta">
-                <span className="workspace-task-work-assignee"><small>ผู้รับผิดชอบหลัก</small><span>{assignee && <span className="project-detail-avatar" data-person-id={assignee.id} aria-hidden="true">{assignee.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span>}<b>{assignee?.name || 'ไม่ระบุ'}</b></span></span>
-                <span><small>ผู้ตรวจ</small><b>{reviewer?.name || 'ยังไม่ได้กำหนด'}</b></span>
-                <span><small>กำหนด</small><b>{task.startDate || 'ไม่ระบุวันเริ่ม'}{task.dueDate ? ` – ${task.dueDate}` : ''}</b></span>
-              </div>
-            </div>
-            <aside className="workspace-task-work-summary-card" aria-label="สรุปความคืบหน้างาน">
-              <div className="workspace-task-work-summary-metrics"><span className="workspace-task-work-ring" style={{ background: `conic-gradient(#0F766E ${checklistPercent}%, #D8E1F0 0)` }}><b>{checklistPercent}%</b></span><span><strong>เช็กลิสต์ {checklistDone}/{checklistItems.length}</strong><small>เวลาที่บันทึก {totalLoggedHours.toLocaleString('th-TH')} ชม.</small></span></div>
-              {!confirmAction && workspaceTaskActions}
-              {isTaskLocked && <span className="workspace-task-work-lock">{taskLockMessage}</span>}
-            </aside>
-          </section>
-          {workspaceActionPanel}
-          <div className="workspace-task-work-grid">
-            <div className="workspace-task-work-main">
-              {workspaceChecklist}
-              <section className="workspace-task-work-panel" aria-labelledby="workspace-task-comments-heading">
-                <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-comments-heading">ความคิดเห็น · {workComments.length}</h2></div>
-                {workComments.length ? <div className="workspace-task-comments">{workComments.map((comment) => <article key={comment.id}><span className="project-detail-avatar" data-person-id={comment.actorId} aria-hidden="true">{employee(comment.actorId)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?'}</span><div><strong>{employee(comment.actorId)?.name || 'ผู้ใช้งาน'} <small>· {checklistDate(comment.timestamp)}</small></strong><p>{comment.text}</p></div></article>)}</div> : <p className="workspace-task-work-empty">ยังไม่มีความคิดเห็น</p>}
-                <Form onSubmit={addWorkspaceComment} className="workspace-task-comment-form"><Form.Label htmlFor="workspace-task-comment">เขียนความคิดเห็น</Form.Label><Form.Control id="workspace-task-comment" as="textarea" rows={3} aria-label="เขียนความคิดเห็น" value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="อัปเดตความคืบหน้า ถามคำถาม หรือแจ้งปัญหา..." /><Button type="submit" disabled={!commentText.trim()}>ส่งความคิดเห็น</Button></Form>
-              </section>
-            </div>
-            <aside className="workspace-task-work-side">
-              <section className="workspace-task-work-panel" aria-labelledby="workspace-task-time-heading">
-                <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-time-heading">บันทึกเวลาทำงาน</h2><span>รวม {totalLoggedHours.toLocaleString('th-TH')} ชม.</span></div>
-                {workTimeLogs.length ? <div className="workspace-task-time-list">{workTimeLogs.map((entry) => <article key={entry.id}><span className="project-detail-avatar" data-person-id={entry.actorId} aria-hidden="true">{employee(entry.actorId)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?'}</span><span><strong>{Number(entry.hours).toLocaleString('th-TH')} ชม.</strong><small>{entry.note}</small></span><time>{checklistDate(entry.timestamp)}</time></article>)}</div> : <p className="workspace-task-work-empty">ยังไม่มีการบันทึกเวลา</p>}
-                <Form onSubmit={addWorkspaceTimeLog} className="workspace-task-time-form"><Form.Group><Form.Label htmlFor="workspace-task-hours">ชั่วโมง</Form.Label><Form.Control id="workspace-task-hours" type="number" min="0" step="0.5" placeholder="0.5" value={timeHours} onChange={(event) => setTimeHours(event.target.value)} /></Form.Group><Form.Group><Form.Label htmlFor="workspace-task-time-note">ทำอะไร</Form.Label><Form.Control id="workspace-task-time-note" value={timeNote} onChange={(event) => setTimeNote(event.target.value)} placeholder="เช่น ทำหน้ากรองข้อมูล" /></Form.Group><Button type="submit" disabled={!(Number(timeHours) > 0) || !timeNote.trim()}>+ บันทึกเวลา</Button></Form>
-              </section>
-              <section className="workspace-task-work-panel" aria-labelledby="workspace-task-history-heading">
-                <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-history-heading">ประวัติของงานนี้</h2></div>
-                {taskHistory.length ? <ul className="workspace-task-history workspace-history-scroll">{taskHistory.map((entry, index) => <li key={`${entry.type || entry.action || 'event'}-${entry.timestamp || index}-${index}`}><span className="project-detail-avatar" data-person-id={entry.actorId} aria-hidden="true">{employee(entry.actorId)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?'}</span><span><strong>{entry.description || entry.action || 'อัปเดตงาน'}</strong><small>{employee(entry.actorId)?.name || entry.actorId || 'ผู้ใช้งาน'} · {checklistDate(entry.timestamp)}{entry.reason ? ` · ${entry.reason}` : ''}</small></span></li>)}</ul> : <p className="workspace-task-work-empty">ยังไม่มีประวัติ</p>}
-              </section>
-            </aside>
-          </div>
-        </section>
-      );
-    }
+  const initialsOf = (id) => employee(id)?.name?.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase() || '?';
 
-    return (
-      <aside className="workspace-task-detail" aria-label="รายละเอียดงาน">
-        <div className="workspace-task-detail-heading">
-          <div><TaskStatusBadge task={task} className="task-detail-status" /><h2>{task.title}</h2></div>
-          <Button type="button" variant="link" className="workspace-task-detail-close" aria-label="ปิดรายละเอียดงาน" onClick={onClose}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></Button>
-        </div>
-        <p className="workspace-task-detail-description">{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
-        <Button type="button" className="workspace-task-open-work" onClick={onOpenWork}>เปิดหน้าทำงาน <span aria-hidden="true">→</span></Button>
-        <dl className="workspace-task-detail-meta">
-          <dt>ผู้รับผิดชอบหลัก</dt><dd>{assignee && <span className="project-detail-avatar" data-person-id={assignee.id} aria-hidden="true">{assignee.name.split(/\s+/).map((part) => part[0]).slice(0, 2).join('').toUpperCase()}</span>}{assignee?.name || 'ไม่ระบุ'}</dd>
-          <dt>ผู้ร่วมงาน</dt><dd>{(task.collaborators || []).map((id) => employee(id)?.name).filter(Boolean).join(', ') || 'ไม่มี'}</dd>
-          <dt>ผู้ตรวจ (Reviewer)</dt><dd>{reviewer?.name || 'ยังไม่ได้กำหนด'}</dd>
-          <dt>กำหนด</dt><dd>{task.startDate || '—'}{task.dueDate ? ` – ${task.dueDate}` : ''}</dd>
-          {task.priority && <><dt>ความสำคัญ</dt><dd><TaskPriorityBadge priority={task.priority} workspaceMode /></dd></>}
-        </dl>
-        {(task.labelIds || []).length > 0 && <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>}
-        {task.attachments?.length > 0 && <div className="workspace-task-detail-files"><strong>ไฟล์แนบ</strong>{task.attachments.map((attachment) => <span key={attachment.id}><span aria-hidden="true">⌁</span><b>{attachment.name}</b><small>{attachment.category || attachment.type || 'ไฟล์'}</small></span>)}</div>}
-        {isTaskLocked && <div className="workspace-task-work-lock">{taskLockMessage}</div>}
-        {workspaceChecklist}
-        {workspaceActionPanel}
-        {!confirmAction && workspaceTaskActions}
-      </aside>
-    );
-  }
-
+  // แผงเดียวครบทุกอย่าง (เดิม 2 ชั้น: แผงข้าง → "เปิดหน้าทำงาน" ถึงเห็นความคิดเห็น / ระยะเวลา / ประวัติ)
   return (
-    <>
-      <Modal show onHide={onClose} centered={!panelMode} backdrop={!panelMode} container={panelMode ? panelContainer : undefined} className={`mecha-detail-modal${panelMode ? ' task-detail-side-panel' : ''}`}>
-        <Modal.Header closeButton>
-          <Modal.Title className="h5 fw-bold text-ink">รายละเอียดงาน</Modal.Title>
-        </Modal.Header>
-        <Modal.Body className="p-4 project-task-detail-body">
-          {isReviewLocked && <Alert variant="warning">งานอยู่ระหว่างตรวจสอบ จึงล็อกการแก้ไขไว้</Alert>}
-          <div className="mb-3"><span className="small text-muted d-block mb-1">ชื่องาน</span><h5 className="fw-semibold text-ink">{task.title}</h5></div>
-          <div className="mb-3"><span className="small text-muted d-block mb-1">โปรเจกต์ต้นสังกัด</span><div className="d-flex align-items-center gap-2 fw-medium text-ink"><Folder size={16} className="text-primary" /><span>{task.projectName}</span></div></div>
-          <div className="row g-3 mb-3">
-            <div className="col-6"><span className="small text-muted d-block mb-1">หมวดหมู่</span><span className="badge bg-light text-dark border">{task.category || 'ไม่ระบุ'}</span></div>
-            <div className="col-6"><span className="small text-muted d-block mb-1">ระดับความสำคัญ</span><TaskPriorityBadge priority={task.priority} className="task-detail-priority" /></div>
-          </div>
-          <div className="row g-3 mb-3">
-            <div className="col-6"><span className="small text-muted d-block mb-1">สถานะปัจจุบัน</span><TaskStatusBadge task={task} className="task-detail-status" /></div>
-            <div className="col-6"><span className="small text-muted d-block mb-1">ผู้รับผิดชอบหลัก</span><div className="small fw-medium text-ink">{employee(task.assigneeId)?.name || task.assigneeId || 'ไม่ระบุ'}</div></div>
-          </div>
-          <div className="row g-3 mb-3">
-            <div className="col-6"><span className="small text-muted d-block mb-1">ผู้ร่วมงาน</span><div className="small text-ink">{(task.collaborators || []).map((id) => employee(id)?.name).filter(Boolean).join(', ') || 'ไม่มี'}</div></div>
-            <div className="col-6"><span className="small text-muted d-block mb-1">ผู้ตรวจงาน</span><div className="small text-ink">{employee(task.reviewerId)?.name || 'ยังไม่ได้กำหนด'}</div></div>
-          </div>
-          <div className="row g-3 mb-3">
-            <div className="col-6"><span className="small text-muted d-block mb-1">วันที่เริ่ม</span><span className="small text-ink">{task.startDate || '—'}</span></div>
-            <div className="col-6"><span className="small text-muted d-block mb-1">กำหนดส่ง</span><span className="small text-ink">{task.dueDate || '—'}</span></div>
-            <div className="col-6"><span className="small text-muted d-block mb-1">ชั่วโมงที่วางแผน</span><span className="small text-ink">{task.estimatedHours ?? '—'}</span></div>
-          </div>
-          {(task.plannedAllocations || []).length > 0 && <div className="workspace-task-allocation-list" aria-label="การจัดสรรชั่วโมงที่วางแผน">{task.plannedAllocations.map((allocation) => <span key={allocation.employeeId}>{employee(allocation.employeeId)?.name || allocation.employeeId}: {Number(allocation.hours).toLocaleString('th-TH')} ชม.</span>)}</div>}
-          {typeof task.progress === 'number' && <div className="mb-3"><div className="d-flex justify-content-between mb-1"><span className="small text-muted">ความคืบหน้า</span><span className="small fw-semibold">{task.progress}%</span></div><ProgressBar now={task.progress} variant={task.progress === 100 ? 'success' : 'primary'} style={{ height: 8 }} /></div>}
-          <div className="mb-3"><span className="small text-muted d-block mb-1">คำอธิบายรายละเอียด</span><div className="p-3 bg-light rounded small text-ink" style={{ lineHeight: 1.6 }}>{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</div></div>
+    <aside className="workspace-task-detail" aria-label="รายละเอียดงาน">
+      <div className="workspace-task-detail-heading">
+        <div><span className="workspace-task-detail-badges"><TaskStatusBadge task={task} className="task-detail-status" /><TaskBlockedBadge task={task} /></span><h2>{task.title}</h2></div>
+        <Button type="button" variant="link" className="workspace-task-detail-close" aria-label="ปิดรายละเอียดงาน" onClick={onClose}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></Button>
+      </div>
+      <p className={`workspace-task-detail-description${task.description ? '' : ' is-empty'}`}>{task.description || 'ไม่มีรายละเอียดเพิ่มเติม'}</p>
+      <dl className="workspace-task-detail-meta">
+        <dt>ผู้รับผิดชอบหลัก</dt><dd>{assignee && <span className="project-detail-avatar" data-person-id={assignee.id} aria-hidden="true">{initialsOf(assignee.id)}</span>}{assignee?.name || 'ไม่ระบุ'}{assignee?.isActive === false && <span className="inactive-person-badge">ปิดบัญชี</span>}</dd>
+        <dt>ผู้ร่วมงาน</dt><dd>{(task.collaborators || []).map((id) => employee(id)?.name).filter(Boolean).join(', ') || 'ไม่มี'}</dd>
+        <dt>ผู้ตรวจ (Reviewer)</dt><dd>{isSelfReview ? 'ตรวจเอง' : reviewer?.name || 'ยังไม่ได้กำหนด'}</dd>
+        <dt>กำหนด</dt><dd>{task.startDate || '—'}{task.dueDate ? ` – ${task.dueDate}` : ''}</dd>
+        <dt>ขนาดงาน</dt><dd>{taskSizeLabel(task.size)}</dd>
+        {task.priority && <><dt>ความสำคัญ</dt><dd><TaskPriorityBadge priority={task.priority} workspaceMode /></dd></>}
+      </dl>
+      {(task.labelIds || []).length > 0 && <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>}
+      {task.attachments?.length > 0 && <div className="workspace-task-detail-files"><strong>ไฟล์แนบ</strong>{task.attachments.map((attachment) => <span key={attachment.id}><span aria-hidden="true">⌁</span><b>{attachment.name}</b><small>{attachment.category || attachment.type || 'ไฟล์'}</small></span>)}</div>}
+      {task.blocked && task.status !== 'completed' && <Alert variant="danger" className="py-2 mb-0 small">ติดปัญหา{task.blocked.reason ? `: ${task.blocked.reason}` : ''} · แจ้งโดย {employee(task.blocked.by)?.name || 'ไม่ระบุ'}</Alert>}
+      {task.status === 'in_progress' && task.reviewLastReason && <Alert variant="warning" className="py-2 mb-0 small">ถูกส่งกลับ: {task.reviewLastReason}</Alert>}
+      {isTaskLocked && <div className="workspace-task-work-lock">{taskLockMessage}</div>}
+      {workspaceActionPanel}
+      {!confirmAction && workspaceTaskActions}
+      {workspaceChecklist}
 
-          {resolvedProjectId && (
-            <>
-              <section className="workspace-task-section" aria-labelledby="task-checklist-title">
-                <div className="workspace-task-section-heading"><h3 id="task-checklist-title">Checklist</h3><span>{(task.checklist || []).filter((item) => item.completed).length}/{(task.checklist || []).length}</span></div>
-                {(task.checklist || []).length === 0 ? <p className="workspace-muted-copy">ยังไม่มีรายการตรวจสอบ</p> : (
-                  <ul className="workspace-checklist">
-                    {task.checklist.map((item) => {
-                      const canEditItem = !isReviewLocked && (isOwner || String(item.ownerId || item.createdBy) === String(actorId));
-                      return <li key={item.id}>
-                        {editingChecklistId === item.id ? <Form onSubmit={(event) => { event.preventDefault(); saveChecklistTitle(item); }} className="workspace-checklist-edit"><Form.Control autoFocus aria-label={`แก้ไขรายการ ${item.title}`} value={editingChecklistTitle} onChange={(event) => setEditingChecklistTitle(event.target.value)} /><Button size="sm" type="submit" disabled={!editingChecklistTitle.trim()}>บันทึก</Button><Button size="sm" type="button" variant="outline-secondary" onClick={() => setEditingChecklistId(null)}>ยกเลิก</Button></Form>
-                          : <Form.Check type="checkbox" label={item.title} checked={Boolean(item.completed)} disabled={!canEditItem} onChange={() => toggleChecklistItem(item)} />}
-                        <small>{canEditItem ? (isOwner ? 'Project Owner' : 'รายการของคุณ') : `เป็นของ ${employee(item.ownerId || item.createdBy)?.name || 'สมาชิกอื่น'}`}{item.createdAt && ` · สร้าง ${checklistDate(item.createdAt)}`}{item.completedAt && ` · เสร็จ ${checklistDate(item.completedAt)}`}</small>
-                        {canEditItem && editingChecklistId !== item.id && <span className="workspace-checklist-actions"><Button size="sm" variant="link" onClick={() => { setEditingChecklistId(item.id); setEditingChecklistTitle(item.title); }}>แก้ไข</Button><Button size="sm" variant="link" className="text-danger" onClick={() => { setPendingChecklistDelete(item.id); setConfirmAction('delete_checklist'); }}>ลบ</Button></span>}
-                      </li>;
-                    })}
-                  </ul>
-                )}
-                {!isReviewLocked && (isOwner || String(actorId) === String(task.assigneeId) || (task.collaborators || []).some((id) => String(id) === String(actorId)) || String(actorId) === String(task.reviewerId) || (project?.teamMemberIds || []).some((id) => String(id) === String(actorId))) && <Form onSubmit={addChecklistItem} className="workspace-inline-form"><Form.Control aria-label="เพิ่มรายการ Checklist" value={checklistTitle} onChange={(event) => setChecklistTitle(event.target.value)} placeholder="เพิ่มรายการตรวจสอบ" /><Button type="submit" aria-label="เพิ่ม Checklist"><Plus size={16} /></Button></Form>}
-                <p className="workspace-muted-copy">Checklist เสร็จครบแล้วก็ยังต้องส่งงานตรวจด้วยตนเอง</p>
-              </section>
+      <section className="workspace-task-work-panel workspace-task-compact-checklist" aria-labelledby="workspace-task-comments-heading">
+        <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-comments-heading">ความคิดเห็น · {workComments.length}</h2></div>
+        {workComments.length > 0 && <div className="workspace-task-comments">{workComments.map((comment) => <article key={comment.id}><span className="project-detail-avatar" data-person-id={comment.actorId} aria-hidden="true">{initialsOf(comment.actorId)}</span><div><strong>{employee(comment.actorId)?.name || 'ผู้ใช้งาน'} <small>· {checklistDate(comment.timestamp)}</small></strong><p>{comment.text}</p></div></article>)}</div>}
+        <Form onSubmit={addWorkspaceComment} className="workspace-task-comment-form"><Form.Control id="workspace-task-comment" as="textarea" rows={2} aria-label="เขียนความคิดเห็น" value={commentText} onChange={(event) => setCommentText(event.target.value)} placeholder="อัปเดตความคืบหน้า ถามคำถาม หรือแจ้งปัญหา..." /><Button type="submit" disabled={!commentText.trim()}>ส่งความคิดเห็น</Button></Form>
+      </section>
 
-              {canManageAssignment && (
-                <section className="workspace-task-section" aria-labelledby="task-assignment-title">
-                  <div className="workspace-task-section-heading"><h3 id="task-assignment-title">เปลี่ยนผู้รับผิดชอบหลัก</h3></div>
-                  <Form.Select aria-label="ผู้รับผิดชอบใหม่" value={nextAssigneeId} onChange={(event) => setNextAssigneeId(event.target.value)}>
-                    <option value="">เลือกสมาชิก</option>
-                    {projectMembers.filter((person) => String(person.id) !== String(task.assigneeId)
-                      && String(person.id) !== String(task.reviewerId)).map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}
-                  </Form.Select>
-                  <Form.Control className="mt-2" aria-label="เหตุผลการเปลี่ยนผู้รับผิดชอบ" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="ระบุเหตุผลที่ต้องเปลี่ยน" />
-                  <Button className="mt-2" size="sm" variant="outline-primary" disabled={!nextAssigneeId || !reason.trim()} onClick={() => setConfirmAction('reassign')}>บันทึกการเปลี่ยน</Button>
-                </section>
-              )}
+      {/* ระยะเวลาแต่ละสถานะ — ระบบจับเองตอนเปลี่ยนสถานะ ไม่ต้องกรอก · สรุปเวลารวมเมื่องานเสร็จ */}
+      <section className="workspace-task-work-panel workspace-task-compact-checklist" aria-labelledby="workspace-task-time-heading">
+        <div className="workspace-task-work-panel-heading"><h2 id="workspace-task-time-heading">ระยะเวลาแต่ละสถานะ</h2>{durations && <span>{durations.finished ? `รวม ${formatDuration(durations.total)}` : 'ยังไม่เสร็จ'}</span>}</div>
+        {!durations ? <p className="workspace-task-work-empty">งานนี้สร้างก่อนเริ่มเก็บประวัติสถานะ จึงไม่มีข้อมูลระยะเวลา</p> : (
+          <dl className="workspace-task-durations">
+            {['not_started', 'in_progress', 'pending_review'].map((status) => (
+              <div key={status} className={!durations.finished && durations.currentStatus === status ? 'is-current' : ''}>
+                <dt>{taskStatusLabel(status)}</dt>
+                <dd>{formatDuration(durations.segments[status])}{!durations.finished && durations.currentStatus === status ? ' (ตอนนี้)' : ''}</dd>
+              </div>
+            ))}
+            {durations.reviewRounds > 1 && <div><dt>ส่งตรวจ</dt><dd>{durations.reviewRounds} รอบ</dd></div>}
+          </dl>
+        )}
+        {durations && !durations.finished && <p className="workspace-muted-copy mb-0">สรุปเวลารวมจะแสดงเมื่องานผ่านการตรวจ</p>}
+      </section>
 
-              {task.status === 'pending_review' && <section className="workspace-task-section" aria-labelledby="task-review-title"><div className="workspace-task-section-heading"><h3 id="task-review-title">การตรวจงาน</h3></div><p className="workspace-muted-copy">ผู้ตรวจ: {employee(task.reviewerId)?.name || 'ไม่ระบุ'} · ส่งเมื่อ {task.reviewSubmittedAt ? new Date(task.reviewSubmittedAt).toLocaleString('th-TH') : 'ไม่ระบุ'}</p>{task.reviewLastReason && <Alert variant="info" className="mb-2">เหตุผลล่าสุด: {task.reviewLastReason}</Alert>}</section>}
-
-              <section className="workspace-task-section" aria-labelledby="task-labels-title"><div className="workspace-task-section-heading"><h3 id="task-labels-title">Labels</h3></div>{(task.labelIds || []).length ? <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => <span className="workspace-task-label" key={label.id} style={{ borderColor: label.color, color: label.color, backgroundColor: `${label.color}18` }}>{label.name}</span>)}</div> : <p className="workspace-muted-copy">ยังไม่มีป้ายกำกับ</p>}</section>
-              <section className="workspace-task-section" aria-labelledby="task-attachments-title"><div className="workspace-task-section-heading"><h3 id="task-attachments-title">ไฟล์แนบ</h3></div>{(task.attachments || []).length ? <ul className="workspace-attachment-list">{task.attachments.map((attachment) => <li key={attachment.id}><strong>{attachment.name}</strong><span>{attachment.category} · {attachment.type || 'ไฟล์'} · {Math.max(1, Math.round(Number(attachment.size || 0) / 1024))} KB</span></li>)}</ul> : <p className="workspace-muted-copy">ยังไม่มีไฟล์แนบ</p>}</section>
-              {(task.reviewHistory?.length > 0 || task.assignmentHistory?.length > 0) && <section className="workspace-task-section" aria-labelledby="task-history-title"><div className="workspace-task-section-heading"><h3 id="task-history-title">ประวัติงาน</h3></div><ul className="workspace-task-history">{(task.reviewHistory || []).map((item, index) => <li key={`review-${index}`}><strong>{item.action}</strong><span>{employee(item.actorId)?.name || item.actorId} · {checklistDate(item.timestamp)}{item.reason ? ` · ${item.reason}` : ''}</span></li>)}{(task.assignmentHistory || []).map((item, index) => <li key={`assignment-${index}`}><strong>เปลี่ยนผู้รับผิดชอบ</strong><span>{employee(item.previousAssigneeId)?.name || item.previousAssigneeId} → {employee(item.newAssigneeId)?.name || item.newAssigneeId} · {employee(item.actorId)?.name || item.actorId} · {checklistDate(item.timestamp)} · {item.reason}</span></li>)}</ul></section>}
-
-              {(canReview || canWithdraw) && <Form.Group className="workspace-task-section"><Form.Label htmlFor="task-review-reason">เหตุผล (จำเป็นสำหรับขอแก้ไขหรือถอนงาน)</Form.Label><Form.Control id="task-review-reason" as="textarea" rows={2} value={reason} onChange={(event) => setReason(event.target.value)} /></Form.Group>}
-              {error && <Alert variant="danger" role="alert">{error}</Alert>}
-            </>
-          )}
-        </Modal.Body>
-        <Modal.Footer className="project-task-detail-footer">
-          {canEditTask && onEdit && <Button variant="outline-primary" onClick={() => onEdit(task)}>แก้ไขงาน</Button>}
-          {canStart && (task.checklist || []).length === 0 && <Button variant="outline-primary" onClick={() => runAction('start')}>เริ่มงาน</Button>}
-          {canDeleteTask && <Button variant="outline-danger" onClick={() => setConfirmAction('delete')}><Trash2 size={14} /> ลบงาน</Button>}
-          {canSubmitReview && <Button onClick={() => runAction('submit')}>ส่งตรวจ</Button>}
-          {canReview && <><Button variant="success" onClick={() => setConfirmAction('approve')}>อนุมัติ</Button><Button variant="outline-warning" disabled={!reason.trim()} onClick={() => setConfirmAction('request_changes')}>ขอแก้ไข</Button></>}
-          {canWithdraw && <Button variant="outline-secondary" disabled={!reason.trim()} onClick={() => setConfirmAction('withdraw')}>ถอนจากการตรวจ</Button>}
-          <Button variant="outline-secondary" onClick={onClose}>ปิดหน้าต่าง</Button>
-        </Modal.Footer>
-      </Modal>
-
-      {confirmAction && <Modal show centered className="mecha-confirm-modal" onHide={() => setConfirmAction('')}><Modal.Header closeButton><Modal.Title>ยืนยันการดำเนินการ</Modal.Title></Modal.Header><Modal.Body>{actionDescription}{confirmAction === 'delete' && <p className="mt-2 mb-0">เมื่อลบแล้ว งานจะถูกนำออกจาก Workspace นี้</p>}{error && <Alert variant="danger" className="mt-2">{error}</Alert>}</Modal.Body><Modal.Footer><Button variant="outline-secondary" onClick={() => setConfirmAction('')}>ยกเลิก</Button><Button variant={confirmAction === 'delete' ? 'danger' : 'primary'} onClick={() => runAction()}>ยืนยัน</Button></Modal.Footer></Modal>}
-    </>
+      <details className="workspace-task-work-panel workspace-task-compact-checklist workspace-task-history-panel">
+        <summary><h2 id="workspace-task-history-heading">ประวัติของงานนี้ · {taskHistory.length}</h2></summary>
+        {taskHistory.length ? <ul className="workspace-task-history workspace-history-scroll">{taskHistory.map((entry, index) => <li key={`${entry.type || entry.action || 'event'}-${entry.timestamp || index}-${index}`}><span className="project-detail-avatar" data-person-id={entry.actorId} aria-hidden="true">{initialsOf(entry.actorId)}</span><span><strong>{entry.description || entry.action || 'อัปเดตงาน'}</strong><small>{employee(entry.actorId)?.name || entry.actorId || 'ผู้ใช้งาน'} · {checklistDate(entry.timestamp)}{entry.reason ? ` · ${entry.reason}` : ''}</small></span></li>)}</ul> : <p className="workspace-task-work-empty">ยังไม่มีประวัติ</p>}
+      </details>
+    </aside>
   );
 }

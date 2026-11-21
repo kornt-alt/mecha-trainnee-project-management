@@ -8,6 +8,7 @@ import { Card } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { taskStatusLabel } from '../../utils/labels';
 import { CircleAlert, ClipboardCheck, ClipboardList } from '../common/Icons';
+import { TaskBlockedBadge } from '../TaskBadges';
 
 const MAX_ITEMS = 5;
 
@@ -40,7 +41,7 @@ function TaskGroup({ id, title, icon, items, emptyText, onOpen }) {
           {items.slice(0, MAX_ITEMS).map((task) => (
             <li key={task.id}>
               <button type="button" className="my-work-item" onClick={() => onOpen(task)}>
-                <span className="my-work-item-title">{task.title}</span>
+                <span className="my-work-item-title">{task.title} <TaskBlockedBadge task={task} /></span>
                 <span className="my-work-item-meta">
                   {task.projectName} · {taskStatusLabel(task.status)}
                   {task.dueDate && <> · <span className={task.overdue ? 'text-danger fw-semibold' : ''}>{task.overdue ? 'เลยกำหนด ' : 'ส่ง '}{task.dueDate.split('-').reverse().join('/')}</span></>}

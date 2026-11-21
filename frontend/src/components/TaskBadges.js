@@ -1,6 +1,6 @@
 // Shared task status and priority badges with accessible semantic color pairs.
-import { MOCK_EMPLOYEES } from '../data/mockData';
-import { PRIORITY_LABELS, taskStatusLabel } from '../utils/labels';
+import { currentEmployees } from '../data/employeeStore';
+import { PRIORITY_LABELS, taskSizeLabel, taskStatusLabel } from '../utils/labels';
 
 
 export const WORKSPACE_LABEL_PALETTE = ['#EF4444', '#FB923C', '#FACC15', '#10B981', '#60A5FA', '#1E3A8A', '#8B5CF6', '#EC4899', '#92400E', '#6B7280', '#14B8A6', '#06B6D4', '#6366F1', '#D946EF', '#F43F5E', '#F59E0B', '#84CC16', '#991B1B', '#166534', '#111827'];
@@ -33,13 +33,15 @@ export function WorkspaceTaskMetadata({ task, labels = [] }) {
     .map((id) => labels.find((label) => String(label.id) === id))
     .filter(Boolean);
   const collaborators = [...new Set((task.collaborators || []).map(String))]
-    .map((id) => MOCK_EMPLOYEES.find((person) => String(person.id) === id))
+    .map((id) => currentEmployees().find((person) => String(person.id) === id))
     .filter(Boolean);
   const attachments = Array.isArray(task.attachments) ? task.attachments : [];
 
   return (
     <span className="workspace-task-metadata" aria-label="ข้อมูลเพิ่มเติมของงาน">
       <TaskPriorityBadge priority={task.priority || 'none'} className="workspace-task-metadata-priority" workspaceMode />
+      <span className="task-size-badge" title="ขนาดงาน">{taskSizeLabel(task.size)}</span>
+      <TaskBlockedBadge task={task} />
       {taskLabels.slice(0, 3).map((label) => {
         const color = workspaceLabelColor(label);
         return <span className="workspace-task-metadata-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>;
@@ -68,6 +70,12 @@ export function TaskStatusBadge({ task, className = '' }) {
       {label}
     </span>
   );
+}
+
+// ป้ายแดง "ติดปัญหา" — task.blocked = { reason, by, at } ตั้งจากปุ่ม "แจ้งติดปัญหา" ในหน้างาน
+export function TaskBlockedBadge({ task }) {
+  if (!task?.blocked || task.status === 'completed') return null;
+  return <span className="task-blocked-badge" title={task.blocked.reason || 'ติดปัญหา'}>ติดปัญหา</span>;
 }
 
 export function TaskPriorityBadge({ priority, className = '', workspaceMode = false }) {

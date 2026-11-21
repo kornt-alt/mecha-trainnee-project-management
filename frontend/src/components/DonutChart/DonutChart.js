@@ -4,7 +4,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { Card } from 'react-bootstrap';
 import { ChartPie } from '../common/Icons';
-import { buildDonutChartModel, createResponsiveGeometry } from './donutChartUtils';
+import { buildDonutChartModel, createResponsiveGeometry, createRingOnlyGeometry, LEGEND_LAYOUT_MAX_WIDTH } from './donutChartUtils';
 import useElementWidth from './useElementWidth';
 import './donutChart.css';
 
@@ -41,9 +41,11 @@ const DonutChart = ({
   const [measureRef, containerWidth] = useElementWidth();
 
   // Recalculate only when the data (or size) changes -> chart updates instantly with new props.
+  // การ์ดแคบ (เช่นคอลัมน์ข้างหน้าหลัก ~340px) → วงกลางเต็ม + รายการใต้วง แทนป้ายเส้นชี้ที่เบียดวงจนเล็ก
+  const legendLayout = !geometryProp && containerWidth > 0 && containerWidth < LEGEND_LAYOUT_MAX_WIDTH;
   const geometry = useMemo(
-    () => geometryProp || createResponsiveGeometry(containerWidth),
-    [geometryProp, containerWidth],
+    () => geometryProp || (legendLayout ? createRingOnlyGeometry(containerWidth) : createResponsiveGeometry(containerWidth)),
+    [geometryProp, legendLayout, containerWidth],
   );
   const model = useMemo(() => buildDonutChartModel(items, geometry), [items, geometry]);
 
@@ -146,7 +148,7 @@ const DonutChart = ({
               </g>
 
               {/* Connector lines + external labels (drawn after the slices so they sit on top). */}
-              {model.slices.map((slice) => {
+              {!legendLayout && model.slices.map((slice) => {
                 const state = getState(slice.id);
                 const isActive = state === 'active';
 
@@ -198,6 +200,24 @@ const DonutChart = ({
                 );
               })}
             </svg>
+          )}
+          {legendLayout && model.slices.length > 0 && (
+            <ul className="donut-chart__legend" aria-label={`${title} แยกตามสถานะ`}>
+              {model.slices.map((slice) => (
+                <li
+                  key={`legend-${slice.id}`}
+                  className={`donut-chart__legend-item donut-chart__legend-item--${getState(slice.id)}`}
+                  style={{ '--slice-color': slice.color }}
+                  tabIndex={0}
+                  {...hoverHandlers(slice.id)}
+                >
+                  <span className="donut-chart__label-dot" />
+                  <span className="donut-chart__legend-name">{slice.label}</span>
+                  <span className="donut-chart__label-count">{slice.count} {countUnit}</span>
+                  <span className="donut-chart__label-percent">{slice.percentageText}%</span>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       </Card.Body>

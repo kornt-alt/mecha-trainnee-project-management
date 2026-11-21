@@ -2,7 +2,7 @@
 // ตัวเลือกโหมด/สถานะ + แหล่งสีรายหมวด + adapter แปลงข้อมูลโปรเจกต์และ cost record ของระบบ
 // เป็นโครงข้อมูล categories ที่ BudgetBarChart ใช้ (รูปแบบเดียวกับ reference dashboard)
 import { PROJECT_STATUSES } from '../../utils/config.js';
-import { MOCK_EMPLOYEES } from '../../data/mockData.js';
+import { currentEmployees } from '../../data/employeeStore';
 import {
   CATEGORY_COLORS,
   categoryColorByIndex,
@@ -101,7 +101,8 @@ export const pickPalette = (categoryName, projectIndex, categoryIndex = 0) => {
   };
 };
 
-const employeeNameById = new Map(MOCK_EMPLOYEES.map((employee) => [employee.id, employee.name]));
+// ค้นชื่อจากรายชื่อล่าสุด (แก้ชื่อในหน้าจัดการผู้ใช้แล้วตามทันที — เดิมเป็น Map ตอนโหลดไฟล์)
+const employeeNameById = { get: (id) => currentEmployees().find((employee) => String(employee.id) === String(id))?.name };
 
 /**
  * คำนวณรายชื่อเดือน YYYY-MM ย้อนหลังตามจำนวนเดือนที่ระบุ โดยอิงวันปัจจุบันเป็นจุดอ้างอิง

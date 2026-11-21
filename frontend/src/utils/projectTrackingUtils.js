@@ -1,6 +1,6 @@
 // frontend/src/utils/projectTrackingUtils.js — Helper คำนวณลำดับความสำคัญ, สถิติ Milestone, และความล่าช้าของโปรเจกต์
 // ใช้ร่วมกันระหว่าง ProjectsTrackingTable และ ProjectCard เพื่อให้ข้อมูลและตรรกะตรงกัน 100%
-import { MOCK_EMPLOYEES } from '../data/mockData';
+import { currentEmployees } from '../data/employeeStore';
 
 // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
 export const today = () => {
@@ -35,11 +35,11 @@ export const isDelayed = (p) => {
 // ผู้รับผิดชอบ: ตรวจสอบจาก managerId ก่อน หากไม่พบตรวจสอบชื่อจาก owner เดิม (รองรับกรณีข้อมูล legacy / unmatched)
 export const ownerOf = (p) => {
   if (p.managerId) {
-    const found = MOCK_EMPLOYEES.find((e) => e.id === p.managerId || String(e.id) === String(p.managerId));
+    const found = currentEmployees().find((e) => e.id === p.managerId || String(e.id) === String(p.managerId));
     if (found) return found;
   }
   if (p.owner) {
-    const exact = MOCK_EMPLOYEES.find((e) => e.name === p.owner);
+    const exact = currentEmployees().find((e) => e.name === p.owner);
     if (exact) return exact;
   }
   return null;

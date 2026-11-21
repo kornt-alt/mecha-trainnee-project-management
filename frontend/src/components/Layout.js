@@ -1,6 +1,9 @@
 // frontend/src/components/Layout.js — โครงหน้าหลัก: จัดวาง sidebar ด้านซ้าย (รวมเมนูนำทางและโปรไฟล์ผู้ใช้ด้านล่าง), Header ด้านบน, และพื้นที่แสดงผลหน้าย่อย (<Outlet>)
-import React from 'react';
-import { NavLink, Outlet, Link, useNavigate } from 'react-router-dom';
+//
+// ทุกหน้ารวมหน้าโปรเจกต์ (/projects/:id) อยู่ใต้ Layout — navbar ไม่หายเวลาเข้าโปรเจกต์
+// จอ < 992px: sidebar เป็นแถบบนติดหัวจอ + ปุ่ม ☰ เปิดเมนู (ปิดเองเมื่อเปลี่ยนหน้า) · เมนูผู้ใช้ / ออกจากระบบ อยู่ในเมนูนั้น
+import React, { useEffect, useState } from 'react';
+import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
 import { Dropdown, Badge } from 'react-bootstrap';
 import { ADMIN_NAV, NAV } from './nav';
 import Header from './Header';
@@ -50,37 +53,57 @@ function NavItem({ item }) {
   );
 }
 
-// TODO(login): เมื่อต่อ /auth/login แล้ว ให้คืน user.role === 'ADMIN' — ตอนนี้แสดงทุกคนเพราะยังไม่มี role จริง
-const canSeeAdminMenu = () => true;
 
 export default function Layout() {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
   const session = useLoginSession();
-  const { employees, actorId } = useMockData();
+  const { employees, actorId, access } = useMockData();
   // ผู้ใช้ที่แสดงมุมล่าง = คนที่ login (actorId) ไม่ใช่ CURRENT_USER ตายตัวแบบเดิม
   const me = employees.find((person) => String(person.id) === String(actorId));
   const isGuest = Boolean(session?.guest);
 
-  // ออกจากระบบ = ล้าง session → App.js เปิดหน้าต่าง login ใหม่ที่หน้าหลัก
+  // ออกจากระบบ = ล้าง session → App.js เปิดหน้าต่าง login ทับหน้าเดิม (อยู่หน้าเดิม ไม่เด้งกลับหน้าหลัก)
+  // ใช้เปลี่ยนผู้ใช้ด้วย — ข้อมูล mock ไม่หายเพราะไม่ได้รีโหลดหน้า
   const logout = () => {
+    setMenuOpen(false);
     clearLoginSession();
-    navigate('/');
   };
+
+  // เปลี่ยนหน้าแล้วพับเมนูมือถือเก็บ
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   return (
     <div className="app-shell">
       {/* ── แถบด้านข้าง (Sidebar) ─────────────────────────── */}
-      <aside className="app-sidebar d-flex flex-column justify-content-between">
+      <aside className={`app-sidebar d-flex flex-column justify-content-between${menuOpen ? ' is-menu-open' : ''}`}>
         <div>
-          {/* โลโก้และชื่อระบบ */}
-          <Link to="/" className="app-brand d-flex align-items-center gap-2 text-decoration-none">
-            <div className="app-brand-icon">
-              <Layers size={22} color="var(--blue)" />
-            </div>
-            <div className="brand-text">
-              <span className="brand-title">MECHA Project Management</span>
-            </div>
-          </Link>
+          <div className="app-brand-row">
+            {/* โลโก้และชื่อระบบ */}
+            <Link to="/" className="app-brand d-flex align-items-center gap-2 text-decoration-none">
+              <div className="app-brand-icon">
+                <Layers size={22} color="var(--blue)" />
+              </div>
+              <div className="brand-text">
+                <span className="brand-title">MECHA Project Management</span>
+              </div>
+            </Link>
+            {/* ปุ่มเมนู — แสดงเฉพาะจอ < 992px (CSS) */}
+            <button
+              type="button"
+              className="app-menu-toggle"
+              aria-expanded={menuOpen}
+              aria-controls="app-sidebar-menu"
+              aria-label={menuOpen ? 'ปิดเมนู' : 'เปิดเมนู'}
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span aria-hidden="true">{menuOpen ? '✕' : '☰'}</span>
+            </button>
+          </div>
+
+          <div id="app-sidebar-menu" className="app-sidebar-menu">
 
           {/* รายการเมนูหลัก */}
           <nav className="app-nav">
@@ -88,12 +111,13 @@ export default function Layout() {
           </nav>
 
           {/* เมนูผู้ดูแลระบบ (แยกกลุ่มจากงานประจำวัน) */}
-          {canSeeAdminMenu() && (
+          {access.isAdmin && ( /* role ADMIN เท่านั้น (utils/access.js) */
             <nav className="app-nav app-nav-admin" aria-label="เมนูผู้ดูแลระบบ">
               <div className="app-nav-section-title">ผู้ดูแลระบบ (ADMIN)</div>
               {ADMIN_NAV.map((item) => <NavItem key={item.to} item={item} />)}
             </nav>
           )}
+          </div>
         </div>
 
         {/* ข้อมูลระบบและเมนูโปรไฟล์ผู้ใช้ด้านล่าง */}

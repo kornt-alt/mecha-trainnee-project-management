@@ -1,402 +1,204 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, Col, Form, ProgressBar, Row } from 'react-bootstrap';
+// frontend/src/components/Workload.js — ภาระงานของทีม: ใครงานเกิน / หนัก / ว่าง (แต้มตามขนาดงานที่ยังเหลือ เทียบค่ากลางทีม)
+//
+// กฎวัดอยู่ที่ utils/workload.js (memberWorkloadSummary) ที่เดียว — หน้าหลักและหน้ารายงานใช้กฎเดียวกัน
+// กรองทีมแล้ว = เทียบค่ากลางภายในทีมนั้น
+// คลิกคน → กางงานค้างของคนนั้น เรียงจากเร่งสุด → คลิกงาน → เปิดในแผงงานของโปรเจกต์
+// (เปลี่ยนผู้รับผิดชอบทำที่แผงงาน — ไม่มีทางโอนงานซ้ำในหน้านี้)
+// เดิมหน้านี้คิดจากชั่วโมงวางแผน ÷ เวลาทำงาน แต่ไม่มีงานไหนกรอกชั่วโมง ทุกคนเลยขึ้น 0% — เลิกใช้แล้ว
+import React, { useMemo, useState } from 'react';
+import { Card, Col, Form, Row } from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
-import {
-  buildTaskPlannedWorkEntries,
-  parseISODate,
-  toISODate,
-  getWorkloadPeriodRange as getRange,
-  computeEmployeeWorkloadData,
-  filterEmployees,
-} from '../data/workloadMockData';
+import { memberWorkloadSummary, TASK_SIZE_POINTS } from '../utils/workload';
+import { WORKLOAD_LEVEL_LABELS, taskSizeLabel, taskStatusLabel } from '../utils/labels';
+import { TaskBlockedBadge } from './TaskBadges';
 import './workload.css';
-import WorkloadMatrix from './WorkloadMatrix';
-import EmployeeDetailModal from './EmployeeDetailModal';
 
-const PERIODS = [
-  { key: 'daily', label: 'รายวัน' },
-  { key: 'weekly', label: 'รายสัปดาห์' },
-  { key: 'monthly', label: 'รายเดือน' },
-  { key: 'yearly', label: 'รายปี' },
-];
-const THAI_MONTHS = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-const fmtHours = (hours) => `${Number(hours || 0).toLocaleString('th-TH', { maximumFractionDigits: 1 })} ชม.`;
-const fmtDate = (value) => {
-  const date = parseISODate(value);
-  return `${date.getDate()} ${THAI_MONTHS[date.getMonth()]} ${date.getFullYear() + 543}`;
-};
-// Utilization thresholds — aligned with Workload Matrix and EmployeeWorkloadDetailModal.
-// Available: < 90% | Near Capacity: 90–99% | Overcapacity: ≥ 100%
-const getStatus = (percent) => (percent >= 100 ? 'danger' : percent >= 90 ? 'warning' : 'success');
+const LEVELS = ['over', 'heavy', 'normal', 'free'];
+const thaiDate = (value) => (value ? value.split('-').reverse().join('/') : '—');
 
-
-
-function EmployeeWorkloadBar({ percent, index }) {
-  const targetWidth = Math.max(0, Math.min(percent, 130) / 130 * 100);
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      setWidth(targetWidth);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [targetWidth]);
-
-  return (
-    <span className="workload-employee-track">
-      <span
-        className={`workload-employee-fill ${percent > 100 ? 'is-over' : ''}`}
-        style={{
-          width: `${width}%`,
-          '--bar-delay': `${index * 60}ms`,
-        }}
-      />
-      <span className="workload-cap-marker" style={{ left: `${100 / 130 * 100}%` }} />
-    </span>
-  );
+export function WorkloadLevelBadge({ level }) {
+  return <span className={`workload-level workload-level-${level}`} data-level={level}>{WORKLOAD_LEVEL_LABELS[level]}</span>;
 }
 
-function TeamWorkloadBar({ utilization, isOver, index }) {
-  const targetWidth = utilization !== null ? Math.max(0, Math.min(utilization, 130) / 130 * 100) : 0;
-  const [width, setWidth] = useState(0);
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      setWidth(targetWidth);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [targetWidth]);
-
+function MemberTasks({ row, today, onOpen }) {
+  if (!row.tasks.length) return <p className="workload-member-empty">ไม่มีงานค้าง</p>;
   return (
-    <div className="workload-team-track">
-      <span
-        className={`workload-team-fill ${isOver ? 'is-over' : ''}`}
-        style={{
-          width: `${width}%`,
-          '--bar-delay': `${index * 80}ms`,
-        }}
-      />
-      <span className="workload-cap-marker" style={{ left: `${100 / 130 * 100}%` }} />
-    </div>
+    <ul className="workload-member-tasks" aria-label={`งานค้างของ ${row.employee.name}`}>
+      {row.tasks.map((task) => {
+        const overdue = task.dueDate && task.dueDate < today;
+        const role = { owner: 'รับผิดชอบ', helper: 'ร่วมงาน', review: 'รอเขาตรวจ' }[task.role];
+        return (
+          <li key={task.id}>
+            <button type="button" onClick={() => onOpen(task)}>
+              <span className="workload-task-title">{task.title} <TaskBlockedBadge task={task} /><span className="workload-task-points">{taskSizeLabel(task.size)} · {task.points} แต้ม</span></span>
+              <span className="workload-task-meta">
+                {task.projectName} · {taskStatusLabel(task.status)} · {role}
+                {task.dueDate && <> · <span className={overdue ? 'text-danger fw-semibold' : ''}>{overdue ? 'เลยกำหนด ' : 'ส่ง '}{thaiDate(task.dueDate)}</span></>}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
 export default function Workload() {
-  const { projects: projectRecords, tasks, teams, employees, departments } = useMockData();
-  
-
-  
-
-    const [period, setPeriod] = useState('weekly');
-  const [referenceDate, setReferenceDate] = useState(() => toISODate(new Date()));
-  const [department, setDepartment] = useState('all');
-  const [position, setPosition] = useState('all');
-  const [projectFilter, setProjectFilter] = useState('all');
+  // peopleInView = เฉพาะคนที่ผู้ใช้ปัจจุบันมีสิทธิ์เห็น (utils/access.js) · tasks / projects ถูกกรองตามสิทธิ์มาแล้ว
+  const { peopleInView: employees, tasks, projects, teams } = useMockData();
+  const navigate = useNavigate();
+  const [teamId, setTeamId] = useState('all');
+  const [projectId, setProjectId] = useState('all');
   const [search, setSearch] = useState('');
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
-  const [activeView, setActiveView] = useState('employees'); // 'employees' | 'teams'
-  const range = useMemo(() => getRange(period, referenceDate), [period, referenceDate]);
+  const [view, setView] = useState('people'); // 'people' | 'teams'
+  const [expandedId, setExpandedId] = useState(null);
+  const now = useMemo(() => new Date(), []);
+  const today = useMemo(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, []);
 
-  const handleDepartmentChange = (event) => {
-    const nextDept = event.target.value;
-    setDepartment(nextDept);
-    if (position !== 'all') {
-      const validPositions = (nextDept === 'all'
-        ? employees
-        : employees.filter((emp) => emp.departmentId === nextDept)
-      ).map((emp) => emp.position);
-      if (!validPositions.includes(position)) {
-        setPosition('all');
-      }
-    }
-  };
+  const teamOf = useMemo(() => {
+    const map = new Map();
+    teams.forEach((team) => (team.memberEmployeeIds || []).forEach((id) => map.set(String(id), team)));
+    return map;
+  }, [teams]);
 
-  const availablePositions = useMemo(() => {
-    const pool = department === 'all'
-      ? employees
-      : employees.filter((emp) => emp.departmentId === department);
-    return [...new Set(pool.map((emp) => emp.position))].sort((a, b) => a.localeCompare(b, 'th'));
-  }, [department, employees]);
+  // ทั้งบริษัท (มุมมองตามทีม) · เฉพาะทีมที่เลือก (มุมมองรายคน — ค่ากลางคิดในทีมนั้น)
+  const allRows = useMemo(() => memberWorkloadSummary(employees, tasks, { now, projectId }).rows, [employees, tasks, now, projectId]);
+  const scoped = useMemo(() => {
+    const team = teams.find((item) => String(item.id) === teamId);
+    const memberIds = team ? new Set((team.memberEmployeeIds || []).map(String)) : null;
+    return memberWorkloadSummary(employees.filter((person) => !memberIds || memberIds.has(String(person.id))), tasks, { now, projectId });
+  }, [employees, tasks, now, projectId, teamId, teams]);
+  const rows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return scoped.rows.filter((row) => !query || row.employee.name.toLowerCase().includes(query));
+  }, [scoped, search]);
+  const maxPoints = Math.max(1, ...rows.map((row) => row.points));
 
-  const visibleEmployees = useMemo(
-    () => filterEmployees(employees, { department, position, search }),
-    [employees, department, position, search]
-  );
-
-  const data = useMemo(() => {
-    const entries = buildTaskPlannedWorkEntries(tasks, employees);
-    return computeEmployeeWorkloadData(visibleEmployees, entries, range, projectFilter);
-  }, [range, visibleEmployees, projectFilter, tasks, employees]);
-
-  const projectsWithWorkload = useMemo(() => {
-    if (!Array.isArray(projectRecords)) return [];
-    return projectRecords.filter((project) => tasks.some((task) => String(task.projectId) === String(project.id)
-      && task.status !== 'completed' && (task.plannedAllocations || []).some((allocation) => Number(allocation.hours) > 0)));
-  }, [projectRecords, tasks]);
-
-  const selectedDetails = selectedEmployee
-    ? (data.employees || []).find((emp) => emp.id === selectedEmployee.id) || selectedEmployee
-    : null;
-
-  const employeeById = new Map(employees.map((employee) => [String(employee.id), employee]));
-  const workloadEmployees = Array.isArray(data?.employees) ? data.employees : [];
-  const teamSummary = (teams || []).map((team) => {
-      const members = [...new Set((team.memberEmployeeIds || []).map(String))]
-        .map((employeeId) => employeeById.get(employeeId))
-        .filter(Boolean);
-      const memberIds = new Set(members.map((employee) => String(employee.id)));
-      const teamWorkloadEmployees = workloadEmployees.filter((employee) => memberIds.has(String(employee.id)));
-      const plannedHours = teamWorkloadEmployees.reduce((sum, emp) => sum + Number(emp.plannedHours || 0), 0);
-      const capacityHours = teamWorkloadEmployees.reduce((sum, emp) => sum + Number(emp.capacityHours || 0), 0);
-      const utilization = capacityHours > 0 ? (plannedHours / capacityHours) * 100 : null;
-      const isOver = utilization !== null && utilization >= 100;
-      return {
-        ...team,
-        members,
-        count: members.length,
-        plannedHours,
-        capacityHours,
-        utilization,
-        isOver,
-      };
-  });
+  const count = (level) => rows.filter((row) => row.level === level).length;
+  const openTask = (task) => navigate(`/projects/${task.projectId}`, { state: { openTaskId: task.id } });
 
   return (
     <div className="workload-page">
-      <div className="workload-page-heading">
-        <div>
-          <h1>ภาระงานของทีม (Workload)</h1>
-          <p>ชั่วโมงงานที่วางแผนไว้เทียบกับเวลาทำงานจริงของแต่ละคน</p>
-        </div>
+      <div className="mb-3">
+        <h1 className="page-title mb-1">ภาระงานของทีม (Workload)</h1>
+        <p className="text-muted small mb-0">
+          ภาระ = แต้มของงานที่ยังเหลือ: งานเล็ก {TASK_SIZE_POINTS.small} · กลาง {TASK_SIZE_POINTS.medium} · ใหญ่ {TASK_SIZE_POINTS.large} แต้ม
+          หักส่วนที่ติ๊กเช็กลิสต์แล้ว (ร่วมทำนับครึ่ง · รอเขาตรวจนับ ¼) แล้วเทียบกับค่ากลางของทีม — งานเกิน = 2 เท่าของค่ากลางขึ้นไป · งานหนัก = 1.5 เท่า หรือมีงานเลยกำหนด
+        </p>
       </div>
 
-      <Card className="workload-toolbar border-0 shadow-sm mb-3">
-        <Card.Body>
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-3">
-            <div className="workload-period-tabs" role="group" aria-label="ช่วงเวลาการแสดงผล">
-              {PERIODS.map((option) => (
-                <button key={option.key} type="button" className={period === option.key ? 'active' : ''} onClick={() => setPeriod(option.key)}>
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <div className="d-flex flex-wrap align-items-center gap-2">
-              <Form.Control aria-label="วันที่อ้างอิง" type="date" size="sm" value={referenceDate} onChange={(e) => setReferenceDate(e.target.value)} className="workload-date-control" />
-              <Button variant="outline-primary" size="sm" onClick={() => setReferenceDate(toISODate(new Date()))}>วันนี้</Button>
-            </div>
-          </div>
-          <div className="workload-toolbar-bottom">
-            <span>ช่วงข้อมูล: <strong>{fmtDate(range.start)} – {fmtDate(range.end)}</strong></span>
-            <div className="d-flex flex-wrap gap-2">
-              <Form.Select size="sm" value={department} onChange={handleDepartmentChange} aria-label="กรอง Section (แผนก)">
-                <option value="all">ทุก Section (แผนก)</option>
-                {departments.map((item) => (
-                  <option key={item.id} value={item.id}>{item.name}</option>
-                ))}
-              </Form.Select>
-              <Form.Select size="sm" value={position} onChange={(e) => setPosition(e.target.value)} aria-label="กรอง Sub-section (ตำแหน่ง)">
-                <option value="all">ทุก Sub-section (ตำแหน่ง)</option>
-                {availablePositions.map((item) => (
-                  <option key={item} value={item}>{item}</option>
-                ))}
-              </Form.Select>
-              <Form.Select size="sm" value={projectFilter} onChange={(e) => setProjectFilter(e.target.value)} aria-label="กรองโปรเจกต์">
-                <option value="all">ทุกโปรเจกต์</option>
-                {projectsWithWorkload.map((project) => (
-                  <option key={project.id} value={project.id}>{project.name}</option>
-                ))}
-              </Form.Select>
-              <Form.Control size="sm" placeholder="ค้นหาพนักงาน..." value={search} onChange={(e) => setSearch(e.target.value)} aria-label="ค้นหาพนักงาน" />
-            </div>
-          </div>
-        </Card.Body>
-      </Card>
-
       <Row className="g-3 mb-3">
-        <Col xl={3} sm={6}>
-          <Card className="workload-kpi h-100"><Card.Body>
-            <div className="workload-kpi-label">Total Team Capacity</div>
-            <div className="workload-kpi-value">{fmtHours(data.capacityHours)}</div>
-            <div className="workload-kpi-foot">ความจุรวมของ {data.employees.length} คน</div>
-          </Card.Body></Card>
-        </Col>
-        <Col xl={3} sm={6}>
-          <Card className="workload-kpi h-100"><Card.Body>
-            <div className="workload-kpi-label">Planned Workload</div>
-            <div className="workload-kpi-value text-primary">{fmtHours(data.plannedHours)}</div>
-            <div className="workload-kpi-foot">ชั่วโมงงานที่วางแผนจัดสรร</div>
-          </Card.Body></Card>
-        </Col>
-        <Col xl={3} sm={6}>
-          <Card className="workload-kpi h-100"><Card.Body>
-            <div className="workload-kpi-label">Team Utilization</div>
-            <div className="workload-kpi-value">{data.utilization.toFixed(1)}%</div>
-            <div className="workload-kpi-foot">Planned ÷ Capacity</div>
-            <ProgressBar now={Math.min(data.utilization, 100)} variant={getStatus(data.utilization)} className="mt-2" />
-          </Card.Body></Card>
-        </Col>
-        <Col xl={3} sm={6}>
-          <Card className="workload-kpi h-100"><Card.Body>
-            <div className="workload-kpi-label">Overcapacity Alerts</div>
-            <div className={`workload-kpi-value ${data.overCapacity ? 'text-danger' : 'text-success'}`}>
-              {data.overCapacity} <small>คน</small>
-            </div>
-            <div className="workload-kpi-foot">พนักงานที่ Planned Hours เกิน Capacity</div>
-          </Card.Body></Card>
-        </Col>
+        {[
+          ['สมาชิก', rows.length, 'text-primary'],
+          [WORKLOAD_LEVEL_LABELS.over, count('over'), count('over') ? 'text-danger' : 'text-ink'],
+          [WORKLOAD_LEVEL_LABELS.heavy, count('heavy'), count('heavy') ? 'text-warning' : 'text-ink'],
+          [WORKLOAD_LEVEL_LABELS.free, count('free'), 'text-ink'],
+        ].map(([label, value, tone]) => (
+          <Col xs={6} lg={3} key={label}>
+            <Card className="border-0 shadow-sm p-3 h-100 workload-kpi" data-kpi={label}>
+              <span className="small text-muted fw-medium">{label}</span>
+              <span className={`h3 fw-bold mb-0 ${tone}`}>{value}</span>
+            </Card>
+          </Col>
+        ))}
       </Row>
 
-      <Row className="g-3 mb-3">
-        <Col xl={12}>
-          <Card className="workload-panel h-100">
-            <Card.Header>
-              <div>
-                <h2>{activeView === 'teams' ? 'Team Workload Summary' : 'Team Workload vs. Maximum Capacity'}</h2>
-                <p>
-                  {activeView === 'teams'
-                    ? 'สรุป Planned Hours, Available Capacity และ Utilization แยกตาม 3 ทีมหลัก'
-                    : 'คลิกแถวพนักงานเพื่อดูรายละเอียด Planned Hours แยกตามโปรเจกต์'}
-                </p>
-              </div>
-              <div className="d-flex align-items-center gap-3">
-                <div className="workload-chart-legend">
-                  <span><i className="normal"/> Normal Load</span>
-                  <span><i className="over"/> Overcapacity</span>
-                  <span><i className="cap"/> Capacity</span>
-                </div>
-                <div className="workload-view-switcher" role="tablist" aria-label="มุมมองภาระงาน">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeView === 'employees'}
-                    className={`workload-view-segment ${activeView === 'employees' ? 'active' : ''}`}
-                    onClick={() => setActiveView('employees')}
-                  >
-                    Employees
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={activeView === 'teams'}
-                    className={`workload-view-segment ${activeView === 'teams' ? 'active' : ''}`}
-                    onClick={() => setActiveView('teams')}
-                  >
-                    Teams
-                  </button>
-                </div>
-              </div>
-            </Card.Header>
-            <Card.Body>
-              <div className="workload-view-container">
-                {activeView === 'employees' ? (
-                  <div key="employees-view" className="workload-view-content">
-                    <div className="workload-employee-chart">
-                      {data.employees.map((employee, index) => {
-                        
-                        return (
-                          <button type="button" key={employee.id} className="workload-employee-row" onClick={() => setSelectedEmployee(employee)} title={`ดูรายละเอียด ${employee.name}`}>
-                            <span className="workload-employee-name"><strong>{employee.name}</strong><small>{employee.position}</small></span>
-                            <EmployeeWorkloadBar percent={employee.percent} index={index} />
-                            <span className="workload-employee-number"><strong>{employee.plannedHours.toFixed(1)}</strong> <small>/ {employee.capacityHours.toFixed(1)} ชม. · {employee.percent.toFixed(0)}%</small></span>
-                          </button>
-                        );
-                      })}
-                      {!data.employees.length && <div className="text-center text-muted py-5">ไม่พบข้อมูลพนักงานตามตัวกรอง</div>}
-                    </div>
-                  </div>
-                ) : (
-                  <div key="teams-view" className="workload-view-content">
-                    <div className="workload-team-cards-grid">
-                      {teamSummary.map((team, index) => {
-                        
-                        return (
-                          <div key={team.id} className="workload-team-card">
-                            <div>
-                              <div className="workload-team-card-header">
-                                <h3 className="workload-team-card-name">{team.name}</h3>
-                                <span className="workload-team-card-emp">{team.count} คน</span>
-                              </div>
-                              <div className="workload-team-metrics">
-                                <div className="workload-team-metric-item">
-                                  <small>Planned Hours</small>
-                                  <strong>{team.plannedHours.toFixed(1)} ชม.</strong>
-                                </div>
-                                <div className="workload-team-metric-item">
-                                  <small>Available Capacity</small>
-                                  <strong>{team.capacityHours.toFixed(1)} ชม.</strong>
-                                </div>
-                              </div>
-                              <div className="workload-team-utilization">
-                                <span className="workload-team-utilization-label">Utilization</span>
-                                <span className={`workload-team-utilization-val ${team.utilization === null ? 'is-na' : team.isOver ? 'is-over' : 'is-normal'}`}>
-                                  {team.utilization !== null ? `${team.utilization.toFixed(1)}%` : 'N/A'}
-                                </span>
-                              </div>
-                              <TeamWorkloadBar utilization={team.utilization} isOver={team.isOver} index={index} />
-                              <div className="workload-team-members">
-                                <span className="workload-team-members-label">สมาชิกในทีม</span>
-                                {team.members.length ? (
-                                  <ul className="workload-team-member-list">
-                                    {team.members.map((employee) => (
-                                      <li className="workload-team-member" key={employee.id}>{employee.name}</li>
-                                    ))}
-                                  </ul>
-                                ) : (
-                                  <span className="workload-team-members-empty">ยังไม่มีสมาชิกในทีม</span>
-                                )}
-                              </div>
-                            </div>
-                            <div className={`workload-team-alert-pill ${team.utilization === null ? 'is-na' : team.isOver ? 'is-over' : 'is-normal'}`}>
-                              {team.utilization === null ? 'ไม่มี Capacity ในช่วงนี้' : team.isOver ? '⚠️ เกิน Capacity (Overload)' : '✓ ภาระงานปกติ (Normal Load)'}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card.Body>
-          </Card>
-        </Col>
-
-      </Row>
-
-      <WorkloadMatrix
-        employees={employees}
-        tasks={tasks}
-        projects={projectRecords}
-        department={department}
-        position={position}
-        projectFilter={projectFilter}
-        search={search}
-      />
-
-      <Card className="workload-panel workload-advisory">
-        <Card.Header><div><h2>Resource Planning Advisory</h2><p>ข้อสังเกตจากการจัดสรร Planned Hours ในช่วงที่เลือก</p></div><Badge bg={data.overCapacity ? 'danger' : 'success'}>{data.overCapacity ? 'Action Required' : 'Within Capacity'}</Badge></Card.Header>
+      <Card className="border-0 shadow-sm">
         <Card.Body>
-          {data.overCapacity > 0 ? (
-            <div className="workload-advisory-alert"><strong>พบพนักงาน {data.overCapacity} คนที่มีภาระงานเกิน Capacity</strong><span>ควรพิจารณากระจายงานไปยังพนักงานที่ยังมี Capacity เหลือ หรือปรับแผนกำหนดส่งของงานที่ไม่เร่งด่วน</span></div>
+          <div className="workload-toolbar">
+            <Form.Select size="sm" value={teamId} onChange={(event) => setTeamId(event.target.value)} aria-label="กรองทีม">
+              <option value="all">ทุกทีม</option>
+              {teams.map((team) => <option key={team.id} value={team.id}>{team.name}</option>)}
+            </Form.Select>
+            <Form.Select size="sm" value={projectId} onChange={(event) => setProjectId(event.target.value)} aria-label="กรองโปรเจกต์">
+              <option value="all">ทุกโปรเจกต์</option>
+              {projects.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}
+            </Form.Select>
+            <Form.Control size="sm" placeholder="ค้นหาชื่อ..." value={search} onChange={(event) => setSearch(event.target.value)} aria-label="ค้นหาสมาชิก" />
+            <div className="btn-group workload-view-toggle" role="group" aria-label="มุมมอง">
+              <button type="button" className={`btn btn-sm ${view === 'people' ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={view === 'people'} onClick={() => setView('people')}>รายคน</button>
+              <button type="button" className={`btn btn-sm ${view === 'teams' ? 'btn-primary' : 'btn-outline-primary'}`} aria-pressed={view === 'teams'} onClick={() => setView('teams')}>ตามทีม</button>
+            </div>
+          </div>
+
+          {view === 'people' ? (
+            rows.length === 0 ? <p className="text-muted small mb-0">ไม่พบสมาชิกตามตัวกรอง</p> : (
+              <div className="workload-table" role="table" aria-label="ภาระงานรายคน">
+                <div className="workload-table-head" role="row">
+                  <span role="columnheader">สมาชิก</span>
+                  <span role="columnheader">ภาระงาน</span>
+                  <span role="columnheader">แต้ม (ค่ากลางทีม {scoped.median})</span>
+                  <span role="columnheader" className="num">ค้าง</span>
+                  <span role="columnheader" className="num">เลยกำหนด</span>
+                  <span role="columnheader" className="num">ส่งใน 7 วัน</span>
+                  <span role="columnheader" className="num">รอเขาตรวจ</span>
+                  <span role="columnheader" className="num">ติดปัญหา</span>
+                </div>
+                {rows.map((row) => {
+                  const expanded = expandedId === row.employee.id;
+                  return (
+                    <div key={row.employee.id} className={`workload-member${expanded ? ' is-expanded' : ''}`} role="rowgroup">
+                      <button type="button" className="workload-member-row" role="row" aria-expanded={expanded} onClick={() => setExpandedId(expanded ? null : row.employee.id)}>
+                        <span role="cell" className="workload-member-name">
+                          <strong>{row.employee.name}</strong>
+                          <small>{teamOf.get(String(row.employee.id))?.name || row.employee.position || ''}</small>
+                        </span>
+                        <span role="cell" className="workload-member-level">
+                          <WorkloadLevelBadge level={row.level} />
+                          {row.level !== 'normal' && <small>{row.reasons[0]}</small>}
+                        </span>
+                        <span role="cell" className="workload-points" data-label="แต้ม">
+                          <b>{row.points}</b>
+                          <span className="workload-points-track" aria-hidden="true">
+                            <span className={`workload-points-fill level-${row.level}`} style={{ width: `${(row.points / maxPoints) * 100}%` }} />
+                            {scoped.median > 0 && <span className="workload-points-median" style={{ left: `${Math.min(100, (scoped.median / maxPoints) * 100)}%` }} title={`ค่ากลางทีม ${scoped.median}`} />}
+                          </span>
+                        </span>
+                        <span role="cell" className="num" data-label="ค้าง">{row.open}{row.helping ? <small> +{row.helping} ร่วม</small> : null}</span>
+                        <span role="cell" className={`num${row.overdue ? ' text-danger fw-semibold' : ''}`} data-label="เลยกำหนด">{row.overdue}</span>
+                        <span role="cell" className="num" data-label="ส่งใน 7 วัน">{row.dueThisWeek}</span>
+                        <span role="cell" className="num" data-label="รอเขาตรวจ">{row.toReview}</span>
+                        <span role="cell" className={`num${row.blocked ? ' text-danger fw-semibold' : ''}`} data-label="ติดปัญหา">{row.blocked}</span>
+                      </button>
+                      {expanded && <MemberTasks row={row} today={today} onOpen={openTask} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           ) : (
-            <div className="workload-advisory-good"><strong>ยังไม่พบพนักงานที่มีภาระงานเกิน Capacity</strong><span>สามารถพิจารณาจัดสรรงานเพิ่มเติมให้พนักงานที่มี Utilization ต่ำกว่า 80%</span></div>
+            <Row className="g-3">
+              {teams.filter((team) => teamId === 'all' || String(team.id) === teamId).map((team) => {
+                const memberIds = new Set((team.memberEmployeeIds || []).map(String));
+                const members = allRows.filter((row) => memberIds.has(String(row.employee.id)));
+                return (
+                  <Col md={6} xl={4} key={team.id}>
+                    <div className="workload-team-card">
+                      <div className="d-flex justify-content-between align-items-baseline">
+                        <h2 className="workload-team-card-name">{team.name}</h2>
+                        <span className="workload-team-card-emp">{members.length} คน</span>
+                      </div>
+                      <div className="workload-team-levels">
+                        {LEVELS.map((level) => (
+                          <span key={level}><WorkloadLevelBadge level={level} /> <b>{members.filter((row) => row.level === level).length}</b></span>
+                        ))}
+                      </div>
+                      <p className="small text-muted mb-2">ภาระรวม {Math.round(members.reduce((sum, row) => sum + row.points, 0) * 10) / 10} แต้ม · เลยกำหนด {members.reduce((sum, row) => sum + row.overdue, 0)} งาน</p>
+                      <ul className="workload-team-members">
+                        {members.map((row) => <li key={row.employee.id} className="workload-team-member"><span>{row.employee.name}</span><WorkloadLevelBadge level={row.level} /></li>)}
+                      </ul>
+                    </div>
+                  </Col>
+                );
+              })}
+            </Row>
           )}
-          <Row className="g-2 mt-1">
-            {data.employees.filter((employee) => employee.percent > 100).slice(0, 4).map((employee) => (
-              <Col md={6} key={employee.id}>
-                <div className="workload-advisory-person"><strong>{employee.name}</strong><Badge bg="danger">{employee.percent.toFixed(0)}%</Badge><small>{(employee.plannedHours - employee.capacityHours).toFixed(1)} ชม. เกิน Capacity</small></div>
-              </Col>
-            ))}
-          </Row>
         </Card.Body>
       </Card>
-
-      <EmployeeDetailModal
-        show={!!selectedEmployee}
-        onHide={() => setSelectedEmployee(null)}
-        employee={selectedDetails}
-        range={range}
-        period={period}
-      />
     </div>
   );
 }

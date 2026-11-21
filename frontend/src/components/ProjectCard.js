@@ -5,7 +5,9 @@ import React, { useMemo } from 'react';
 import { Badge, ProgressBar } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
-import { MOCK_EMPLOYEES } from '../data/mockData';
+import { projectHealth } from '../utils/executiveMetrics';
+import HealthBadge from './common/HealthBadge';
+import { currentEmployees } from '../data/employeeStore';
 import { statusLabel } from '../utils/config';
 import {
   isDelayed,
@@ -46,7 +48,7 @@ const getAvatarStyle = (idx, size = 28, fontSize = 11) => {
 };
 
 export default function ProjectCard({ project, onEdit, onDelete }) {
-  const { tasks } = useMockData();
+  const { tasks, projectCosts } = useMockData();
 
   // งานที่เกี่ยวข้องกับโปรเจกต์นี้
   const relatedTasks = useMemo(() => {
@@ -61,6 +63,9 @@ export default function ProjectCard({ project, onEdit, onDelete }) {
   const priority = useMemo(() => {
     return priorityOf(relatedTasks, project);
   }, [relatedTasks, project]);
+
+  // สุขภาพโปรเจกต์ (คำนวณเอง ไม่ต้องกรอก) — ดู utils/executiveMetrics.js
+  const health = useMemo(() => projectHealth(project, relatedTasks, { costs: projectCosts }), [project, relatedTasks, projectCosts]);
 
   const delayed = useMemo(() => {
     return isDelayed(project);
@@ -130,6 +135,7 @@ export default function ProjectCard({ project, onEdit, onDelete }) {
         >
           {statusLabel(project.status)}
         </Badge>
+        <HealthBadge health={health} className="ms-2" />
       </div>
 
       <div className="project-card-divider" />
@@ -183,7 +189,7 @@ export default function ProjectCard({ project, onEdit, onDelete }) {
           ) : (
             <>
               {teamMemberIds.slice(0, 5).map((mId, idx) => {
-                const member = MOCK_EMPLOYEES.find((e) => String(e.id) === String(mId));
+                const member = currentEmployees().find((e) => String(e.id) === String(mId));
                 return (
                   <span
                     key={mId}

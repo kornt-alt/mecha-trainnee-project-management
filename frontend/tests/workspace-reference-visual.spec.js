@@ -1,6 +1,6 @@
 // Reference-specific visual regression coverage for Project Workspace.
 import { test, expect } from '@playwright/test';
-import { loginAs } from './helpers/session';
+import { loginAs, switchUser } from './helpers/session';
 
 test.beforeEach(async ({ page }) => {
   await loginAs(page);
@@ -23,7 +23,7 @@ test('Project Workspace keeps operational records empty and renders Team control
   await page.getByRole('tab', { name: /^ประวัติ/ }).click();
   await expect(page.locator('.workspace-reference-activity-row')).toHaveCount(0);
 
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
   await team.getByLabel('เลือก Team Leader').selectOption('emp-009');
@@ -113,7 +113,7 @@ test('Project Workspace board cards can be dragged through shared task state', a
   const title = `Board drag task ${Date.now()}`;
   await page.setViewportSize({ width: 1360, height: 1000 });
   await page.goto('/PROJECT-MANAGEMENT/projects/5');
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
 
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
@@ -168,7 +168,7 @@ test('Project Workspace board cards can be dragged through shared task state', a
 test('Project Workspace blocks member removal inline for unfinished primary tasks', async ({ page }) => {
   await page.setViewportSize({ width: 1360, height: 1000 });
   await page.goto('/PROJECT-MANAGEMENT/projects/5');
-  await page.getByLabel('เลือกผู้ใช้งานจำลอง').selectOption('emp-008');
+  await switchUser(page, 'emp-008');
   await page.getByRole('tab', { name: /^ทีม/ }).click();
   const team = page.getByRole('region', { name: 'ทีมงานโปรเจกต์' });
   await team.getByLabel('เลือกสมาชิกเพื่อเพิ่ม').selectOption('emp-002');

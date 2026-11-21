@@ -224,35 +224,18 @@
   letter-spacing: .14em;
 }
 
-.project-workspace-actor {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 8px;
-}
-
-.project-workspace-actor label {
-  flex: 0 0 auto;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.project-workspace-actor .vw {
-  height: 36px;
+.project-workspace-actor-role {
+  padding: 6px 14px;
   border: 1px solid rgba(255,255,255,.55);
   border-radius: 99px;
-  padding: 0 14px;
   background: rgba(255,255,255,.2);
   color: #fff;
-  font-family: inherit;
   font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-}
-
-.project-workspace-actor .vw option {
-  color: var(--workspace-ink);
-  background: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60%;
 }
 
 .project-detail .vw:focus-visible {
@@ -1406,7 +1389,6 @@
   gap: 16px;
 }
 
-.project-tasks-content.is-work-page { display:block; }
 .project-tasks-main { min-width: 0; flex:1 1 520px; }
 
 .project-tasks-top-row {
@@ -1777,8 +1759,6 @@
 .project-detail .workspace-task-detail-close { display:flex; width:36px; height:36px; flex:none; align-items:center; justify-content:center; border:0; border-radius:10px; padding:0; background:transparent; color:#475569; }
 .project-detail .workspace-task-detail-close:hover { background:#F1F5F9; color:#0F172A; }
 .project-detail .workspace-task-detail-description { margin:0; color:#334155; font-size:14px; line-height:1.6; white-space:pre-wrap; overflow-wrap:anywhere; }
-.project-detail .workspace-task-open-work { display:flex; min-height:46px; align-items:center; justify-content:center; gap:8px; border:0; border-radius:12px; background:linear-gradient(135deg,#2F5BD0,#6D3FC7); color:#fff; box-shadow:0 8px 20px rgba(60,70,200,.3); font-size:15px; font-weight:700; }
-.project-detail .workspace-task-open-work:hover { border:0; background:linear-gradient(135deg,#274DB6,#6135B5); color:#fff; }
 .project-detail .workspace-task-detail-meta { display:grid; grid-template-columns:120px minmax(0,1fr); align-items:center; gap:10px; margin:0; font-size:14px; }
 .project-detail .workspace-task-detail-meta dt { color:#475569; font-weight:400; }
 .project-detail .workspace-task-detail-meta dd { display:flex; min-width:0; align-items:center; gap:8px; margin:0; color:#1E293B; font-weight:600; overflow-wrap:anywhere; }
@@ -1817,55 +1797,21 @@
 .project-detail .workspace-task-action-panel > div:last-child { display:flex; justify-content:flex-end; gap:8px; }
 .project-detail .workspace-task-action-panel .form-group,.project-detail .workspace-task-action-panel .mb-3 { display:flex; flex-direction:column; gap:6px; }
 
-.project-detail .workspace-task-work-page { display:flex; min-width:0; flex-direction:column; gap:16px; color:#0F172A; }
-.project-detail .workspace-task-work-toolbar { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:12px; }
-.project-detail .workspace-task-work-toolbar > span { color:#475569; font-size:13.5px; }
-.project-detail .workspace-task-work-toolbar .btn { display:flex; min-height:42px; align-items:center; gap:6px; border:1.5px solid #CBD5E1; border-radius:12px; padding:0 16px; background:#fff; color:#0F172A; font-size:14px; font-weight:600; }
-.project-detail .workspace-task-work-hero { display:flex; min-width:0; flex-wrap:wrap; align-items:flex-start; gap:22px; border:1px solid #E3E8F2; border-top:6px solid #2F5BD0; border-radius:22px; padding:24px; background:#fff; box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 28px rgba(40,60,120,.07); }
-.project-detail .workspace-task-work-summary { display:flex; min-width:0; flex:1 1 440px; flex-direction:column; gap:12px; }
-.project-detail .workspace-task-work-tags { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:8px; }
-.project-detail .workspace-task-work-priority { display:inline-flex; align-items:center; gap:5px; color:#475569; font-size:12.5px; }
-.project-detail .workspace-task-work-summary > h2 { margin:0; color:#0F172A; font-family:'Prompt','IBM Plex Sans Thai',sans-serif; font-size:25px; font-weight:600; line-height:1.35; overflow-wrap:anywhere; }
-.project-detail .workspace-task-work-summary > p { margin:0; color:#334155; font-size:14.5px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
-.project-detail .workspace-task-work-meta { display:flex; min-width:0; flex-wrap:wrap; align-items:center; gap:10px 26px; font-size:14px; }
-.project-detail .workspace-task-work-meta > span { display:flex; min-width:0; flex-direction:column; line-height:1.3; }
-.project-detail .workspace-task-work-meta small { color:#475569; font-size:12px; }
-.project-detail .workspace-task-work-assignee > span:last-child { display:flex; align-items:center; gap:8px; }
-.project-detail .workspace-task-work-assignee .project-detail-avatar { width:34px; height:34px; flex:none; font-size:12px; }
-.project-detail .workspace-task-work-summary-card { box-sizing:border-box; display:flex; min-width:260px; flex:0 1 340px; flex-direction:column; gap:14px; border:1px solid #DFE7F7; border-radius:20px; padding:18px; background:#F5F8FF; }
-.project-detail .workspace-task-work-summary-metrics { display:flex; align-items:center; gap:14px; }
-.project-detail .workspace-task-work-ring { display:flex; width:76px; height:76px; flex:none; align-items:center; justify-content:center; border-radius:50%; }
-.project-detail .workspace-task-work-ring > b { display:flex; width:58px; height:58px; align-items:center; justify-content:center; border-radius:50%; background:#F5F8FF; font-family:'Prompt','IBM Plex Sans Thai',sans-serif; font-size:17px; font-weight:600; }
-.project-detail .workspace-task-work-summary-metrics > span:last-child { display:flex; flex-direction:column; gap:3px; line-height:1.4; }
-.project-detail .workspace-task-work-summary-metrics strong { font-size:14.5px; }
-.project-detail .workspace-task-work-summary-metrics small { color:#475569; font-size:13px; }
 .project-detail .workspace-task-work-lock { border-radius:10px; padding:8px 10px; background:#F4F0FF; color:#3B2A6B; font-size:13px; line-height:1.5; }
-.project-detail .workspace-task-work-grid { display:flex; min-width:0; flex-wrap:wrap; align-items:flex-start; gap:16px; }
-.project-detail .workspace-task-work-main { display:flex; min-width:0; flex:999 1 520px; flex-direction:column; gap:16px; }
-.project-detail .workspace-task-work-side { display:flex; min-width:0; flex:1 1 340px; flex-direction:column; gap:16px; }
 .project-detail .workspace-task-work-panel { display:flex; min-width:0; flex-direction:column; gap:12px; border:1px solid #E3E8F2; border-radius:20px; padding:22px; background:#fff; box-shadow:0 1px 2px rgba(15,23,42,.04),0 10px 28px rgba(40,60,120,.07); }
 .project-detail .workspace-task-work-panel-heading > span:not(:first-child) { flex:none; }
 .project-detail .workspace-task-work-panel-heading > span:nth-child(2) { border-radius:99px; padding:3px 12px; background:#E3ECFF; color:#1B3A8A; font-size:13.5px; font-weight:700; }
 .project-detail .workspace-task-comments { display:flex; flex-direction:column; gap:14px; }
 .project-detail .workspace-task-comments article { display:flex; min-width:0; align-items:flex-start; gap:12px; }
-.project-detail .workspace-task-comments .project-detail-avatar,.project-detail .workspace-task-time-list .project-detail-avatar,.project-detail .workspace-task-history .project-detail-avatar { width:34px; height:34px; flex:none; font-size:12px; }
+.project-detail .workspace-task-comments .project-detail-avatar,.project-detail .workspace-task-history .project-detail-avatar { width:34px; height:34px; flex:none; font-size:12px; }
 .project-detail .workspace-task-comments article > div { display:flex; min-width:0; flex:1; flex-direction:column; gap:3px; border-radius:14px; padding:10px 14px; background:#F4F7FD; }
 .project-detail .workspace-task-comments strong { font-size:13.5px; }
 .project-detail .workspace-task-comments strong small { color:#475569; font-size:12px; font-weight:400; }
 .project-detail .workspace-task-comments p { margin:0; font-size:14.5px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
 .project-detail .workspace-task-comment-form { display:flex; flex-direction:column; align-items:flex-start; gap:8px; }
-.project-detail .workspace-task-comment-form .form-label,.project-detail .workspace-task-time-form .form-label { margin:0; font-size:13.5px; font-weight:600; }
-.project-detail .workspace-task-comment-form .btn,.project-detail .workspace-task-time-form .btn { min-height:42px; align-self:flex-end; border:0; border-radius:11px; padding:0 20px; background:#2F5BD0; font-size:14px; font-weight:700; }
-.project-detail .workspace-task-comment-form .btn:disabled,.project-detail .workspace-task-time-form .btn:disabled { background:#E2E8F0; color:#64748B; }
-.project-detail .workspace-task-time-list { display:flex; flex-direction:column; gap:8px; }
-.project-detail .workspace-task-time-list article { display:flex; min-width:0; align-items:center; gap:10px; border-radius:12px; padding:8px 12px; background:#F4F7FD; font-size:13.5px; }
-.project-detail .workspace-task-time-list article > span:nth-child(2) { display:flex; min-width:0; flex:1; flex-direction:column; line-height:1.35; }
-.project-detail .workspace-task-time-list small { overflow:hidden; color:#475569; text-overflow:ellipsis; white-space:nowrap; }
-.project-detail .workspace-task-time-list time { flex:none; color:#475569; font-size:12px; }
-.project-detail .workspace-task-time-form { display:flex; min-width:0; flex-wrap:wrap; gap:8px; }
-.project-detail .workspace-task-time-form > .form-group:first-child { display:flex; flex:0 0 96px; flex-direction:column; gap:6px; }
-.project-detail .workspace-task-time-form > .form-group:nth-child(2) { display:flex; min-width:0; flex:1; flex-direction:column; gap:6px; }
-.project-detail .workspace-task-time-form > .btn { flex:1 0 100%; align-self:stretch; background:#0F766E; }
+.project-detail .workspace-task-comment-form .form-label { margin:0; font-size:13.5px; font-weight:600; }
+.project-detail .workspace-task-comment-form .btn { min-height:42px; align-self:flex-end; border:0; border-radius:11px; padding:0 20px; background:#2F5BD0; font-size:14px; font-weight:700; }
+.project-detail .workspace-task-comment-form .btn:disabled { background:#E2E8F0; color:#64748B; }
 .project-detail .workspace-task-history { display:flex; flex-direction:column; gap:10px; margin:0; padding:0; list-style:none; }
 .project-detail .workspace-task-history li { display:flex; min-width:0; align-items:flex-start; gap:10px; }
 .project-detail .workspace-task-history li > span:last-child { display:flex; min-width:0; flex:1; flex-direction:column; gap:2px; }
@@ -2708,6 +2654,7 @@
 .project-workspace-modal .workspace-modal-reviewer-field { grid-column:2; order:4; }
 .project-workspace-modal .workspace-modal-collaborator-field { grid-column:1 / -1; order:5; }
 .project-workspace-modal .workspace-modal-priority-field { grid-column:1 / -1; order:6; }
+.project-workspace-modal .workspace-modal-size-field { grid-column:1 / -1; order:6; display:flex; flex-direction:column; gap:8px; margin:0; } /* เต็มแถวเหนือความสำคัญ (ครึ่งแถวแคบจนคำอธิบายล้น) */
 .project-workspace-modal .workspace-task-labels-reference { grid-column:1 / -1; order:7; }
 .project-workspace-modal .workspace-task-attachments { grid-column:1 / -1; order:8; }
 .project-workspace-modal .workspace-modal-category-field { grid-column:1 / -1; order:9; }
@@ -2754,6 +2701,10 @@
 .project-workspace-modal .workspace-task-priorities button { height:40px; border:1.5px solid #CBD5E1; border-radius:11px; font-size:13.5px; font-weight:600; }
 .project-workspace-modal .workspace-task-priorities button:hover { background:#F1F5F9 !important; }
 .project-workspace-modal .workspace-task-priorities button.is-selected:hover { filter:brightness(.98); }
+/* ปุ่มขนาดงาน: 3 ปุ่มเต็มแถว ชื่อบรรทัดบน คำอธิบายบรรทัดล่าง (เดิมใช้กริด 5 ช่องของความสำคัญ ข้อความล้นกล่อง) */
+.project-workspace-modal .workspace-task-sizes { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.project-workspace-modal .workspace-task-sizes button { height:auto; min-height:48px; padding:5px 6px; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.25; }
+.project-workspace-modal .workspace-task-sizes button small { font-size:11.5px; font-weight:500; opacity:.75; white-space:nowrap; }
 .project-workspace-modal .workspace-task-collaborators { display:flex; flex-wrap:wrap; gap:8px; }
 .project-workspace-modal .workspace-task-collaborators > button { display:flex; height:38px; align-items:center; gap:8px; border:1.5px solid #CBD5E1; border-radius:99px; padding:0 14px 0 7px; color:#0F172A; font-size:13.5px; font-weight:600; }
 .project-workspace-modal .workspace-task-collaborators > button > span { display:flex; width:24px; height:24px; flex:none; align-items:center; justify-content:center; border-radius:99px; font-size:10px; font-weight:700; }
@@ -2964,7 +2915,6 @@
 
   .project-detail.is-reference .workspace-panel > .card-body { padding:22px; }
   .project-detail .workspace-task-detail-meta { grid-template-columns:minmax(105px,120px) minmax(0,1fr); }
-  .project-detail .workspace-task-work-hero { padding:20px; }
   .project-detail .workspace-task-work-panel { padding:18px; }
   .workspace-team-layout.is-reference .workspace-member-name { flex:1 1 200px; }
   .workspace-team-layout.is-reference .workspace-member-metrics { width:auto; margin-left:0; }
@@ -3131,3 +3081,37 @@
   .project-detail.is-reference .project-detail-task-row > .project-detail-task-assignee { grid-column:1; }
   .project-detail.is-reference .project-detail-task-row > .project-detail-task-status { grid-column:2; grid-row:2; }
 }
+
+/* ── ระยะเวลาแต่ละสถานะ (TaskDetailModal หน้าทำงาน · statusDurations) ── */
+.project-detail .workspace-task-durations { display:flex; flex-direction:column; gap:6px; margin:0 0 8px; }
+.project-detail .workspace-task-durations > div { display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border-radius:10px; background:#F8FAFC; }
+.project-detail .workspace-task-durations > div.is-current { background:#E3ECFF; }
+.project-detail .workspace-task-durations dt { font-weight:600; color:#334155; font-size:13.5px; }
+.project-detail .workspace-task-durations dd { margin:0; font-weight:700; color:#0F172A; font-size:13.5px; }
+/* ── กล่องงบประมาณในภาพรวมโปรเจกต์ (ProjectOverview) ── */
+.project-detail .project-budget-figures { display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:10px; margin-bottom:10px; }
+.project-detail .project-budget-figures small { display:block; color:#64748B; font-size:12.5px; }
+.project-detail .project-budget-figures strong { font-size:17px; color:#0F172A; }
+.project-detail .project-budget-form { display:flex; flex-wrap:wrap; gap:8px; align-items:flex-end; margin-top:10px; }
+.project-detail .project-budget-form .form-select { width:140px; }
+.project-detail .project-budget-form .form-control { width:160px; }
+
+/* ── หน้าโปรเจกต์อยู่ใน Layout แล้ว (มี sidebar + Header) — ยืดพื้นหลังเต็มพื้นที่ .app-main ไม่ให้ padding ซ้อน 2 ชั้น ── */
+.app-main > .project-detail { margin: -24px -28px; min-height: calc(100vh - 64px); }
+@media (max-width: 991px) {
+  .app-main > .project-detail { margin: -16px; }
+}
+/* บอร์ด: จอ ≥ 992px แสดง 4 คอลัมน์แถวเดียวเสมอ (พอมี sidebar แล้ว auto-fit ตัด "เสร็จแล้ว" ลงแถวสอง ลากข้ามแถวลำบาก) */
+@media (min-width: 992px) {
+  .project-board-columns { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
+/* ── แผงรายละเอียดงานเดียว (TaskDetailModal) — ประวัติพับไว้ ── */
+.project-detail .workspace-task-detail-badges { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; }
+.project-detail .workspace-task-history-panel > summary { display:flex; align-items:center; justify-content:space-between; cursor:pointer; list-style:none; }
+.project-detail .workspace-task-history-panel > summary::-webkit-details-marker { display:none; }
+.project-detail .workspace-task-history-panel > summary::after { content:'▾'; color:#64748B; transition:transform .15s; }
+.project-detail .workspace-task-history-panel[open] > summary::after { transform:rotate(180deg); }
+.project-detail .workspace-task-history-panel > summary h2 { margin:0; font-size:15px; font-weight:700; }
+.project-detail .workspace-task-history-panel[open] > summary { margin-bottom:10px; }
+.project-detail .workspace-task-detail .workspace-task-comment-form { display:flex; flex-direction:column; gap:8px; }

@@ -1,13 +1,14 @@
 // frontend/src/components/project-detail/TaskFormModal.js — ฟอร์มสร้าง / แก้ไขงาน (ใช้ทั้งใน workspace และหน้าตารางงาน)
 //
 // ลดการกรอก (UX-04): เติมผู้รับผิดชอบ / ผู้ตรวจ / กำหนดส่ง / ความสำคัญให้อัตโนมัติ — พิมพ์ชื่องานแล้วกดสร้างได้เลย
-// ฟิลด์ที่ใช้นาน ๆ ครั้ง (หมวดหมู่ ชั่วโมง ประโยชน์ ป้าย ไฟล์แนบ) พับไว้ใต้ "ตัวเลือกเพิ่มเติม"
+// ฟิลด์ที่ใช้นาน ๆ ครั้ง (หมวดหมู่ ประโยชน์ ป้าย ไฟล์แนบ) พับไว้ใต้ "ตัวเลือกเพิ่มเติม"
+// ไม่มีช่องชั่วโมงแล้ว — Workload วัดจากงานค้าง (utils/workload.js) · ผู้ตรวจเลือก "ตรวจเอง" ได้ (ผู้ตรวจ = ผู้รับผิดชอบ)
 import { useMemo, useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { WORKSPACE_LABEL_PALETTE } from '../TaskBadges';
-import { PRIORITY_OPTIONS } from '../../utils/labels';
+import { PRIORITY_OPTIONS, TASK_SIZE_HINTS, TASK_SIZE_LABELS } from '../../utils/labels';
 
 const CHECKLIST_TEMPLATES = {
   development: ['วิเคราะห์ความต้องการ', 'พัฒนาตามแบบ', 'ทดสอบด้วยตนเอง', 'ตรวจสอบก่อนส่งตรวจ'],
@@ -40,7 +41,7 @@ const makeChecklistItem = (title, actorId, ownerId) => ({
 });
 
 export default function TaskFormModal({ project: initialProject, task, projects: projectOptions, workspaceMode = false, onClose, onSave }) {
-  const { projects, actorId, labels, createLabel } = useMockData();
+  const { projects, actorId, labels, createLabel, access } = useMockData();
   const availableProjects = projectOptions || projects;
   const [projectId, setProjectId] = useState(String(initialProject?.id ?? task?.projectId ?? ''));
   const project = initialProject || availableProjects.find((item) => String(item.id) === projectId);
@@ -51,42 +52,39 @@ export default function TaskFormModal({ project: initialProject, task, projects:
     description: task?.description || '',
     category: task?.category || '',
     priority: !task?.priority || ['none', 'normal'].includes(task.priority) ? 'medium' : task.priority,
+    // ขนาดงาน → แต้มภาระงาน (เล็ก 1 / กลาง 3 / ใหญ่ 8) ใช้ในหน้า Workload · ค่าเริ่มต้นกลาง
+    size: TASK_SIZE_LABELS[task?.size] ? task.size : 'medium',
     assigneeId: task?.assigneeId || defaults.assigneeId || '',
     reviewerId: task?.reviewerId || defaults.reviewerId || '',
     collaborators: (task?.collaborators || []).map(String),
     startDate: task?.startDate || '',
     dueDate: task?.dueDate || defaults.dueDate || '',
-    estimatedHours: task?.estimatedHours ?? '',
     benefitDetails: task?.benefitDetails || '',
     labelIds: (task?.labelIds || []).map(String),
     attachments: (task?.attachments || []).map((item) => ({ ...item })),
     };
   });
   const [checklist, setChecklist] = useState(() => (task?.checklist || []).map((item) => ({ ...item })));
-  const [allocations, setAllocations] = useState(() => (task?.plannedAllocations || []).map((item) => ({ ...item })));
   const [checklistTitle, setChecklistTitle] = useState('');
   const [labelName, setLabelName] = useState('');
   const [error, setError] = useState('');
   const members = useMemo(() => {
     if (!project) return [];
     const ids = memberIdsOf(project);
-    return MOCK_EMPLOYEES.filter((employee) => ids.has(String(employee.id)));
-  }, [project]);
+    // บัญชีที่ปิดแล้วไม่ขึ้นให้เลือก — ยกเว้นคนที่งานนี้ใช้อยู่ (แก้งานเดิมได้โดยค่าไม่หาย)
+    const keep = new Set([task?.assigneeId, task?.reviewerId, ...(task?.collaborators || [])].filter(Boolean).map(String));
+    return currentEmployees().filter((employee) => ids.has(String(employee.id)) && (employee.isActive !== false || keep.has(String(employee.id))));
+  }, [project, task]);
   // แก้ไขงานที่มีข้อมูลเสริมอยู่แล้ว → เปิด "ตัวเลือกเพิ่มเติม" ไว้ให้เห็นเลย
-  const hasExtras = Boolean(task && (task.category || Number(task.estimatedHours) > 0 || task.benefitDetails || (task.labelIds || []).length || (task.attachments || []).length));
+  const hasExtras = Boolean(task && (task.category || task.benefitDetails || (task.labelIds || []).length || (task.attachments || []).length));
   const eligibleCollaborators = members.filter((employee) => String(employee.id) !== String(form.assigneeId));
+  // ผู้ตรวจ: คนอื่นในทีม หรือ "ตรวจเอง" (ผู้รับผิดชอบตรวจงานตัวเอง → ปุ่ม "ทำเสร็จ" จบได้เลย ไม่ต้องรอตรวจ)
   const reviewers = members.filter((employee) => String(employee.id) !== String(form.assigneeId));
-  const totalHours = Number(form.estimatedHours) || 0;
-  const selectedContributors = [form.assigneeId, ...form.collaborators].filter(Boolean).map(String);
-  const visibleAllocations = allocations.length
-    ? allocations
-    : totalHours > 0 && form.assigneeId ? [{ employeeId: String(form.assigneeId), hours: totalHours }] : [];
-  const totalAllocated = visibleAllocations.reduce((sum, item) => sum + (Number(item.hours) || 0), 0);
-  const unallocated = Math.max(0, totalHours - totalAllocated);
+  const selfReview = Boolean(form.assigneeId) && String(form.reviewerId) === String(form.assigneeId);
   const projectOwner = project?.managerId;
 
   const set = (key) => (event) => setForm((previous) => ({ ...previous, [key]: event.target.value }));
-  const canManageChecklistItem = (item) => !task || String(actorId) === String(projectOwner)
+  const canManageChecklistItem = (item) => !task || String(actorId) === String(projectOwner) || Boolean(project && access.ownsByScope(project))
     || String(item.ownerId || item.createdBy) === String(actorId);
   const addChecklist = (title = checklistTitle) => {
     const cleanTitle = title.trim();
@@ -106,28 +104,15 @@ export default function TaskFormModal({ project: initialProject, task, projects:
       return next;
     });
   };
-  const updateAllocation = (employeeId, value) => {
-    const numericValue = value === '' ? '' : Number(value);
-    setAllocations((previous) => {
-      const base = previous.length ? previous : visibleAllocations;
-      const next = base.filter((item) => String(item.employeeId) !== String(employeeId));
-      next.push({ employeeId: String(employeeId), hours: numericValue === '' ? 0 : numericValue });
-      return next;
-    });
-  };
   const updateCollaborators = (event) => {
     const nextCollaborators = Array.from(event.target.selectedOptions, (option) => option.value);
     setForm((previous) => ({ ...previous, collaborators: nextCollaborators }));
-    const eligible = new Set([form.assigneeId, ...nextCollaborators].filter(Boolean).map(String));
-    setAllocations((previous) => previous.filter((item) => eligible.has(String(item.employeeId))));
   };
   const toggleCollaborator = (employeeId) => {
     const nextCollaborators = form.collaborators.includes(String(employeeId))
       ? form.collaborators.filter((id) => String(id) !== String(employeeId))
       : [...form.collaborators, String(employeeId)];
     setForm((previous) => ({ ...previous, collaborators: nextCollaborators }));
-    const eligible = new Set([form.assigneeId, ...nextCollaborators].filter(Boolean).map(String));
-    setAllocations((previous) => previous.filter((item) => eligible.has(String(item.employeeId))));
   };
   const addFiles = (event) => {
     const files = Array.from(event.target.files || []).map((file) => ({
@@ -173,27 +158,19 @@ export default function TaskFormModal({ project: initialProject, task, projects:
     if (!form.title.trim()) return setError('กรุณาระบุชื่องาน');
     if (!form.assigneeId || !members.some((person) => String(person.id) === String(form.assigneeId))) return setError('กรุณาเลือกผู้รับผิดชอบหลักจากสมาชิกโปรเจกต์');
     if (!form.reviewerId || !members.some((person) => String(person.id) === String(form.reviewerId))) return setError('กรุณากำหนดผู้ตรวจงานจากสมาชิกโปรเจกต์');
-    if (String(form.reviewerId) === String(form.assigneeId)) return setError('ผู้ตรวจงานต้องไม่ซ้ำกับผู้รับผิดชอบหลัก');
     if (!form.dueDate) return setError('กรุณากำหนดวันส่ง');
     if (form.startDate && form.dueDate < form.startDate) return setError('วันเริ่มต้องไม่อยู่หลังวันกำหนดส่ง');
-    if (!Number.isFinite(totalHours) || totalHours < 0) return setError('ชั่วโมงที่วางแผนต้องเป็นจำนวนตั้งแต่ 0 ขึ้นไป');
-    if (visibleAllocations.some((item) => item.hours !== '' && (!Number.isFinite(Number(item.hours)) || Number(item.hours) < 0))) return setError('ชั่วโมงจัดสรรต้องเป็นตัวเลขตั้งแต่ 0 ขึ้นไป');
-    if (totalAllocated > totalHours + 0.001) return setError('ชั่วโมงจัดสรรรวมต้องไม่เกินชั่วโมงที่วางแผน');
-    const contributorIds = new Set(selectedContributors);
-    if (allocations.some((item) => !contributorIds.has(String(item.employeeId)))) return setError('ลบชั่วโมงของผู้ร่วมงานที่นำออกจากรายการก่อนบันทึก');
-    const finalAllocations = totalHours > 0
-      ? (visibleAllocations.length ? visibleAllocations : [{ employeeId: String(form.assigneeId), hours: totalHours }]).filter((item) => Number(item.hours) > 0).map((item) => ({ employeeId: String(item.employeeId), hours: Number(item.hours) }))
-      : [];
+    const collaboratorIds = [...new Set(form.collaborators.map(String).filter((id) => id !== String(form.assigneeId)))];
     const values = {
       ...form,
       title: form.title.trim(),
       description: form.description.trim(),
       projectId: project.id,
-      collaborators: [...new Set(form.collaborators.map(String).filter((id) => id !== String(form.assigneeId)))],
+      collaborators: collaboratorIds,
       labelIds: [...new Set(form.labelIds.map(String))],
       checklist: checklist.filter((item) => item.title.trim()).map((item) => ({ ...item, title: item.title.trim() })),
-      plannedAllocations: finalAllocations,
-      estimatedHours: totalHours,
+      // งานเก่าที่เคยมีชั่วโมงแบ่งรายคน: ตัดคนที่ไม่อยู่ในงานแล้วออก (updateTask ไม่รับ allocation ของคนนอกงาน)
+      ...(task ? { plannedAllocations: (task.plannedAllocations || []).filter((item) => [form.assigneeId, ...collaboratorIds].some((id) => String(id) === String(item.employeeId))) } : {}),
       progress: Number(task?.progress) || 0,
     };
     const result = onSave(values);
@@ -239,16 +216,15 @@ export default function TaskFormModal({ project: initialProject, task, projects:
             <div className="workspace-task-modal-column workspace-task-modal-right">
           <Form.Group className="workspace-modal-start-field"><Form.Label htmlFor="workspace-task-start">วันที่เริ่ม</Form.Label><Form.Control id="workspace-task-start" type="date" value={form.startDate} onChange={set('startDate')} /></Form.Group>
           <Form.Group className="workspace-modal-due-field"><Form.Label htmlFor="workspace-task-due">กำหนดส่ง <span aria-hidden="true">*</span></Form.Label><Form.Control id="workspace-task-due" type="date" value={form.dueDate} onChange={set('dueDate')} required /></Form.Group>
-          <Form.Group className="workspace-modal-assignee-field"><Form.Label htmlFor="workspace-task-assignee">ผู้รับผิดชอบหลัก <span aria-hidden="true">*</span></Form.Label>{task ? <Form.Control id="workspace-task-assignee" value={members.find((person) => String(person.id) === String(form.assigneeId))?.name || form.assigneeId} readOnly /> : <Form.Select id="workspace-task-assignee" value={form.assigneeId} onChange={(event) => setForm((previous) => ({ ...previous, assigneeId: event.target.value, reviewerId: String(previous.reviewerId) === event.target.value ? '' : previous.reviewerId, collaborators: previous.collaborators.filter((id) => String(id) !== event.target.value) }))} required disabled={!project}><option value="">เลือกสมาชิก</option>{members.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select>}{task && <Form.Text>การเปลี่ยนผู้รับผิดชอบต้องระบุเหตุผลในรายละเอียดงาน</Form.Text>}</Form.Group>
-          <Form.Group className="workspace-modal-reviewer-field"><Form.Label htmlFor="workspace-task-reviewer">ผู้ตรวจงาน <span aria-hidden="true">*</span></Form.Label><Form.Select id="workspace-task-reviewer" value={form.reviewerId} onChange={set('reviewerId')} required><option value="">เลือกผู้ตรวจ</option>{reviewers.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select></Form.Group>
+          <Form.Group className="workspace-modal-assignee-field"><Form.Label htmlFor="workspace-task-assignee">ผู้รับผิดชอบหลัก <span aria-hidden="true">*</span></Form.Label>{task ? <Form.Control id="workspace-task-assignee" value={members.find((person) => String(person.id) === String(form.assigneeId))?.name || form.assigneeId} readOnly /> : <Form.Select id="workspace-task-assignee" value={form.assigneeId} onChange={(event) => setForm((previous) => ({ ...previous, assigneeId: event.target.value, reviewerId: String(previous.reviewerId) === String(previous.assigneeId) ? event.target.value : previous.reviewerId, collaborators: previous.collaborators.filter((id) => String(id) !== event.target.value) }))} required disabled={!project}><option value="">เลือกสมาชิก</option>{members.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select>}{task && <Form.Text>การเปลี่ยนผู้รับผิดชอบต้องระบุเหตุผลในรายละเอียดงาน</Form.Text>}</Form.Group>
+          <Form.Group className="workspace-modal-reviewer-field"><Form.Label htmlFor="workspace-task-reviewer">ผู้ตรวจงาน <span aria-hidden="true">*</span></Form.Label><Form.Select id="workspace-task-reviewer" value={form.reviewerId} onChange={set('reviewerId')} required><option value="">เลือกผู้ตรวจ</option>{form.assigneeId && <option value={form.assigneeId}>ตรวจเอง (ผู้รับผิดชอบ)</option>}{reviewers.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select>{selfReview && <Form.Text>งานนี้ตรวจเอง — กด “ทำเสร็จ” แล้วจบได้เลย ไม่ต้องรอใครตรวจ</Form.Text>}</Form.Group>
           <Form.Group className="workspace-modal-collaborator-field"><span className="workspace-reference-label">ผู้ร่วมงาน (เลือกได้หลายคน)</span><Form.Select id="workspace-task-collaborators" className="workspace-form-state-proxy" multiple value={form.collaborators} onChange={updateCollaborators} disabled={!project} aria-label="ผู้ร่วมงาน">{eligibleCollaborators.map((person) => <option key={person.id} value={person.id}>{person.name}</option>)}</Form.Select><div className="workspace-task-collaborators">{eligibleCollaborators.map((person) => { const selected = form.collaborators.includes(String(person.id)); const initials = person.name.split(' ').map((part) => part[0]).join('').slice(0, 2); const colors = [['#DBEAFE', '#1E3A8A'], ['#D5F5E3', '#14532D'], ['#FEE9B8', '#78350F'], ['#FBD5E6', '#831843']][members.indexOf(person) % 4]; return <button key={person.id} type="button" aria-pressed={selected} className={selected ? 'is-selected' : ''} style={{ borderColor: selected ? '#2F5BD0' : '#CBD5E1', background: selected ? '#E3ECFF' : '#fff' }} onClick={() => toggleCollaborator(person.id)}><span style={{ background: colors[0], color: colors[1] }}>{initials}</span>{person.name.split(' ')[0]}</button>; })}{eligibleCollaborators.length === 0 && <span>เลือกผู้รับผิดชอบหลักก่อน</span>}</div></Form.Group>
+          <Form.Group className="workspace-modal-size-field"><span id="workspace-task-size-label" className="workspace-reference-label">ขนาดงาน</span><div role="group" aria-labelledby="workspace-task-size-label" className="workspace-task-priorities workspace-task-sizes">{Object.keys(TASK_SIZE_LABELS).map((key) => { const selected = form.size === key; return <button key={key} type="button" aria-pressed={selected} className={selected ? 'is-selected' : ''} title={TASK_SIZE_HINTS[key]} style={{ borderColor: selected ? '#2F5BD0' : '#CBD5E1', background: selected ? '#E3ECFF' : '#fff', color: selected ? '#1B3A8A' : '#0F172A' }} onClick={() => setForm((previous) => ({ ...previous, size: key }))}><span>{TASK_SIZE_LABELS[key]}</span><small>{TASK_SIZE_HINTS[key]}</small></button>; })}</div></Form.Group>
           <Form.Group className="workspace-modal-priority-field"><span id="workspace-task-priority-label" className="workspace-reference-label">ระดับความสำคัญ</span><Form.Select id="workspace-task-priority" className="workspace-form-state-proxy" value={form.priority} onChange={set('priority')} aria-labelledby="workspace-task-priority-label"><option value="low">ต่ำ</option><option value="medium">ปกติ</option><option value="high">สูง</option><option value="urgent">เร่งด่วน</option></Form.Select><div role="group" aria-labelledby="workspace-task-priority-label" className="workspace-task-priorities">{PRIORITIES.map((option) => { const selected = form.priority === option.value; const [background, color, border] = priorityColors[option.value]; return <button key={option.value} type="button" aria-pressed={selected} className={selected ? 'is-selected' : ''} style={{ borderColor: selected ? border : '#CBD5E1', background: selected ? background : '#fff', color: selected ? color : '#0F172A' }} onClick={() => setForm((previous) => ({ ...previous, priority: option.value }))}>{option.label}</button>; })}</div></Form.Group>
           <details className="workspace-task-more" open={hasExtras || undefined}>
-            <summary>ตัวเลือกเพิ่มเติม <span>หมวดหมู่ · ชั่วโมง · ป้าย · ไฟล์แนบ</span></summary>
+            <summary>ตัวเลือกเพิ่มเติม <span>หมวดหมู่ · ประโยชน์ · ป้าย · ไฟล์แนบ</span></summary>
             <div className="workspace-task-more-body">
           <Form.Group className="workspace-modal-category-field"><Form.Label htmlFor="workspace-task-category">หมวดหมู่งาน</Form.Label><Form.Control id="workspace-task-category" value={form.category} onChange={set('category')} maxLength={80} /></Form.Group>
-          <Form.Group className="workspace-modal-hours-field"><Form.Label htmlFor="workspace-task-hours">ชั่วโมงที่วางแผนรวม</Form.Label><Form.Control id="workspace-task-hours" type="number" min="0" step="0.25" value={form.estimatedHours} onChange={set('estimatedHours')} /><Form.Text>เว้นว่างหรือใส่ 0 ได้</Form.Text></Form.Group>
-          {totalHours > 0 && <div className="workspace-form-wide workspace-hours-allocation"><strong>จัดสรร Planned Hours</strong><span>จัดสรรแล้ว {totalAllocated.toFixed(2)} ชม. · ยังไม่จัดสรร {unallocated.toFixed(2)} ชม.</span>{selectedContributors.map((employeeId) => <Form.Group key={employeeId}><Form.Label htmlFor={`planned-allocation-${employeeId}`}>{MOCK_EMPLOYEES.find((person) => String(person.id) === employeeId)?.name || employeeId}</Form.Label><Form.Control id={`planned-allocation-${employeeId}`} aria-label={`ชั่วโมงที่วางแผนสำหรับ ${MOCK_EMPLOYEES.find((person) => String(person.id) === employeeId)?.name || employeeId}`} type="number" min="0" step="0.25" value={visibleAllocations.find((item) => String(item.employeeId) === employeeId)?.hours ?? 0} onChange={(event) => updateAllocation(employeeId, event.target.value)} /></Form.Group>)}</div>}
           <Form.Group className="workspace-modal-benefit-field"><Form.Label htmlFor="workspace-task-benefit">รายละเอียดประโยชน์ที่คาดหวัง</Form.Label><Form.Control id="workspace-task-benefit" as="textarea" rows={2} value={form.benefitDetails} onChange={set('benefitDetails')} placeholder="กรอกเมื่อ Task นี้มีประโยชน์หรือผลลัพธ์ที่ต้องติดตาม" /></Form.Group>
           <section className="workspace-task-labels-reference">
             <span className="workspace-task-reference-panel-title">ป้ายกำกับ</span>

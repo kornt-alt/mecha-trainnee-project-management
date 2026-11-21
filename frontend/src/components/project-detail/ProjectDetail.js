@@ -3,9 +3,10 @@
 // หน้าอื่นเปิดงานที่นี่ได้ด้วย navigate('/projects/:id', { state: { openTaskId } }) — รายละเอียดงานมีที่เดียวคือใน workspace (UX-10)
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { priorityOf, statsFrom } from '../../utils/projectTrackingUtils';
+import { projectHealth } from '../../utils/executiveMetrics';
 import ProjectHeader from './ProjectHeader';
 import ProjectNavigation from './ProjectNavigation';
 import ProjectOverview from './ProjectOverview';
@@ -26,7 +27,7 @@ const SECTIONS = [
 
 export default function ProjectDetail() {
   const { projectId } = useParams();
-  const { projects, tasks, deliverables, activity, actorId, setActorId, taskWork, addTaskWorkEntry } = useMockData();
+  const { projects, tasks, deliverables, activity, actorId, taskWork, addTaskWorkEntry, projectCosts, access } = useMockData();
   const [activeSection, setActiveSection] = useState('overview');
   const [createTaskRequested, setCreateTaskRequested] = useState(false);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -63,11 +64,12 @@ export default function ProjectDetail() {
   const taskStats = statsFrom(relatedTasks, project.status);
   const stats = taskStats;
   const priority = priorityOf(relatedTasks, project);
+  const health = projectHealth(project, relatedTasks, { costs: projectCosts });
   const teamIds = new Set([...(project.teamMemberIds || []).map(String), String(project.managerId || ''), String(project.teamLeadId || '')]);
   const sections = SECTIONS.map((section) => ({
     ...section,
     count: section.key === 'tasks' ? relatedTasks.length
-      : section.key === 'team' ? [...teamIds].filter((id) => MOCK_EMPLOYEES.some((person) => String(person.id) === id)).length
+      : section.key === 'team' ? [...teamIds].filter((id) => currentEmployees().some((person) => String(person.id) === id)).length
         : section.key === 'deliverables' ? `${projectDeliverables.filter((item) => item.status === 'completed').length}/${projectDeliverables.length}`
           : section.key === 'activity' ? projectActivity.length : null,
   }));
@@ -95,7 +97,7 @@ export default function ProjectDetail() {
 
   return <div className="project-detail is-reference"><div className="project-detail-inner">
     <nav className="project-detail-breadcrumb" aria-label="เส้นทางนำทาง"><Link to="/projects"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>โปรเจกต์</Link><span aria-hidden="true">/</span><span aria-current="page">{project.name}</span></nav>
-    <ProjectHeader project={project} stats={stats} priority={priority} actorId={actorId} onActorChange={setActorId} onOpenClosure={openClosure} />
+    <ProjectHeader project={project} stats={stats} priority={priority} health={health} actorId={actorId} actorRoleLabel={access.roleIn(project)} onOpenClosure={openClosure} />
     <ProjectNavigation activeSection={activeSection} onSelect={setActiveSection} sections={sections} />
     {activeSection === 'overview' && <ProjectOverview project={project} tasks={relatedTasks} stats={stats} onNavigateSection={setActiveSection} onOpenTask={openWorkspaceTask} onCreateTask={openTaskComposer} />}
     {activeSection === 'tasks' && <ProjectTasks
@@ -110,9 +112,8 @@ export default function ProjectDetail() {
       onCloseTask={closeWorkspaceTask}
       onClearTaskAction={() => setTaskAction('')}
       onConsumeCreate={() => setCreateTaskRequested(false)}
-      taskWorkEntries={selectedTaskId ? taskWork[String(selectedTaskId)] || { comments: [], timeLogs: [] } : { comments: [], timeLogs: [] }}
+      taskWorkEntries={selectedTaskId ? taskWork[String(selectedTaskId)] || { comments: [] } : { comments: [] }}
       onAddTaskComment={(taskId, entry) => addTaskWorkEntry(taskId, 'comments', entry)}
-      onAddTaskTimeLog={(taskId, entry) => addTaskWorkEntry(taskId, 'timeLogs', entry)}
       actorId={actorId}
     />}
     {activeSection === 'board' && <ProjectBoard key={String(project.id)} projectId={project.id} onOpenTask={openWorkspaceTask} />}

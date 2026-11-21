@@ -134,10 +134,14 @@ test('Escape also dismisses the dialog', async ({ page }) => {
   await expect(loginDialog(page)).toHaveCount(0);
 });
 
-test('keeps direct project workspace links public without the login dialog', async ({ page }) => {
+test('direct project workspace links ask to log in once, and closing it still shows the workspace', async ({ page }) => {
   await page.goto('/PROJECT-MANAGEMENT/projects/1');
+  await expect(loginDialog(page)).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(loginDialog(page)).toHaveCount(0);
   await expect(page.locator('.project-detail-header')).toBeVisible();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  // navbar อยู่ในหน้าโปรเจกต์ด้วย (เดิมหน้าโปรเจกต์อยู่นอก Layout — sidebar หาย)
+  await expect(page.locator('.app-sidebar')).toBeVisible();
 });
 
 test('traps keyboard focus and exposes labelled errors and live status', async ({ page }) => {
@@ -237,12 +241,12 @@ test('cancels animation state safely when Login unmounts mid-transition', async 
   await signIn(page);
   await expect(page.locator('.login-modal-panel')).toHaveClass(/is-leaving/);
 
-  // หน้า workspace ของโปรเจกต์เปิดได้โดยไม่ต้อง login → หน้าต่างถูก unmount กลาง animation
+  // เปลี่ยนหน้ากลาง animation → login ยังจบได้ปกติ และไปอยู่หน้าใหม่โดยไม่มี error
   await page.evaluate(() => {
     window.history.pushState({}, '', '/PROJECT-MANAGEMENT/projects/1');
     window.dispatchEvent(new PopStateEvent('popstate'));
   });
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog')).toHaveCount(0, { timeout: 8000 });
   await expect(page.locator('.project-detail-header')).toBeVisible();
   await page.waitForTimeout(250);
   expect(pageErrors).toEqual([]);

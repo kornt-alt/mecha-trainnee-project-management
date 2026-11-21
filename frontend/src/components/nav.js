@@ -13,9 +13,9 @@ export const NAV = [
 ];
 
 // เมนูผู้ดูแลระบบ — เรื่องความปลอดภัย / log / การส่งออก ไม่เกี่ยวกับงานประจำวันของผู้ใช้ทั่วไป
-// ⚠️ ตอนนี้ยังแสดงให้ทุกคนเห็น เพราะยังไม่ได้ต่อ login จริง (POST /auth/login ใน docs/api-contract.md)
-//    ต่อ login แล้วให้ Layout.js แสดงกลุ่มนี้เฉพาะ user.role === 'ADMIN' (TODO ใน Layout.js)
+// แสดงเฉพาะ role ADMIN (Layout.js ใช้ useMockData().access.isAdmin) · หน้าเหล่านี้ห่อด้วย admin/RequireAdmin.js ใน App.js
 export const ADMIN_NAV = [
+  { to: '/admin/users', label: 'จัดการผู้ใช้', icon: 'Users' },
   { to: '/security/incidents', label: 'เหตุการณ์ความปลอดภัย', icon: 'CircleAlert' },
   { to: '/audit-log', label: 'บันทึกการตรวจสอบ', icon: 'Activity' },
   { to: '/exports', label: 'ประวัติการส่งออก', icon: 'FileText' },

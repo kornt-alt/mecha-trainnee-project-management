@@ -3,27 +3,27 @@
 // UX-06: เพิ่มสมาชิกไม่ต้องกรอกเหตุผลแล้ว (นำออกก็ไม่ต้อง) · เปลี่ยน Team Lead ยังต้องมีเหตุผล (เปลี่ยนผู้อนุมัติปิดโปรเจกต์)
 import { useMemo, useState } from 'react';
 import { Alert, Badge, Button, Card, Form, Modal } from 'react-bootstrap';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { initials } from '../../utils/projectTrackingUtils';
 import { WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 
-const findEmployee = (id) => MOCK_EMPLOYEES.find((person) => String(person.id) === String(id));
+const findEmployee = (id) => currentEmployees().find((person) => String(person.id) === String(id));
 
 export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavigateTasks }) {
-  const { projects, tasks, actorId, addProjectMember, assignTeamLeader, removeProjectMember } = useMockData();
+  const { projects, tasks, addProjectMember, assignTeamLeader, removeProjectMember, access } = useMockData();
   const project = projects.find((item) => String(item.id) === String(projectId));
   const [addMemberId, setAddMemberId] = useState('');
   const [pendingLeadId, setPendingLeadId] = useState('');
   const [leadReason, setLeadReason] = useState('');
   const [error, setError] = useState('');
   const projectTasks = tasks.filter((task) => String(task.projectId) === String(projectId));
-  const canManage = String(actorId) === String(project?.managerId) || String(actorId) === String(project?.teamLeadId);
+  const canManage = Boolean(project && access.canManage(project)); // Owner / Lead / ADMIN / Management ในขอบเขต
   const memberIds = useMemo(() => [...new Set([
     ...(project?.teamMemberIds || []).map(String), String(project?.managerId || ''), String(project?.teamLeadId || ''),
   ].filter(Boolean))], [project]);
   const members = memberIds.map(findEmployee).filter(Boolean);
-  const availableEmployees = MOCK_EMPLOYEES.filter((person) => !memberIds.includes(String(person.id)));
+  const availableEmployees = currentEmployees().filter((person) => person.isActive !== false && !memberIds.includes(String(person.id))); // บัญชีที่ปิดเพิ่มไม่ได้
   if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
 
   const addMember = () => {
@@ -103,6 +103,7 @@ export default function ProjectTeam({ projectId, notice, onNoticeChange, onNavig
                   <span className="workspace-member-title"><strong>{person.name}</strong>
                     {isOwner && <Badge bg="" className="workspace-member-role is-owner">Owner</Badge>}
                     {isLead && <Badge bg="" className="workspace-member-role is-leader">Team Lead</Badge>}
+                    {person.isActive === false && <span className="inactive-person-badge">ปิดบัญชี</span>}
                   </span>
                   <small>{person.position || 'สมาชิกโปรเจกต์'} · {person.department || 'Mecha'}</small>
                 </span>

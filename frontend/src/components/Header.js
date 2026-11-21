@@ -13,18 +13,20 @@ const RECENT_LIMIT = 5;
 export default function Header() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  // กระดิ่งรวม 2 แหล่ง: แจ้งเตือนงานของผู้ใช้ปัจจุบัน (MockDataContext — เกิดตอนเปลี่ยนผู้รับผิดชอบงาน)
+  // กระดิ่งรวม 2 แหล่ง: แจ้งเตือนงานของผู้ใช้ปัจจุบัน (MockDataContext — มอบงาน / ส่งตรวจ / อนุมัติ / ขอแก้ / เปลี่ยนผู้รับผิดชอบ)
   // + แจ้งเตือนระบบ (NotificationCenterContext — มีหน้ารายละเอียดที่ /notifications/:id)
   const { notifications: taskNotificationsAll, actorId, markNotificationsRead } = useMockData();
   const { notifications: systemNotifications, markNotifications } = useNotificationCenter();
   const taskNotifications = taskNotificationsAll.filter((item) => String(item.employeeId) === String(actorId));
 
-  // แปลงเป็นรูปเดียวกันก่อนแสดง — แจ้งเตือนงานไม่มี createdAt และไม่มีหน้า detail จึงลิงก์ไปหน้าโปรเจกต์แทน
+  // แปลงเป็นรูปเดียวกันก่อนแสดง — แจ้งเตือนงานไม่มี createdAt และไม่มีหน้า detail จึงลิงก์ไปเปิดงานในหน้าโปรเจกต์แทน
   // แจ้งเตือนงานเพิ่งเกิดใน session นี้เสมอ จึงวางไว้ก่อนแจ้งเตือนระบบ (ซึ่งเรียงใหม่ → เก่ามาแล้ว)
   const notifications = [
     ...taskNotifications.map((item) => ({
       key: `task-${item.id}`,
+      // กดแล้วเปิดงานนั้นใน workspace เลย (ProjectDetail อ่าน state.openTaskId)
       to: item.projectId ? `/projects/${item.projectId}` : '/notifications',
+      state: item.taskId ? { openTaskId: item.taskId } : undefined,
       title: item.title,
       message: item.message,
       timeLabel: item.time || '—',
@@ -79,7 +81,7 @@ export default function Header() {
   return (
     <header className="app-header">
       <div className="header-left">
-        <span className="system-pill">Mecha Project Management</span>
+        <span className="system-pill">MECHA Project Management</span>
       </div>
 
       <div className="header-right">
@@ -141,6 +143,7 @@ export default function Header() {
                 <Dropdown.Item
                   as={Link}
                   to={item.to}
+                  state={item.state}
                   key={item.key}
                   className={`notification-item px-3 py-2 border-bottom ${item.unread ? 'unread' : ''}`}
                 >

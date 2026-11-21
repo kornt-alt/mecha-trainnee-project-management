@@ -1,6 +1,6 @@
 // frontend/src/components/project-detail/ProjectBoard.js — บอร์ดงาน (ลากการ์ดเปลี่ยนสถานะได้) project Kanban board sourced from the shared task context.
 import { useMemo, useRef, useState } from 'react';
-import { MOCK_EMPLOYEES } from '../../data/mockData';
+import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { checklistProgressPercent, daysBetween, shortThaiDate, today } from '../../utils/projectTrackingUtils';
 import { WorkspaceTaskMetadata } from '../TaskBadges';
@@ -12,7 +12,7 @@ const BOARD_COLUMNS = [
   { key: 'completed', title: 'เสร็จแล้ว' },
 ];
 
-const employeeById = (id) => MOCK_EMPLOYEES.find((employee) => String(employee.id) === String(id));
+const employeeById = (id) => currentEmployees().find((employee) => String(employee.id) === String(id));
 
 function BoardTaskCard({ task, labels = [], onOpen, onDragStart, onDragEnd, isDragging, currentDay }) {
   const assignee = employeeById(task.assigneeId);
@@ -57,7 +57,7 @@ function BoardTaskCard({ task, labels = [], onOpen, onDragStart, onDragEnd, isDr
 }
 
 export default function ProjectBoard({ projectId, onOpenTask }) {
-  const { tasks, projects, labels, actorId, updateTask } = useMockData();
+  const { tasks, projects, labels, actorId, updateTask, access } = useMockData();
   const [draggedTaskId, setDraggedTaskId] = useState(null);
   const [dragOverStatus, setDragOverStatus] = useState('');
   const [boardMessage, setBoardMessage] = useState(null);
@@ -83,7 +83,7 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
 
     const primaryAssignee = String(actorId) === String(task.assigneeId);
     const reviewer = String(actorId) === String(task.reviewerId);
-    const owner = String(actorId) === String(project?.managerId);
+    const owner = String(actorId) === String(project?.managerId) || Boolean(project && access.ownsByScope(project));
     const teamLead = String(actorId) === String(project?.teamLeadId);
     const privileged = owner || teamLead;
     const stamp = new Date().toISOString();
@@ -107,6 +107,10 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
         description: `เริ่มทำงาน “${task.title}” (ลากบนบอร์ด)`,
       };
     } else if (task.status === 'in_progress' && nextStatus === 'pending_review') {
+      if (String(task.reviewerId) === String(task.assigneeId)) {
+        showBoardMessage('งานนี้ตรวจเอง — ลากไป “เสร็จแล้ว” ได้เลย ไม่ต้องรอตรวจ');
+        return;
+      }
       if (!task.reviewerId) {
         showBoardMessage('กรุณากำหนดผู้ตรวจงานก่อนส่งตรวจ');
         return;
@@ -147,6 +151,11 @@ export default function ProjectBoard({ projectId, onOpenTask }) {
     } else if (task.status === 'not_started' && nextStatus === 'pending_review') {
       showBoardMessage('ต้องเริ่มทำงานก่อนจึงจะส่งตรวจได้');
       return;
+    } else if (task.status === 'in_progress' && nextStatus === 'completed' && String(task.reviewerId) === String(task.assigneeId)) {
+      // งานตรวจเอง: ลากไป "เสร็จแล้ว" ได้ตรง ๆ (ไม่มีขั้นรอตรวจ)
+      reviewHistory.push({ action: 'submitted', actorId, reviewerId: task.reviewerId, timestamp: stamp }, { action: 'approved', actorId, reviewerId: task.reviewerId, timestamp: stamp });
+      patch = { status: 'completed', progress: 100, completedAt: stamp, reviewApprovedBy: actorId, reviewApprovedAt: stamp, reviewHistory, blocked: null };
+      event = { type: 'task_completed_self_review', description: `ทำงาน “${task.title}” เสร็จ (ตรวจเอง · ลากบนบอร์ด)` };
     } else if (nextStatus === 'completed' && task.status !== 'pending_review') {
       showBoardMessage('งานต้องผ่านการตรวจก่อนจึงจะเป็นเสร็จแล้ว');
       return;
