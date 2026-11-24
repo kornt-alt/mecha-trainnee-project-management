@@ -1821,6 +1821,13 @@
 .project-detail .workspace-attachment-list li { display:flex; min-width:0; align-items:center; gap:8px; border-radius:10px; padding:8px 12px; background:#F4F7FD; font-size:13.5px; }
 .project-detail .workspace-attachment-list strong { min-width:0; flex:1; overflow:hidden; font-weight:500; text-overflow:ellipsis; white-space:nowrap; }
 .project-detail .workspace-attachment-list span { flex:none; color:#475569; font-size:12px; }
+.project-detail .workspace-attachment-row-controls { display:flex; gap:4px; flex:none; }
+.project-detail .workspace-attachment-row-controls button { display:inline-flex; align-items:center; justify-content:center; min-width:26px; height:26px; border:1px solid #E3E8F2; border-radius:8px; background:#fff; color:#2F5BD0; font-size:12px; line-height:1; }
+.project-detail .workspace-attachment-row-controls button:hover { background:#E3ECFF; }
+.project-detail .workspace-attachment-row-controls button:disabled { cursor:not-allowed; opacity:.5; }
+.project-detail .workspace-attachment-unavailable { display:inline-block; margin-left:8px; padding:1px 7px; border-radius:99px; background:#FEE2E2; color:#B91C1C; font-size:11px; font-weight:600; }
+.project-detail .workspace-attachment-size { margin-left:8px; color:#94A3B8; font-size:11px; }
+.project-detail .workspace-attachment-preview-modal img, .project-detail .workspace-attachment-preview-modal video { max-width:100%; max-height:70vh; display:block; }
 
 .project-tasks-table {
   min-width: 880px;
@@ -2658,8 +2665,6 @@
 .project-workspace-modal .workspace-task-labels-reference { grid-column:1 / -1; order:7; }
 .project-workspace-modal .workspace-task-attachments { grid-column:1 / -1; order:8; }
 .project-workspace-modal .workspace-modal-category-field { grid-column:1 / -1; order:9; }
-.project-workspace-modal .workspace-modal-hours-field { grid-column:1 / -1; order:10; }
-.project-workspace-modal .workspace-hours-allocation { grid-column:1 / -1; order:11; }
 .project-workspace-modal .workspace-modal-benefit-field { grid-column:1 / -1; order:12; }
 /* "ตัวเลือกเพิ่มเติม" — ฟิลด์ที่ใช้นาน ๆ ครั้งพับไว้ท้ายคอลัมน์ขวา (UX-04) */
 .project-workspace-modal .workspace-task-more { grid-column:1 / -1; order:20; border:1.5px solid #E3E8F2; border-radius:14px; padding:0; }
@@ -2691,9 +2696,7 @@
 .project-workspace-modal .workspace-modal-due-field,
 .project-workspace-modal .workspace-modal-assignee-field,
 .project-workspace-modal .workspace-modal-reviewer-field,
-.project-workspace-modal .workspace-modal-category-field,
-.project-workspace-modal .workspace-modal-hours-field { display:flex; flex-direction:column; gap:7px; margin:0; }
-.project-workspace-modal .workspace-hours-allocation { margin:0; }
+.project-workspace-modal .workspace-modal-category-field { display:flex; flex-direction:column; gap:7px; margin:0; }
 .project-workspace-modal .workspace-modal-benefit-field { margin:0; }
 .project-workspace-modal .workspace-reference-field { display:flex; min-width:0; flex-direction:column; gap:7px; margin:0; }
 .project-workspace-modal .workspace-reference-field .form-text { color:#475569; font-size:12.5px; }
@@ -2710,7 +2713,6 @@
 .project-workspace-modal .workspace-task-collaborators > button > span { display:flex; width:24px; height:24px; flex:none; align-items:center; justify-content:center; border-radius:99px; font-size:10px; font-weight:700; }
 .project-workspace-modal .workspace-modal-collaborator-field > span:last-child { color:#475569; font-size:13.5px; }
 .project-workspace-modal .workspace-modal-category-field,
-.project-workspace-modal .workspace-modal-hours-field { display:flex; flex-direction:column; gap:7px; margin:0; }
 .project-workspace-modal .workspace-modal-benefit-field { display:flex; flex-direction:column; gap:7px; margin:0; }
 .project-workspace-modal .workspace-task-section-heading { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .project-workspace-modal .workspace-task-section-heading h3 { margin:0; color:#0F172A; font-size:15px; font-weight:700; }
@@ -2832,11 +2834,6 @@
 .workspace-checklist-builder-row .form-check { margin:0; }
 .workspace-checklist-builder-row .form-check-label { overflow-wrap:anywhere; }
 .workspace-checklist-builder-row .form-control { min-width:0; }
-.workspace-hours-allocation { display:grid; grid-template-columns:minmax(0,1fr) auto; align-items:center; gap:8px 14px; border-left:3px solid var(--workspace-blue); padding:10px 12px; background:var(--workspace-subtle-bg); }
-.workspace-hours-allocation > strong { color:var(--workspace-ink); font-size:13px; }
-.workspace-hours-allocation > span { color:var(--workspace-muted); font-size:12px; }
-.workspace-hours-allocation > .form-group { grid-column:1 / -1; display:grid; grid-template-columns:minmax(0,1fr) minmax(120px,180px); align-items:center; gap:8px; }
-.workspace-hours-allocation .form-label { margin:0; }
 .workspace-attachment-row { display:flex; min-width:0; align-items:center; justify-content:space-between; gap:8px; border-top:1px solid var(--project-detail-line); padding:6px 0; color:var(--workspace-secondary-strong); font-size:12px; }
 .workspace-attachment-row > span { min-width:0; overflow-wrap:anywhere; }
 .workspace-task-label-list { display:flex; flex-wrap:wrap; gap:6px; }
@@ -2846,8 +2843,6 @@
 .workspace-attachment-list li span { color:var(--workspace-muted); }
 .workspace-task-history li { display:flex; flex-direction:column; gap:2px; }
 .workspace-task-history li span { color:var(--workspace-muted); overflow-wrap:anywhere; }
-.workspace-task-allocation-list { display:flex; flex-wrap:wrap; gap:6px; margin:-8px 0 14px; }
-.workspace-task-allocation-list span { border:1px solid var(--project-detail-line); border-radius:7px; padding:4px 8px; color:var(--workspace-secondary-strong); font-size:11.5px; }
 .workspace-deliverable-progress { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
 .workspace-deliverable-progress > div { display:flex; flex-wrap:wrap; justify-content:space-between; gap:6px; color:var(--workspace-muted); font-size:12px; }
 .workspace-deliverable-progress strong { color:var(--workspace-ink); }
@@ -2893,8 +2888,6 @@
   .workspace-deliverable-actions { width:100%; }
   .workspace-checklist-builder-row { grid-template-columns:minmax(0,1fr) auto auto auto; }
   .workspace-checklist-builder-row .form-control { grid-column:1 / -1; grid-row:2; }
-  .workspace-hours-allocation { grid-template-columns:minmax(0,1fr); }
-  .workspace-hours-allocation > span { grid-column:1; }
 }
 
 @media (max-width: 760px) {

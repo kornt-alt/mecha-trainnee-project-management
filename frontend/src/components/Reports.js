@@ -6,16 +6,15 @@ import { Card, Row, Col, ProgressBar } from 'react-bootstrap';
 import { useMockData } from '../context/MockDataContext';
 import ExecutiveOverview from './reports/ExecutiveOverview';
 import { Folder } from './common/Icons';
+import useLocalDay from '../utils/useLocalDay';
 
 export default function Reports() {
   // Projects + Tasks จาก Context — สถิติรายงานตามข้อมูลล่าสุดจากหน้าโปรเจกต์/งาน (mock-only phase)
   const { projects: projectsList, tasks: tasksList } = useMockData();
 
   // วันนี้ตามเวลาเครื่อง (YYYY-MM-DD)
-  const today = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, []);
+  const now = useLocalDay();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // 1. สรุปข้อมูลโปรเจกต์
   const totalProjects = projectsList.length;

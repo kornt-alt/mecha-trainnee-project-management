@@ -10,6 +10,7 @@ import { Card, Col, Form, Row } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { useMockData } from '../context/MockDataContext';
 import { memberWorkloadSummary, TASK_SIZE_POINTS } from '../utils/workload';
+import useLocalDay from '../utils/useLocalDay';
 import { WORKLOAD_LEVEL_LABELS, taskSizeLabel, taskStatusLabel } from '../utils/labels';
 import { TaskBlockedBadge } from './TaskBadges';
 import './workload.css';
@@ -53,11 +54,8 @@ export default function Workload() {
   const [search, setSearch] = useState('');
   const [view, setView] = useState('people'); // 'people' | 'teams'
   const [expandedId, setExpandedId] = useState(null);
-  const now = useMemo(() => new Date(), []);
-  const today = useMemo(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  }, []);
+  const now = useLocalDay();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   const teamOf = useMemo(() => {
     const map = new Map();
@@ -76,6 +74,17 @@ export default function Workload() {
     const query = search.trim().toLowerCase();
     return scoped.rows.filter((row) => !query || row.employee.name.toLowerCase().includes(query));
   }, [scoped, search]);
+  const teamRows = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return allRows.filter((row) => !query || row.employee.name.toLowerCase().includes(query));
+  }, [allRows, search]);
+  const visibleTeams = teams
+    .filter((team) => teamId === 'all' || String(team.id) === teamId)
+    .map((team) => {
+      const memberIds = new Set((team.memberEmployeeIds || []).map(String));
+      return { team, members: teamRows.filter((row) => memberIds.has(String(row.employee.id))) };
+    })
+    .filter(({ members }) => !search.trim() || members.length > 0);
   const maxPoints = Math.max(1, ...rows.map((row) => row.points));
 
   const count = (level) => rows.filter((row) => row.level === level).length;
@@ -170,12 +179,11 @@ export default function Workload() {
                 })}
               </div>
             )
+          ) : visibleTeams.length === 0 ? (
+            <p className="text-muted small mb-0">ไม่พบสมาชิกตามตัวกรอง</p>
           ) : (
             <Row className="g-3">
-              {teams.filter((team) => teamId === 'all' || String(team.id) === teamId).map((team) => {
-                const memberIds = new Set((team.memberEmployeeIds || []).map(String));
-                const members = allRows.filter((row) => memberIds.has(String(row.employee.id)));
-                return (
+              {visibleTeams.map(({ team, members }) => (
                   <Col md={6} xl={4} key={team.id}>
                     <div className="workload-team-card">
                       <div className="d-flex justify-content-between align-items-baseline">
@@ -193,8 +201,7 @@ export default function Workload() {
                       </ul>
                     </div>
                   </Col>
-                );
-              })}
+              ))}
             </Row>
           )}
         </Card.Body>

@@ -26,6 +26,9 @@ export const checklistProgressPercent = (checklist) => {
 // แสดงวันที่เป็น yyyy/mm/dd — รูปแบบเดิมของแอป
 export const ymd = (v) => (v ? v.replace(/-/g, '/') : '-');
 
+// แสดงวันที่กำหนดส่งแบบย่อ (MM/DD) สำหรับการ์ดงาน — fallback '—' เมื่อขาดวันที่
+export const dueDateShort = (dueDate) => (dueDate ? dueDate.slice(5).replace(/-/g, '/') : '—');
+
 // ล่าช้า = ยังไม่เสร็จ/ยกเลิก พร้อมเลยกำหนดแล้ว — เฉพาะการแสดงผล (คงสถานะ mock ต้นทางเดิม)
 export const isDelayed = (p) => {
   const t = today();

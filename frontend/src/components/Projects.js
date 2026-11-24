@@ -108,8 +108,15 @@ export default function Projects() {
 
   // Empty API responses do not replace the existing mock records in frontend-only mode.
   // A non-empty array is the only API result that can become the current project source.
+  // The workspace renders from the shared mock workspace records (visibleProjects), so the
+  // list must not link to projects the workspace cannot open — otherwise a click lands on
+  // "ไม่พบโปรเจกต์". When the backend is connected, surface only API projects that also
+  // exist in the shared mock workspace, using the mock records as the single source of truth.
   const isApiConnected = Array.isArray(data) && data.length > 0;
-  const baseProjects = isApiConnected ? data : projects.filter((p) => !filter || p.status === filter);
+  const apiProjectIds = new Set(Array.isArray(data) ? data.map((d) => String(d.id)) : []);
+  const baseProjects = isApiConnected
+    ? projects.filter((p) => apiProjectIds.has(String(p.id)))
+    : projects.filter((p) => !filter || p.status === filter);
 
   // ค้นหา (ชื่อและผู้รับผิดชอบ) — ค้นหาแบบ client-side ทับทั้งแถวที่มาจาก API และ mock
   const q = search.trim().toLowerCase();
