@@ -1,7 +1,7 @@
 // Security incident detail, acknowledgement, investigation, and resolution workflow.
 import React, { useEffect, useState } from 'react';
 import { Alert, Button, Card, Form } from 'react-bootstrap';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { useNotificationCenter } from '../../context/NotificationCenterContext';
 import { formatThaiDateTime } from '../../utils/notificationCenterUtils';
 import { ArrowUpRight, Check, ChevronLeft } from '../common/Icons';
@@ -26,11 +26,17 @@ export default function SecurityIncidentDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incidentId]);
 
+  // List query string captured via router navigation state when coming from the incidents list.
+  // Empty when the detail was opened directly — the Back link then falls back to the default list.
+  const currentLocation = useLocation();
+  const backTo = currentLocation.state?.backTo || '';
+  const resolveBackHref = () => (backTo ? `/security/incidents?${backTo}` : '/security/incidents');
+
   if (!incident) {
     return (
       <div className="notification-page">
         <PageHeading title="ไม่พบเหตุการณ์" description="รหัสเหตุการณ์นี้ไม่มีอยู่ในข้อมูลตัวอย่าง" />
-        <Button as={Link} to="/security/incidents" variant="outline-primary">กลับรายการเหตุการณ์</Button>
+        <Button as={Link} to={resolveBackHref()} variant="outline-primary">กลับรายการเหตุการณ์</Button>
       </div>
     );
   }
@@ -55,7 +61,7 @@ export default function SecurityIncidentDetail() {
   return (
     <div className="notification-page">
       <PageHeading title="รายละเอียดเหตุการณ์" description={`${incident.id} · รายงานเมื่อ ${formatThaiDateTime(incident.reportedAt)}`} />
-      <Button as={Link} to="/security/incidents" variant="link" className="notification-back-link"><ChevronLeft size={15} /> กลับรายการเหตุการณ์</Button>
+      <Button as={Link} to={resolveBackHref()} variant="link" className="notification-back-link"><ChevronLeft size={15} /> กลับรายการเหตุการณ์</Button>
       <MockDataNotice />
       <Card className="notification-detail-card incident-detail-card">
         <div className="notification-detail-topline"><PriorityBadge priority={incident.priority} /><StatusBadge status={incident.status} /></div>
@@ -81,7 +87,7 @@ export default function SecurityIncidentDetail() {
         {relatedIncidents.length > 0 && (
           <div className="incident-related-list">
             <h3 className="h6">เหตุการณ์ที่เชื่อมโยง</h3>
-            {relatedIncidents.map((item) => <Link key={item.id} to={`/security/incidents/${item.id}`}>{item.id} · {item.title} <ArrowUpRight size={14} /></Link>)}
+            {relatedIncidents.map((item) => <Link key={item.id} to={`/security/incidents/${item.id}`} state={{ backTo }}>{item.id} · {item.title} <ArrowUpRight size={14} /></Link>)}
           </div>
         )}
 

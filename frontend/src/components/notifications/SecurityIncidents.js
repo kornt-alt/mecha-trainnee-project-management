@@ -58,7 +58,7 @@ export default function SecurityIncidents() {
             <tbody>
               {result.items.map((incident) => (
                 <tr key={incident.id}>
-                  <td data-label="รหัส / เหตุการณ์"><Link className="record-title-link" to={`/security/incidents/${incident.id}`}>{incident.title}</Link><span className="record-subtitle">{incident.id}</span></td>
+                  <td data-label="รหัส / เหตุการณ์"><Link className="record-title-link" to={`/security/incidents/${incident.id}`} state={{ backTo: searchParams.toString() }}>{incident.title}</Link><span className="record-subtitle">{incident.id}</span></td>
                   <td data-label="ความสำคัญ"><PriorityBadge priority={incident.priority} /></td>
                   <td data-label="สถานะ"><StatusBadge status={incident.status} /></td>
                   <td data-label="ผู้รับผิดชอบ">{incident.assignee || 'ยังไม่มอบหมาย'}</td>

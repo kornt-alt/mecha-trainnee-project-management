@@ -21,15 +21,21 @@ const statusColor = {
 export default function ProjectTimeline({ projectId, onOpenTask }) {
   const { projects, tasks } = useMockData();
   const project = projects.find((item) => String(item.id) === String(projectId));
-  const projectTasks = useMemo(() => tasks.filter((task) => String(task.projectId) === String(projectId))
-    .filter((task) => parseDay(task.startDate || task.dueDate) !== null || parseDay(task.dueDate || task.startDate) !== null)
-    .slice().sort((left, right) => String(left.startDate || left.dueDate || '').localeCompare(String(right.startDate || right.dueDate || ''))), [tasks, projectId]);
-  if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
-  const rangeStart = project.startDate || today();
-  const rangeEnd = project.dueDate || rangeStart;
+  const rangeStart = project ? project.startDate || today() : today();
+  const rangeEnd = project ? project.dueDate || rangeStart : rangeStart;
   const rangeStartDay = parseDay(rangeStart);
   const rangeEndDay = parseDay(rangeEnd);
   const spanDays = Math.max(1, Math.round((rangeEndDay - rangeStartDay) / 86400000) + 1);
+  const projectTasks = useMemo(() => tasks.filter((task) => String(task.projectId) === String(projectId))
+    .filter((task) => {
+      const startDay = parseDay(task.startDate || task.dueDate);
+      const endDay = parseDay(task.dueDate || task.startDate);
+      // แสดงเฉพาะงานที่มีวันที่ถูกต้องและทับซ้อนกับช่วงวันที่ของโปรเจกต์เท่านั้น
+      // งานที่อยู่ก่อนหรือหลังช่วงทั้งหมด จะไม่แสดงบนไทม์ไลน์
+      return startDay !== null && endDay !== null && endDay >= rangeStartDay && startDay <= rangeEndDay;
+    })
+    .slice().sort((left, right) => String(left.startDate || left.dueDate || '').localeCompare(String(right.startDate || right.dueDate || ''))), [tasks, projectId, rangeStartDay, rangeEndDay]);
+  if (!project) return <div className="project-detail-empty">ไม่พบโปรเจกต์</div>;
   const min = monthStart(rangeStartDay);
   const position = (value) => ((parseDay(value) - rangeStartDay) / 86400000 / spanDays) * 100;
   const ticks = [];
@@ -58,14 +64,21 @@ export default function ProjectTimeline({ projectId, onOpenTask }) {
             {projectTasks.map((task) => {
               const start = task.startDate || task.dueDate;
               const end = task.dueDate || task.startDate;
-              const left = Math.max(0, Math.min(100, position(start)));
+              const startDay = parseDay(start);
+              const endDay = parseDay(end);
+              // ขีดกรอบแถบงานให้อยู่ในช่วงวันที่ของโปรเจกต์เท่านั้น
+              // งานที่เริ่มก่อนช่วงจะชิดขอบซ้าย งานที่สิ้นสุดหลังช่วงจะชิดขอบขวา
+              const barStart = Math.max(startDay, rangeStartDay);
+              const barEnd = Math.min(endDay, rangeEndDay);
+              const left = Math.max(0, Math.min(100, ((barStart - rangeStartDay) / 86400000 / spanDays) * 100));
+              const width = Math.max(0, Math.min(100 - left, ((Math.max(0, Math.round((barEnd - barStart) / 86400000)) + 1) / spanDays) * 100));
               const overdue = end < currentDay && task.status !== 'completed';
               return <div className="workspace-reference-timeline-row" key={task.id}>
                 <button type="button" onClick={() => onOpenTask?.(task)} title={task.title}>{task.title}</button>
                 <div className="workspace-reference-timeline-track">
                   {ticks.slice(1).map((tick) => <i key={tick.timestamp} style={{ left: `${tick.left}%` }} aria-hidden="true" />)}
                   {currentPosition !== null && <i className="workspace-reference-today" style={{ left: `${currentPosition}%` }} aria-label="วันนี้" />}
-                  <span className={overdue ? 'is-overdue' : ''} style={{ left: `${left}%`, width: `${((Math.max(0, Math.round((parseDay(end) - parseDay(start)) / 86400000)) + 1) / spanDays) * 100}%`, backgroundColor: statusColor[task.status] || statusColor.not_started }} title={`${task.title}: ${start ? ymd(start) : 'ไม่ระบุ'} – ${end ? ymd(end) : 'ไม่ระบุ'}`} />
+                  <span className={overdue ? 'is-overdue' : ''} style={{ left: `${left}%`, width: `${width}%`, backgroundColor: statusColor[task.status] || statusColor.not_started }} title={`${task.title}: ${start ? ymd(start) : 'ไม่ระบุ'} – ${end ? ymd(end) : 'ไม่ระบุ'}`} />
                 </div>
               </div>;
             })}

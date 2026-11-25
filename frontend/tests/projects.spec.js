@@ -64,6 +64,7 @@ async function createWorkspaceTask(page, {
   priority = 'medium',
   actorId = 'emp-008',
   dueDate = '2026-12-20',
+  startDate, // optional 'YYYY-MM-DD'; unset means form default
   size = null, // 'เล็ก' | 'กลาง' | 'ใหญ่' (ไม่ส่ง = ค่าเริ่มต้นกลาง)
 } = {}) {
   await openWorkspaceProject(page, projectId);
@@ -85,6 +86,7 @@ async function createWorkspaceTask(page, {
   if (collaborators.length) await dialog.locator('#workspace-task-collaborators').selectOption(collaborators);
   await dialog.locator('#workspace-task-priority').selectOption(priority);
   await dialog.locator('#workspace-task-due').fill(dueDate);
+  if (startDate) await dialog.locator('#workspace-task-start').fill(startDate);
   if (size) await dialog.getByRole('group', { name: 'ขนาดงาน' }).getByRole('button', { name: new RegExp(`^${size}`) }).click();
   await dialog.getByRole('button', { name: 'สร้างงาน' }).click();
   const taskRow = page.locator('.project-tasks-row').filter({ hasText: title });
@@ -740,7 +742,7 @@ test('Project Workspace: task selection opens inline detail from every tab and p
   const taskTitle = `Board task ${Date.now()}`;
   const otherTaskTitle = `Task switch ${Date.now()}`;
   const reviewTaskTitle = `Review state ${Date.now()}`;
-  await createWorkspaceTask(page, { projectId: 5, title: taskTitle });
+  await createWorkspaceTask(page, { projectId: 5, title: taskTitle, dueDate: '2026-11-10' });
   await createWorkspaceTask(page, { projectId: 5, title: otherTaskTitle });
   await createWorkspaceTask(page, { projectId: 5, title: reviewTaskTitle });
 
@@ -1334,7 +1336,7 @@ test('Project Workspace: Team, Deliverables, Timeline and Activity share project
     .getByRole('button', { name: 'ทำเครื่องหมายส่งมอบแล้ว' }).click();
 
   const timelineTaskTitle = `Timeline task ${Date.now()}`;
-  await createWorkspaceTask(page, { projectId: 3, title: timelineTaskTitle });
+  await createWorkspaceTask(page, { projectId: 3, title: timelineTaskTitle, dueDate: '2026-11-20' });
   await page.getByRole('tab', { name: /^ไทม์ไลน์/ }).click();
   await expect(page.locator('.workspace-reference-timeline-row').filter({ hasText: timelineTaskTitle })).toBeVisible();
   await page.getByRole('tab', { name: /^สิ่งที่ส่งมอบ/ }).click();
