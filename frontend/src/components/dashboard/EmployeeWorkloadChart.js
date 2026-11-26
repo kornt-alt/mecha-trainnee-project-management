@@ -6,13 +6,15 @@ import { Link } from 'react-router-dom';
 import { UserRound, ChevronRight } from '../common/Icons';
 import { useMockData } from '../../context/MockDataContext';
 import { memberWorkload } from '../../utils/workload';
+import useLocalDay from '../../utils/useLocalDay';
 import { WorkloadLevelBadge } from '../Workload';
 
 const TOP = 5;
 
 export default function EmployeeWorkloadChart() {
   const { peopleInView: employees, tasks } = useMockData(); // เฉพาะคนที่ผู้ใช้ปัจจุบันเห็น (utils/access.js)
-  const rows = useMemo(() => memberWorkload(employees, tasks), [employees, tasks]);
+  const now = useLocalDay();
+  const rows = useMemo(() => memberWorkload(employees, tasks, { now }), [employees, tasks, now]);
   const top = rows.filter((row) => row.level !== 'free').slice(0, TOP);
   const over = rows.filter((row) => row.level === 'over').length;
 

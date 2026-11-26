@@ -15,7 +15,8 @@ export default function NotificationDetail() {
   const notification = notifications.find((item) => String(item.id) === String(notificationId));
   const search = searchParams.get('q') || '';
   const priority = searchParams.get('priority') || '';
-  const readStatus = searchParams.get('read') || '';
+  // ชื่อ param ต้องตรงกับที่ NotificationCenter updateFilters({ readStatus }) เขียนลง URL
+  const readStatus = searchParams.get('readStatus') || '';
   const filtered = useMemo(() => filterAndPaginate(notifications, {
     search,
     searchFields: ['id', 'title', 'message', 'category', 'source', 'actor'],

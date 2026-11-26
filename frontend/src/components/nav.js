@@ -7,6 +7,7 @@ export const NAV = [
   { to: '/projects', label: 'โปรเจกต์', icon: 'Folder' },
   { to: '/tasks', label: 'ตารางงาน', icon: 'ClipboardList' },
   { to: '/workload', label: 'Workload', icon: 'Users' },
+  { to: '/boards', label: 'บอร์ด', icon: 'Layers' },
   { to: '/reports', label: 'รายงาน', icon: 'ChartNoAxesColumn' },
   { to: '/notifications', label: 'การแจ้งเตือน', icon: 'Bell' },
   // 'ตั้งค่า' (/settings) ซ่อนไว้จนกว่าจะมีหน้าจริง — route ยังอยู่ใน App.js

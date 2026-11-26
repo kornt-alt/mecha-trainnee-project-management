@@ -20,7 +20,7 @@ import { currentEmployees } from '../data/employeeStore';
 import { useMockData } from '../context/MockDataContext';
 import TaskFormModal from './project-detail/TaskFormModal';
 import { PRIORITY_LABELS, TASK_STATUS_LABELS, priorityLabel } from '../utils/labels';
-import { checklistProgressPercent } from '../utils/projectTrackingUtils';
+import { checklistProgressPercent, ymd, dueDateShort } from '../utils/projectTrackingUtils';
 import {
   CalendarDays,
   CircleCheck,
@@ -301,7 +301,7 @@ export default function Tasks() {
                 </thead>
                 <tbody>
                   {filteredTasks.map((task) => {
-                    const isTaskOverdue = task.dueDate < todayStr && task.status !== 'completed';
+                    const isTaskOverdue = task.dueDate && task.dueDate < todayStr && task.status !== 'completed';
                     const assignee = currentEmployees().find((e) => e.id === task.assigneeId);
 
                     return (
@@ -322,7 +322,7 @@ export default function Tasks() {
                         <td>{renderPriorityBadge(task.priority)}</td>
                         <td>
                           <span className={`small ${isTaskOverdue ? 'text-danger fw-semibold' : 'text-muted'}`}>
-                            {task.dueDate.replace(/-/g, '/')}
+                            {ymd(task.dueDate)}
                             {isTaskOverdue && ' (เลยกำหนด)'}
                           </span>
                         </td>
@@ -387,7 +387,7 @@ export default function Tasks() {
                         </div>
                       ) : (
                         colTasks.map((task) => {
-                          const isTaskOverdue = task.dueDate < todayStr && task.status !== 'completed';
+                          const isTaskOverdue = task.dueDate && task.dueDate < todayStr && task.status !== 'completed';
 
                           return (
                             <Card key={task.id} className="border shadow-none kanban-card p-2">
@@ -428,7 +428,7 @@ export default function Tasks() {
                                 <div className="d-flex align-items-center gap-1">
                                   <CalendarDays size={12} className={isTaskOverdue ? 'text-danger' : 'text-muted'} />
                                   <span className={isTaskOverdue ? 'text-danger fw-semibold' : 'text-muted'}>
-                                    {task.dueDate.slice(5).replace(/-/g, '/')}
+                                    {dueDateShort(task.dueDate)}
                                   </span>
                                 </div>
 

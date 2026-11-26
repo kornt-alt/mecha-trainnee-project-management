@@ -34,17 +34,6 @@ const isValidDate = (value) => {
 };
 const validAttachment = (item) => Boolean(item && String(item.name || '').trim() && String(item.category || '').trim()
   && Number.isFinite(Number(item.size || 0)) && Number(item.size || 0) >= 0);
-const transferPlannedAllocation = (allocations, fromEmployeeId, toEmployeeId) => {
-  const sourceId = String(fromEmployeeId);
-  const targetId = String(toEmployeeId);
-  const source = allocations.find((item) => String(item.employeeId) === sourceId);
-  if (!source || sourceId === targetId) return [...allocations];
-  const retained = allocations.filter((item) => String(item.employeeId) !== sourceId);
-  const target = retained.find((item) => String(item.employeeId) === targetId);
-  return target
-    ? retained.map((item) => String(item.employeeId) === targetId ? { ...item, hours: Number(item.hours) + Number(source.hours) } : item)
-    : [...retained, { employeeId: targetId, hours: Number(source.hours) }];
-};
 
 function initialTasks() {
   return MOCK_TASKS.map((task) => ({
@@ -296,13 +285,6 @@ export function MockDataProvider({ children }) {
     if ((values.collaborators || []).some((id) => !employeeExists(id) || !projectMembers.has(String(id)) || String(id) === String(values.assigneeId))) return null;
     if (new Set((values.collaborators || []).map(String)).size !== (values.collaborators || []).length) return null;
     if ((values.startDate && !isValidDate(values.startDate)) || (values.startDate && values.dueDate < values.startDate)) return null;
-    const allocations = Array.isArray(values.plannedAllocations) ? values.plannedAllocations : [];
-    if (allocations.some((allocation) => !employeeExists(allocation.employeeId) || !Number.isFinite(Number(allocation.hours)) || Number(allocation.hours) < 0
-      || ![values.assigneeId, ...(values.collaborators || [])].some((id) => String(id) === String(allocation.employeeId)))) return null;
-    if (new Set(allocations.map((allocation) => String(allocation.employeeId))).size !== allocations.length) return null;
-    const estimatedHours = values.estimatedHours === '' || values.estimatedHours == null ? 0 : Number(values.estimatedHours);
-    if (!Number.isFinite(estimatedHours) || estimatedHours < 0) return null;
-    if (allocations.reduce((total, allocation) => total + Number(allocation.hours), 0) > estimatedHours + 0.001) return null;
     const checklist = Array.isArray(values.checklist) ? values.checklist : [];
     if (checklist.some((item) => !String(item.title || '').trim() || !employeeExists(item.createdBy) || !employeeExists(item.ownerId || item.createdBy))) return null;
     if ((values.labelIds || []).some((id) => !stateRef.current.labels.some((label) => String(label.id) === String(id)))) return null;
@@ -313,7 +295,6 @@ export function MockDataProvider({ children }) {
       status: values.status || 'not_started',
       progress: Number.isFinite(values.progress) ? values.progress : 0,
       collaborators: [...new Set((values.collaborators || []).map(String).filter((id) => String(id) !== String(values.assigneeId)))],
-      plannedAllocations: allocations.filter((allocation) => Number(allocation.hours) > 0).map((allocation) => ({ employeeId: String(allocation.employeeId), hours: Number(allocation.hours) })),
       checklist, assignmentHistory: [], reviewHistory: [],
       // ประวัติสถานะ (ระบบบันทึกเอง) → statusDurations() ใน utils/executiveMetrics.js
       statusHistory: [{ status: values.status || 'not_started', at: now(), by: String(stateRef.current.actorId) }],
@@ -368,15 +349,6 @@ export function MockDataProvider({ children }) {
       && !projectMembers.has(String(nextTask.reviewerId))) return null;
     if ((nextTask.collaborators || []).some((id) => !employeeExists(id) || !projectMembers.has(String(id)) || String(id) === String(nextTask.assigneeId))) return null;
     if (new Set((nextTask.collaborators || []).map(String)).size !== (nextTask.collaborators || []).length) return null;
-    const allocations = Array.isArray(nextTask.plannedAllocations) ? nextTask.plannedAllocations : [];
-    const estimatedHours = nextTask.estimatedHours === '' || nextTask.estimatedHours == null ? 0 : Number(nextTask.estimatedHours);
-    const contributorIds = new Set([nextTask.assigneeId, ...(nextTask.collaborators || [])].map(String));
-    const allocationOwnerIds = new Set([...contributorIds, ...(assignmentChanged ? [String(current.assigneeId)] : [])]);
-    if (!Number.isFinite(estimatedHours) || estimatedHours < 0
-      || allocations.some((allocation) => !employeeExists(allocation.employeeId) || !allocationOwnerIds.has(String(allocation.employeeId))
-        || !Number.isFinite(Number(allocation.hours)) || Number(allocation.hours) < 0)
-      || new Set(allocations.map((allocation) => String(allocation.employeeId))).size !== allocations.length
-      || allocations.reduce((sum, allocation) => sum + Number(allocation.hours), 0) > estimatedHours + 0.001) return null;
     if (current.status === 'completed' && nextTask.status !== 'completed') return null;
     const previousChecklist = new Map((current.checklist || []).map((item) => [String(item.id), item]));
     const nextChecklist = Array.isArray(nextTask.checklist) ? nextTask.checklist : [];
@@ -459,7 +431,6 @@ export function MockDataProvider({ children }) {
         && (!event?.timestamp || item.timestamp === event.timestamp));
       if (!alreadyRecorded) history.push({ previousAssigneeId: current.assigneeId, newAssigneeId: nextTask.assigneeId, actorId: stateRef.current.actorId, reason, timestamp: now() });
       nextTask.assignmentHistory = history;
-      nextTask.plannedAllocations = transferPlannedAllocation(current.plannedAllocations || [], current.assigneeId, nextTask.assigneeId);
       const taskLabel = nextTask.title;
       [current.assigneeId, nextTask.assigneeId].forEach((employeeId) => addNotification({
         employeeId: String(employeeId),
@@ -610,12 +581,9 @@ export function MockDataProvider({ children }) {
           String(id) !== String(employeeId) && String(id) !== String(replacementId)
         ));
         patch.assignmentHistory = [...(task.assignmentHistory || []), { previousAssigneeId: task.assigneeId, newAssigneeId: String(replacementId), actorId: stateRef.current.actorId, reason: String(reason).trim(), timestamp: now() }];
-        patch.plannedAllocations = transferPlannedAllocation(task.plannedAllocations || [], employeeId, replacementId);
       }
       if ((task.collaborators || []).some((id) => String(id) === String(employeeId))) {
         patch.collaborators = task.collaborators.filter((id) => String(id) !== String(employeeId));
-        const allocationTarget = patch.assigneeId || task.assigneeId;
-        patch.plannedAllocations = transferPlannedAllocation(patch.plannedAllocations || task.plannedAllocations || [], employeeId, allocationTarget);
       }
       return Object.keys(patch).length ? { ...task, ...patch } : task;
     });

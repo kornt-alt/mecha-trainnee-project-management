@@ -71,6 +71,17 @@ describe('memberWorkload', () => {
     expect(rowOf(memberWorkload(people, tasks, { now: NOW }), 'a').points).toBe(6);
     expect(rowOf(memberWorkload(people, tasks, { now: NOW, projectId: '2' }), 'a').points).toBe(3);
   });
+
+  it('updates overdue counts and level after midnight without counting completed tasks', () => {
+    const tasks = [
+      task({ assigneeId: 'a', dueDate: '2026-11-21' }),
+      task({ assigneeId: 'a', dueDate: '2026-11-21', status: 'completed' }),
+    ];
+    const before = rowOf(memberWorkload(people, tasks, { now: NOW }), 'a');
+    const after = rowOf(memberWorkload(people, tasks, { now: new Date(2026, 10, 22) }), 'a');
+    expect(before).toMatchObject({ points: 3, overdue: 0, level: 'normal' });
+    expect(after).toMatchObject({ points: 3, overdue: 1, level: 'heavy' });
+  });
 });
 
 describe('sortByUrgency', () => {

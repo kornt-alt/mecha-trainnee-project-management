@@ -3,12 +3,13 @@
 // ลดการกรอก (UX-04): เติมผู้รับผิดชอบ / ผู้ตรวจ / กำหนดส่ง / ความสำคัญให้อัตโนมัติ — พิมพ์ชื่องานแล้วกดสร้างได้เลย
 // ฟิลด์ที่ใช้นาน ๆ ครั้ง (หมวดหมู่ ประโยชน์ ป้าย ไฟล์แนบ) พับไว้ใต้ "ตัวเลือกเพิ่มเติม"
 // ไม่มีช่องชั่วโมงแล้ว — Workload วัดจากงานค้าง (utils/workload.js) · ผู้ตรวจเลือก "ตรวจเอง" ได้ (ผู้ตรวจ = ผู้รับผิดชอบ)
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Form, Modal } from 'react-bootstrap';
 import { currentEmployees } from '../../data/employeeStore';
 import { useMockData } from '../../context/MockDataContext';
 import { WORKSPACE_LABEL_PALETTE } from '../TaskBadges';
 import { PRIORITY_OPTIONS, TASK_SIZE_HINTS, TASK_SIZE_LABELS } from '../../utils/labels';
+import { attachmentService } from '../../utils/attachmentService';
 
 const CHECKLIST_TEMPLATES = {
   development: ['วิเคราะห์ความต้องการ', 'พัฒนาตามแบบ', 'ทดสอบด้วยตนเอง', 'ตรวจสอบก่อนส่งตรวจ'],
@@ -77,6 +78,9 @@ export default function TaskFormModal({ project: initialProject, task, projects:
   }, [project, task]);
   // แก้ไขงานที่มีข้อมูลเสริมอยู่แล้ว → เปิด "ตัวเลือกเพิ่มเติม" ไว้ให้เห็นเลย
   const hasExtras = Boolean(task && (task.category || task.benefitDetails || (task.labelIds || []).length || (task.attachments || []).length));
+
+  // Revoke cached object URLs when the modal closes so no stale URLs leak.
+  useEffect(() => () => attachmentService.cleanupAttachmentService(), []);
   const eligibleCollaborators = members.filter((employee) => String(employee.id) !== String(form.assigneeId));
   // ผู้ตรวจ: คนอื่นในทีม หรือ "ตรวจเอง" (ผู้รับผิดชอบตรวจงานตัวเอง → ปุ่ม "ทำเสร็จ" จบได้เลย ไม่ต้องรอตรวจ)
   const reviewers = members.filter((employee) => String(employee.id) !== String(form.assigneeId));
@@ -115,28 +119,118 @@ export default function TaskFormModal({ project: initialProject, task, projects:
     setForm((previous) => ({ ...previous, collaborators: nextCollaborators }));
   };
   const addFiles = (event) => {
-    const files = Array.from(event.target.files || []).map((file) => ({
-      id: `attachment-${Date.now()}-${file.lastModified}-${file.name}`,
-      name: file.name,
-      type: file.type || 'application/octet-stream',
-      size: file.size,
-      category: 'ไฟล์',
-      addedAt: new Date().toISOString(),
-    }));
-    if (files.length) setForm((previous) => ({ ...previous, attachments: [...previous.attachments, ...files] }));
+    const files = Array.from(event.target.files || []);
+    const errors = [];
+    const accepted = [];
+
+    for (const file of files) {
+      const validation = attachmentService.validateFile(file);
+      if (!validation.valid) {
+        errors.push(`“${file.name}”: ${validation.error}`);
+        continue;
+      }
+      const existingIndex = form.attachments.findIndex((a) => a.name === file.name);
+      if (existingIndex >= 0) {
+        // Replace existing attachment content in place — same row, updated content/size/type.
+        const existingId = form.attachments[existingIndex].id;
+        attachmentService.setAttachmentContent(existingId, file);
+        setForm((previous) => ({
+          ...previous,
+          attachments: previous.attachments.map((a) =>
+            a.id === existingId
+              ? { ...a, size: file.size, type: file.type || 'application/octet-stream', addedAt: new Date().toISOString() }
+              : a
+          ),
+        }));
+      } else {
+        const id = `attachment-${Date.now()}-${file.lastModified}-${file.name}`;
+        attachmentService.setAttachmentContent(id, file);
+        accepted.push({
+          id,
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          size: file.size,
+          category: 'ไฟล์',
+          addedAt: new Date().toISOString(),
+        });
+      }
+    }
+
+    if (accepted.length) {
+      setForm((previous) => ({ ...previous, attachments: [...previous.attachments, ...accepted] }));
+    }
+    if (errors.length) {
+      setError(errors.join(' · '));
+    }
     event.target.value = '';
   };
-  const addQuickAttachment = (name) => setForm((previous) => ({
-    ...previous,
-    attachments: [...previous.attachments, {
-      id: `attachment-${Date.now()}-${name}`,
-      name,
-      type: 'text/uri-list',
-      size: 0,
-      category: 'ลิงก์เอกสาร',
-      addedAt: new Date().toISOString(),
-    }],
-  }));
+  const addQuickAttachment = (name) => {
+    const id = `attachment-${Date.now()}-${name}`;
+    // Quick "link" attachments are metadata-only legacy records — no URL, no content.
+    attachmentService.markAttachmentUnavailable(id);
+    setForm((previous) => ({
+      ...previous,
+      attachments: [...previous.attachments, {
+        id,
+        name,
+        type: 'text/uri-list',
+        size: 0,
+        category: 'ลิงก์เอกสาร',
+        addedAt: new Date().toISOString(),
+      }],
+    }));
+  };
+
+  const handleRemoveAttachment = (attachmentId) => {
+    attachmentService.removeAttachmentContent(attachmentId);
+    setForm((previous) => ({
+      ...previous,
+      attachments: previous.attachments.filter((item) => item.id !== attachmentId),
+    }));
+  };
+
+  const handleDownloadAttachment = (attachmentId) => {
+    attachmentService.downloadAttachment(attachmentId);
+  };
+
+  const handlePreviewAttachment = (attachmentId) => {
+    const content = attachmentService.getAttachmentContent(attachmentId);
+    const file = content?.file;
+    if (!file) return;
+    // Previewable types open inline; everything else falls back to download.
+    if (file.type.startsWith('image/') || file.type === 'application/pdf') {
+      const url = attachmentService.getAttachmentObjectUrl(attachmentId);
+      if (url) window.open(url, '_blank');
+    } else {
+      attachmentService.downloadAttachment(attachmentId);
+    }
+  };
+
+  // Render one attachment row: name, category, size, preview/download (only when content exists),
+  // unavailable badge for legacy metadata-only records, and a remove button.
+  const renderAttachmentRow = (attachment) => {
+    const content = attachmentService.getAttachmentContent(attachment.id);
+    const available = Boolean(content && content.status === 'available' && content.file);
+    const sizeLabel = content ? attachmentService.formatFileSize(content.file ? content.file.size : attachment.size || 0) : '—';
+    return (
+      <div key={attachment.id}>
+        <span style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
+        <span>{attachment.category || 'ไฟล์'}</span>
+        {sizeLabel !== '—' && <span className="workspace-attachment-size">{sizeLabel}</span>}
+        {available ? (
+          <div className="workspace-attachment-row-controls">
+            <button type="button" aria-label={`ตัวอย่าง ${attachment.name}`} title="ตัวอย่างไฟล์" onClick={() => handlePreviewAttachment(attachment.id)}>ตัวอย่าง</button>
+            <button type="button" aria-label={`ดาวน์โหลด ${attachment.name}`} title="ดาวน์โหลดไฟล์" onClick={() => handleDownloadAttachment(attachment.id)}>ดาวน์โหลด</button>
+          </div>
+        ) : (
+          <span className="workspace-attachment-unavailable">ไม่มีเนื้อหา</span>
+        )}
+        <button type="button" aria-label={`ลบไฟล์ ${attachment.name}`} onClick={() => handleRemoveAttachment(attachment.id)}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+    );
+  };
   // สร้างป้ายใหม่บรรทัดเดียว — สีวนตามจานสีอัตโนมัติ ไม่ต้องเลือกเอง แล้วติ๊กให้งานนี้ทันที
   const addLabel = () => {
     const name = labelName.trim();
@@ -169,8 +263,6 @@ export default function TaskFormModal({ project: initialProject, task, projects:
       collaborators: collaboratorIds,
       labelIds: [...new Set(form.labelIds.map(String))],
       checklist: checklist.filter((item) => item.title.trim()).map((item) => ({ ...item, title: item.title.trim() })),
-      // งานเก่าที่เคยมีชั่วโมงแบ่งรายคน: ตัดคนที่ไม่อยู่ในงานแล้วออก (updateTask ไม่รับ allocation ของคนนอกงาน)
-      ...(task ? { plannedAllocations: (task.plannedAllocations || []).filter((item) => [form.assigneeId, ...collaboratorIds].some((id) => String(id) === String(item.employeeId))) } : {}),
       progress: Number(task?.progress) || 0,
     };
     const result = onSave(values);
@@ -231,7 +323,7 @@ export default function TaskFormModal({ project: initialProject, task, projects:
             <div className="workspace-task-label-picks">{labels.map((label) => { const selected = form.labelIds.includes(String(label.id)); return <span className="workspace-task-label-pick" key={label.id} style={{ borderColor: selected ? label.color : '#CBD5E1', background: selected ? `${label.color}26` : '#fff' }}><button type="button" aria-pressed={selected} onClick={() => setForm((previous) => ({ ...previous, labelIds: selected ? previous.labelIds.filter((id) => String(id) !== String(label.id)) : [...new Set([...previous.labelIds, String(label.id)])] }))}><span style={{ background: label.color }} />{label.name}</button></span>; })}{labels.length === 0 && <span className="text-muted small">ยังไม่มีป้าย</span>}</div>
             <div className="workspace-task-label-editor-row"><label className="workspace-visually-hidden" htmlFor="workspace-task-label-name">ชื่อป้ายใหม่</label><Form.Control id="workspace-task-label-name" aria-label="ชื่อป้าย" value={labelName} onChange={(event) => setLabelName(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addLabel(); } }} placeholder="สร้างป้ายใหม่..." /><Button type="button" disabled={!labelName.trim()} onClick={addLabel}>สร้างป้าย</Button></div>
           </section>
-          <section className="workspace-form-wide workspace-task-attachments"><h3>ไฟล์แนบ</h3><div className="workspace-task-attachment-quick"><button type="button" onClick={() => addQuickAttachment('Production Plan')}>+ Production Plan</button><button type="button" onClick={() => addQuickAttachment('E-SOP')}>+ E-SOP</button></div><label className="workspace-visually-hidden" htmlFor="workspace-task-attachments">เลือกไฟล์แนบ</label><Form.Control id="workspace-task-attachments" type="file" multiple onChange={addFiles} /><div className="workspace-task-attachment-items">{form.attachments.map((attachment) => <div key={attachment.id}><span>{attachment.name}</span><span>{attachment.category || 'ไฟล์'}</span><button type="button" aria-label={`ลบไฟล์ ${attachment.name}`} onClick={() => setForm((previous) => ({ ...previous, attachments: previous.attachments.filter((item) => item.id !== attachment.id) }))}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>)}</div></section>
+          <section className="workspace-form-wide workspace-task-attachments"><h3>ไฟล์แนบ</h3><div className="workspace-task-attachment-quick"><button type="button" onClick={() => addQuickAttachment('Production Plan')}>+ Production Plan</button><button type="button" onClick={() => addQuickAttachment('E-SOP')}>+ E-SOP</button></div><label className="workspace-visually-hidden" htmlFor="workspace-task-attachments">เลือกไฟล์แนบ</label><Form.Control id="workspace-task-attachments" type="file" multiple onChange={addFiles} /><div className="workspace-task-attachment-items">{form.attachments.map(renderAttachmentRow)}</div>{form.attachments.length > 0 && <div className="workspace-attachment-note"><strong>หมายเหตุ</strong> ไฟล์ที่เลือกใหม่จะคงอยู่เฉพาะในเซสชันนี้เท่านั้น (ไม่บันทึกลงเซิร์ฟเวอร์) เมื่อรีเฟรชหน้าหรือปิดแท็บ ไฟล์จะไม่สามารถเปิดหรือดาวน์โหลดได้อีก ส่วนไฟล์แนบเก่าที่เป็นเฉพาะข้อมูลชื่อไฟล์จะไม่มีเนื้อหาให้เปิดหรือดาวน์โหลด</div>}</section>
             </div>
           </details>
             </div>

@@ -2381,21 +2381,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-.workload-compact-hours {
-  font-size: 0.76rem;
-  color: var(--ink);
-}
-
-.workload-compact-hours strong {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.workload-compact-hours small {
-  color: var(--muted);
-  font-weight: 400;
-}
-
 .workload-compact-util {
   font-size: 0.74rem;
   font-weight: 600;
@@ -2464,9 +2449,6 @@ body {
     flex-direction: column;
     align-items: flex-end;
     gap: 0;
-  }
-  .workload-compact-hours {
-    font-size: 0.7rem;
   }
   .workload-compact-util {
     font-size: 0.68rem;

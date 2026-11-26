@@ -11,6 +11,8 @@ import ProjectDetail from './components/project-detail/ProjectDetail';
 import Tasks from './components/Tasks';
 import Reports from './components/Reports';
 import Workload from './components/Workload';
+import Boards from './components/boards/BoardsOverview';
+import BoardCanvasPage from './components/boards/BoardCanvasPage';
 import PlaceholderPage from './components/PlaceholderPage';
 import NotFound from './components/NotFound';
 import NotificationCenter from './components/notifications/NotificationCenter';
@@ -98,6 +100,8 @@ function RoutedApplication() {
             <Route path="projects" element={<Projects />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="workload" element={<Workload />} />
+            <Route path="boards" element={<Boards />} />
+            <Route path="boards/:boardId" element={<BoardCanvasPage />} />
             <Route path="reports" element={<Reports />} />
             <Route path="notifications" element={<NotificationCenter />} />
             <Route path="notifications/:notificationId" element={<NotificationDetail />} />

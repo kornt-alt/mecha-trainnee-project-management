@@ -10,6 +10,7 @@ import { Plus, Trash2 } from './common/Icons';
 import { checklistProgressPercent } from '../utils/projectTrackingUtils';
 import { formatDuration, statusDurations } from '../utils/executiveMetrics';
 import { taskSizeLabel, taskStatusLabel } from '../utils/labels';
+import { attachmentService } from '../utils/attachmentService';
 
 const employee = (id) => currentEmployees().find((item) => String(item.id) === String(id));
 const checklistDate = (value) => {
@@ -94,7 +95,31 @@ export default function TaskDetailModal({
     setConfirmAction(initialAction || '');
     setError('');
     setCommentText('');
+    return () => attachmentService.cleanupAttachmentService();
   }, [selectedTask?.id, initialAction]);
+
+  // Render one attachment row in the read-only task detail panel.
+  const renderDetailAttachmentRow = (attachment) => {
+    const content = attachmentService.getAttachmentContent(attachment.id);
+    const available = Boolean(content && content.status === 'available' && content.file);
+    return (
+      <span key={attachment.id} className="workspace-attachment-row">
+        <span>
+          <span aria-hidden="true">⌁</span>
+          <b>{attachment.name}</b>
+          <small>{attachment.category || attachment.type || 'ไฟล์'}</small>
+          {available && <small className="workspace-attachment-size"> · {attachmentService.formatFileSize(content.file.size)}</small>}
+          {!available && <span className="workspace-attachment-unavailable">ไม่มีเนื้อหา</span>}
+        </span>
+        {available && (
+          <span className="workspace-attachment-row-controls">
+            <button type="button" aria-label={`ตัวอย่าง ${attachment.name}`} title="ตัวอย่างไฟล์" onClick={() => { const url = attachmentService.getAttachmentObjectUrl(attachment.id); if (url) window.open(url, '_blank'); }}>ตัวอย่าง</button>
+            <button type="button" aria-label={`ดาวน์โหลด ${attachment.name}`} title="ดาวน์โหลดไฟล์" onClick={() => attachmentService.downloadAttachment(attachment.id)}>ดาวน์โหลด</button>
+          </span>
+        )}
+      </span>
+    );
+  };
 
   if (!task) return null;
 
@@ -377,7 +402,7 @@ export default function TaskDetailModal({
         {task.priority && <><dt>ความสำคัญ</dt><dd><TaskPriorityBadge priority={task.priority} workspaceMode /></dd></>}
       </dl>
       {(task.labelIds || []).length > 0 && <div className="workspace-task-label-list">{task.labelIds.map((id) => labels.find((label) => String(label.id) === String(id))).filter(Boolean).map((label) => { const color = getWorkspaceLabelColor(label); return <span className="workspace-task-label" key={label.id} style={{ borderColor: color, color, backgroundColor: `${color}26` }}>{label.name}</span>; })}</div>}
-      {task.attachments?.length > 0 && <div className="workspace-task-detail-files"><strong>ไฟล์แนบ</strong>{task.attachments.map((attachment) => <span key={attachment.id}><span aria-hidden="true">⌁</span><b>{attachment.name}</b><small>{attachment.category || attachment.type || 'ไฟล์'}</small></span>)}</div>}
+      {task.attachments?.length > 0 && <div className="workspace-task-detail-files"><strong>ไฟล์แนบ</strong>{task.attachments.map(renderDetailAttachmentRow)}</div>}
       {task.blocked && task.status !== 'completed' && <Alert variant="danger" className="py-2 mb-0 small">ติดปัญหา{task.blocked.reason ? `: ${task.blocked.reason}` : ''} · แจ้งโดย {employee(task.blocked.by)?.name || 'ไม่ระบุ'}</Alert>}
       {task.status === 'in_progress' && task.reviewLastReason && <Alert variant="warning" className="py-2 mb-0 small">ถูกส่งกลับ: {task.reviewLastReason}</Alert>}
       {isTaskLocked && <div className="workspace-task-work-lock">{taskLockMessage}</div>}

@@ -9,6 +9,7 @@ import { daysBetween, initials, shortThaiDate, today } from '../../utils/project
 import { Plus } from '../common/Icons';
 import { WorkspaceTaskMetadata, WORKSPACE_AVATAR_COLORS } from '../TaskBadges';
 import ProjectClosure from './ProjectClosure';
+import { Link } from 'react-router-dom';
 
 // ชื่อสถานะมาจาก utils/labels.js ที่เดียว — ที่นี่เก็บแค่สีของแถบ
 const STATUS_COLORS = {
@@ -365,6 +366,13 @@ export default function ProjectOverview({ project, tasks, stats, onNavigateSecti
         <aside className="project-detail-overview-side">
           <ProjectTeam project={project} tasks={tasks} onNavigateSection={onNavigateSection} />
           <BudgetPanel project={project} />
+          <section className="project-detail-panel" aria-labelledby="project-boards-title">
+            <div className="project-detail-panel-heading">
+              <h2 id="project-boards-title">บอร์ดโปรเจกต์</h2>
+              <Link to={`/boards?project=${project.id}`} className="project-detail-link-btn">เปิด Boards</Link>
+            </div>
+            <p className="text-muted small mb-0">สร้างไวท์บอร์ดสำหรับระดมไอเดีย วางแผน และเชื่อมโยงกับโปรเจกต์นี้ (เก็บในเบราว์เซอร์เครื่องนี้)</p>
+          </section>
           <ProjectClosure projectId={project.id} tasks={tasks} deliverables={projectDeliverables} />
         </aside>
       </div>

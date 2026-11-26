@@ -15,6 +15,7 @@ import {
 import { ownerOf } from '../../utils/projectTrackingUtils';
 import HealthBadge from '../common/HealthBadge';
 import { memberWorkload } from '../../utils/workload';
+import useLocalDay from '../../utils/useLocalDay';
 
 const DECISION_LABELS = { closure: 'ขอปิดโปรเจกต์', blocked: 'ติดปัญหา', stale_review: 'รอตรวจนาน' };
 const baht = (value) => Number(value || 0).toLocaleString('th-TH');
@@ -34,6 +35,7 @@ function Kpi({ label, value, hint, tone = 'text-ink' }) {
 export default function ExecutiveOverview() {
   const { projects, tasks, projectCosts, peopleInView: employees } = useMockData();
   const navigate = useNavigate();
+  const now = useLocalDay();
 
   const rows = useMemo(() => projects.map((project) => {
     const related = tasks.filter((task) => String(task.projectId) === String(project.id));
@@ -53,7 +55,7 @@ export default function ExecutiveOverview() {
 
   const decisions = useMemo(() => pendingDecisions(projects, tasks), [projects, tasks]);
   // สมาชิกงานเกิน — กฎเดียวกับหน้า Workload (utils/workload.js)
-  const overloaded = useMemo(() => memberWorkload(employees, tasks).filter((row) => row.level === 'over'), [employees, tasks]);
+  const overloaded = useMemo(() => memberWorkload(employees, tasks, { now }).filter((row) => row.level === 'over'), [employees, tasks, now]);
   const active = rows.filter((row) => !['done', 'cancelled'].includes(row.project.status));
   const troubled = active.filter((row) => ['late', 'at_risk'].includes(row.health.level));
   const totalBudget = rows.reduce((sum, row) => sum + row.spend.budget, 0);
