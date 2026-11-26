@@ -25,6 +25,7 @@ export function filterAndPaginate(records, options = {}) {
     items: filteredItems.slice(start, start + safePageSize),
     totalItems: filteredItems.length,
     pageCount,
+    
     currentPage,
   };
 }

@@ -5,6 +5,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import EmployeeIdCard from './EmployeeIdCard';
 import { currentEmployees } from '../../data/employeeStore';
+import { setRememberedSession, clearRememberedSession } from '../../utils/session';
 
 // สีพื้นรูปบนบัตร — วนตามลำดับพนักงาน (mock ไม่มีรูปจริง)
 const CARD_TONES = ['#60a5fa', '#7dd3fc', '#93c5fd', '#a5b4fc', '#67e8f9', '#818cf8', '#38bdf8', '#c4b5fd'];
@@ -81,6 +82,7 @@ export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }
   const [isCardMoving, setIsCardMoving] = useState(false);
   const [isPreviewExpanded, setIsPreviewExpanded] = useState(false);
   const [cardTransform, setCardTransform] = useState('none');
+  const [remember, setRemember] = useState(false);
   const runningRef = useRef(false);
   const lastStateRef = useRef('');
   const employeeIdRef = useRef(null);
@@ -162,6 +164,7 @@ export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }
   // ปิดโดยไม่เข้าสู่ระบบ = ดูต่อแบบผู้เยี่ยมชม (App.js จำไว้ใน session จะไม่เด้งซ้ำจนกว่าจะออกจากระบบ)
   const closeModal = () => {
     if (runningRef.current) return;
+    clearRememberedSession();
     setIsOpen(false);
     updateBackground('clear');
     if (onDismiss) onDismiss();
@@ -251,6 +254,7 @@ export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }
     }
 
     setStatus('');
+    if (remember) setRememberedSession(employee.id);
     runSignature(employee);
   };
 
@@ -363,6 +367,16 @@ export default function LoginModal({ onBackgroundChange, onLoggedIn, onDismiss }
                       </button>
                     </div>
                     <p className="login-error" id="login-password-error" role="alert">{errors.password}</p>
+                  </div>
+
+                  <div className="login-field login-remember-field">
+                    <input
+                      id="login-remember-device"
+                      type="checkbox"
+                      checked={remember}
+                      onChange={() => setRemember((prev) => !prev)}
+                    />
+                    <label htmlFor="login-remember-device">จำอุปกรณ์นี้ไว้ 24 ชั่วโมง</label>
                   </div>
 
                   <button className={`login-submit${isRunning ? ' is-loading' : ''}`} type="submit" disabled={isRunning} aria-busy={isRunning}>

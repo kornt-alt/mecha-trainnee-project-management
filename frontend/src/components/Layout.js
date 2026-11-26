@@ -23,7 +23,7 @@ import {
   Users,
 } from './common/Icons';
 import { useMockData } from '../context/MockDataContext';
-import { clearLoginSession, useLoginSession } from '../utils/session';
+import { clearLoginSession, clearRememberedSession, hasAuthenticatedEmployee, useLoginSession } from '../utils/session';
 
 const ICONS = {
   House,
@@ -60,14 +60,18 @@ export default function Layout() {
   const session = useLoginSession();
   const { employees, actorId, access } = useMockData();
   // ผู้ใช้ที่แสดงมุมล่าง = คนที่ login (actorId) ไม่ใช่ CURRENT_USER ตายตัวแบบเดิม
-  const me = employees.find((person) => String(person.id) === String(actorId));
-  const isGuest = Boolean(session?.guest);
+  const isAuthenticated = hasAuthenticatedEmployee(session);
+  const me = isAuthenticated
+    ? employees.find((person) => String(person.id) === String(actorId))
+    : null;
+  const isGuest = !isAuthenticated;
 
   // ออกจากระบบ = ล้าง session → App.js เปิดหน้าต่าง login ทับหน้าเดิม (อยู่หน้าเดิม ไม่เด้งกลับหน้าหลัก)
   // ใช้เปลี่ยนผู้ใช้ด้วย — ข้อมูล mock ไม่หายเพราะไม่ได้รีโหลดหน้า
   const logout = () => {
     setMenuOpen(false);
     clearLoginSession();
+    clearRememberedSession();
   };
 
   // เปลี่ยนหน้าแล้วพับเมนูมือถือเก็บ

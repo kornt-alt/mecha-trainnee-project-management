@@ -26,16 +26,28 @@ import { APP_BASE } from './utils/config';
 import { MockDataProvider, useMockData } from './context/MockDataContext';
 import { NotificationCenterProvider } from './context/NotificationCenterContext';
 import LoginModal from './components/auth/LoginModal';
-import { continueAsGuest, setLoginSession, useLoginSession } from './utils/session';
+import { continueAsGuest, setLoginSession, useLoginSession, getRememberedSession, clearRememberedSession } from './utils/session';
 
 // ⚠️ ไม่ import CSS ที่นี่ — ทั้งแอป import ที่ src/index.js ที่เดียวเพื่อคุมลำดับ
 
 function RoutedApplication() {
   const session = useLoginSession();
-  const { setActorId } = useMockData();
+  const { setActorId, employees } = useMockData();
   // เด้งครั้งเดียวต่อ session — login แล้ว หรือกดปิด (ผู้เยี่ยมชม) จะไม่เด้งอีกจนกว่าจะออกจากระบบ (utils/session.js)
   // แสดงได้ทุกหน้า รวมหน้าโปรเจกต์ (ลิงก์ตรงยังดูได้ — กดปิดเป็นผู้เยี่ยมชม) · ออกจากระบบแล้วเด้งทับหน้าเดิม = ใช้เปลี่ยนผู้ใช้
-  const showLogin = !session;
+
+  // อ่านเซสชันจำอุปกรณ์จาก localStorage แบบ synchronous ระหว่าง render
+  // เพื่อตัดสินใจแสดง LoginModal หรือไม่ ก่อนเบราว์เซอร์จะวาดหน้า (กันแวบขึ้นแล้วหาย)
+  const remembered = !session ? getRememberedSession() : null;
+  const rememberedEmployee = remembered
+    ? employees.find((employee) => String(employee.id) === String(remembered.employeeId))
+    : null;
+  // รับเฉพาะพนักงานที่มีอยู่จริงและยังไม่ปิดบัญชี (isActive ไม่ระบุ = ถือว่ายังใช้งานได้ ตามกฎเดิม)
+  const rememberedValid = Boolean(remembered)
+    && Boolean(rememberedEmployee)
+    && rememberedEmployee.isActive !== false;
+  const showLogin = !session && !rememberedValid;
+
   const [backgroundState, setBackgroundState] = useState('obscured');
   const isObscured = showLogin && backgroundState === 'obscured';
   const isRevealed = showLogin && backgroundState === 'revealed';
@@ -49,10 +61,24 @@ function RoutedApplication() {
     setBackgroundState(showLogin ? 'obscured' : 'clear');
   }, [showLogin]);
 
-  // refresh หน้าแล้วยังเป็นคนเดิม — ตั้งผู้ใช้ปัจจุบันของ mock data ตาม session
+  // LayoutEffect รันก่อนเบราว์เซอร์วาดหน้า — ซิงก์ actorId กับเซสชันจำอุปกรณ์
+  // ถ้าจำอุปกรณ์ไม่ถูกต้อง (พนักงานหาย / ปิดบัญชี / หมดอายุ) → ล้างเซสชันจำอุปกรณ์
+  useLayoutEffect(() => {
+    if (session?.employeeId) return; // login ผ่าน sessionStorage อยู่แล้ว
+    if (!rememberedValid) {
+      clearRememberedSession();
+      return;
+    }
+    setActorId(remembered.employeeId);
+  }, [session, rememberedValid, remembered?.employeeId, employees, setActorId, clearRememberedSession]);
+
+  // Effect รันหลังวาดหน้า — ซิงก์ sessionStorage ให้ useLoginSession (รวมถึงใน MockDataContext)
+  // เพื่อให้ viewerId / สิทธิ์การเห็นข้อมูลคำนวณได้ถูกต้องหลัง listeners ของ session ผูกแล้ว
   useEffect(() => {
-    if (session?.employeeId) setActorId(session.employeeId);
-  }, [session, setActorId]);
+    if (session?.employeeId) return; // sessionStorage ล็อกอินอยู่แล้ว
+    if (!rememberedValid) return;
+    setLoginSession(remembered.employeeId);
+  }, [session, rememberedValid, remembered?.employeeId, setLoginSession]);
 
   const handleLoggedIn = (employee) => {
     setActorId(employee.id);
