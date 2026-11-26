@@ -226,13 +226,67 @@ test('signs in as the chosen employee, remembers the session, and makes no API c
   expect(pageErrors).toEqual([]);
 });
 
+test('manual dismissal clears an existing remembered session', async ({ page }) => {
+  await page.evaluate(() => {
+    window.localStorage.setItem('mecha.remembered', JSON.stringify({ employeeId: 'emp-009', expiresAt: Date.now() + 60_000 }));
+  });
+  await page.getByRole('button', { name: 'ปิดหน้าต่างเข้าสู่ระบบ' }).click();
+  await expect(loginDialog(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.localStorage.getItem('mecha.remembered'))).toBeNull();
+});
+
+test('Escape dismissal clears an existing remembered session', async ({ page }) => {
+  await page.evaluate(() => {
+    window.localStorage.setItem('mecha.remembered', JSON.stringify({ employeeId: 'emp-009', expiresAt: Date.now() + 60_000 }));
+  });
+  await page.keyboard.press('Escape');
+  await expect(loginDialog(page)).toHaveCount(0);
+  expect(await page.evaluate(() => window.localStorage.getItem('mecha.remembered'))).toBeNull();
+});
+
+test('remembered login keeps its record when authentication closes the modal', async ({ page }) => {
+  await page.getByLabel('รหัสพนักงาน').fill('emp-009');
+  await page.getByLabel('รหัสผ่าน', { exact: true }).fill('demo');
+  await page.getByLabel(/จำอุปกรณ์นี้ไว้ 24 ชั่วโมง/).check();
+  await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
+  await expect(loginDialog(page)).toBeHidden({ timeout: 10000 });
+  const beforeRefresh = await page.evaluate(() => {
+    const parsed = JSON.parse(window.localStorage.getItem('mecha.remembered'));
+    return { employeeId: parsed.employeeId, expiresAt: parsed.expiresAt };
+  });
+  expect(beforeRefresh.employeeId).toBe('emp-009');
+  expect(Number.isFinite(beforeRefresh.expiresAt)).toBe(true);
+  await page.reload();
+  await expect(loginDialog(page)).toHaveCount(0);
+  await expect(page.locator('.sidebar-profile-btn')).toContainText('Korn Tawonphon');
+  expect(await page.evaluate(() => JSON.parse(window.localStorage.getItem('mecha.remembered')).expiresAt)).toBe(beforeRefresh.expiresAt);
+});
+
 test('logging out clears the session and shows the login dialog again', async ({ page }) => {
-  await signIn(page, 'emp-002');
+  await page.getByLabel('รหัสพนักงาน').fill('emp-002');
+  await page.getByLabel('รหัสผ่าน', { exact: true }).fill('demo');
+  await page.getByLabel(/จำอุปกรณ์นี้ไว้ 24 ชั่วโมง/).check();
+  await page.getByRole('button', { name: 'เข้าสู่ระบบ', exact: true }).click();
   await expect(loginDialog(page)).toHaveCount(0, { timeout: 6000 });
   await page.locator('.sidebar-profile-btn').click();
   await page.getByRole('button', { name: 'ออกจากระบบ' }).click();
   await expect(loginDialog(page)).toBeVisible();
   expect(await page.evaluate(() => window.sessionStorage.getItem('mecha.session'))).toBeNull();
+  expect(await page.evaluate(() => window.localStorage.getItem('mecha.remembered'))).toBeNull();
+  await page.reload();
+  await expect(loginDialog(page)).toBeVisible();
+});
+
+test('login without Remember Device does not create a remembered record', async ({ page }) => {
+  await signIn(page, 'emp-001');
+  await expect(loginDialog(page)).toBeHidden({ timeout: 10000 });
+  expect(await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('mecha.session')))).toEqual({ employeeId: 'emp-001' });
+  expect(await page.evaluate(() => window.localStorage.getItem('mecha.remembered'))).toBeNull();
+  await page.reload();
+  await expect(loginDialog(page)).toHaveCount(0);
+  await expect(page.locator('.sidebar-profile-btn')).toContainText('Kittipat Samran');
+  expect(await page.evaluate(() => JSON.parse(window.sessionStorage.getItem('mecha.session')))).toEqual({ employeeId: 'emp-001' });
+  expect(await page.evaluate(() => window.localStorage.getItem('mecha.remembered'))).toBeNull();
 });
 
 test('cancels animation state safely when Login unmounts mid-transition', async ({ page }) => {

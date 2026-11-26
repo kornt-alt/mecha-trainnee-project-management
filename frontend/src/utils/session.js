@@ -7,6 +7,10 @@ import { useEffect, useState } from 'react';
 
 const KEY = 'mecha.session';
 const EVENT = 'mecha-session-change';
+// เซสชันจำอุปกรณ์ (Remember This Device) เก็บใน localStorage ข้ามการรีเฟรชและปิดเบราว์เซอร์
+// เก็บแค่ employeeId กับเวลาหมดอายุเท่านั้น ห้ามเก็บรหัสผ่านเด็ดขาด
+export const REMEMBERED_KEY = 'mecha.remembered';
+export const REMEMBERED_TTL_MS = 24 * 60 * 60 * 1000; // หมดอายุ absoluta หลัง login 24 ชั่วโมง ไม่ยืดตามกิจกรรม
 
 // sessionStorage ใช้ไม่ได้ในบางโหมด (private / ถูกบล็อก) — พังแล้วต้องไม่ทำให้แอปขาว
 export function getLoginSession() {
@@ -31,6 +35,47 @@ function save(value) {
 export const setLoginSession = (employeeId) => save({ employeeId: String(employeeId) });
 export const continueAsGuest = () => save({ guest: true });
 export const clearLoginSession = () => save(null);
+export const hasAuthenticatedEmployee = (session) => Boolean(session?.employeeId);
+
+// ── เซสชันจำอุปกรณ์ (localStorage, ข้ามการปิดเบราว์เซอร์) ──
+// คืน { employeeId, expiresAt } ถ้ายังไม่หมดอายุ ถ้าไม่มี หรือหมดอายุแล้ว คืน null
+export function getRememberedSession() {
+  try {
+    const raw = window.localStorage.getItem(REMEMBERED_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !parsed.employeeId || !Number.isFinite(parsed.expiresAt)) return null;
+    if (Date.now() >= parsed.expiresAt) return null;
+    return { employeeId: String(parsed.employeeId), expiresAt: parsed.expiresAt };
+  } catch {
+    return null;
+  }
+}
+
+// เก็บเซสชันจำอุปกรณ์หลัง login สำเร็จ หมดอายุ absoluta หลังจาก 24 ชั่วโมง
+export function setRememberedSession(employeeId) {
+  try {
+    window.localStorage.setItem(
+      REMEMBERED_KEY,
+      JSON.stringify({ employeeId: String(employeeId), expiresAt: Date.now() + REMEMBERED_TTL_MS }),
+    );
+  } catch {
+    // เก็บไม่ได้ก็ให้ใช้งานต่อไป แค่รีเฟรชแล้วต้องจำอุปกรณ์ใหม่
+  }
+  window.dispatchEvent(new Event(EVENT));
+}
+
+// ลบเซสชันจำอุปกรณ์ออกจาก localStorage (ใช้เมื่อ logout)
+export function clearRememberedSession() {
+  let hadRecord = false;
+  try {
+    hadRecord = window.localStorage.getItem(REMEMBERED_KEY) !== null;
+    if (hadRecord) window.localStorage.removeItem(REMEMBERED_KEY);
+  } catch {
+    // เก็บไม่ได้ก็ไม่ต้องทำอะไร
+  }
+  if (hadRecord) window.dispatchEvent(new Event(EVENT));
+}
 
 // ค่า session ปัจจุบัน + render ใหม่เมื่อ login / ออกจากระบบ
 export function useLoginSession() {

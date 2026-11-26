@@ -192,6 +192,9 @@ body.login-overlay-open {
 .login-form { display: grid; gap: 16px; }
 .login-field { min-width: 0; display: grid; gap: 6px; }
 .login-field label { font-size: 13px; font-weight: 500; }
+.login-field.login-remember-field { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.login-remember-field input[type="checkbox"] { width: 18px; height: 18px; flex: none; margin: 0; accent-color: var(--login-blue-600); }
+.login-remember-field label { margin: 0; cursor: pointer; }
 .login-input-wrap { position: relative; min-width: 0; }
 
 .login-field input[type="text"],

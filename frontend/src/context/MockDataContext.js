@@ -102,7 +102,7 @@ export function MockDataProvider({ children }) {
   const [taskWorkState, setTaskWorkState] = useState({});
   // ยอดใช้จ่ายรายเดือนต่อโปรเจกต์ — [{ projectId, month: 'YYYY-MM', amount }] (กราฟงบหน้าหลัก + กล่องงบในภาพรวมโปรเจกต์ + หน้ารายงาน)
   const [projectCostsState, setProjectCostsState] = useState(() => MOCK_PROJECT_COST_ITEMS.map((item) => ({ ...item })));
-  const [actorId, setActorState] = useState(CURRENT_USER.employeeId);
+  const [actorId, setActorState] = useState(() => session?.employeeId || CURRENT_USER.employeeId);
   // ผู้ชมสำหรับกฎการเห็น: ผู้เยี่ยมชม (ปิดหน้าต่าง login) หรือยังไม่ login = null → เห็นเฉพาะ public
   const viewerId = session?.employeeId ? actorId : null;
   const stateRef = useRef({ projects: projectsState, tasks: tasksState, deliverables: deliverablesState, labels: labelsState, activity: activityState, notifications: notificationsState, actorId, employees: employeesState, teams: teamsState, viewerId });
